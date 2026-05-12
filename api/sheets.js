@@ -11,10 +11,10 @@ let tokenExpiry = 0;
 async function getAccessToken() {
   if (cachedToken && Date.now() < tokenExpiry) return cachedToken;
 
-  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const key   = (process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '').replace(/\\n/g, '\n');
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_SERVICE_EMAIL;
+  const key   = (process.env.GOOGLE_SERVICE_ACCOUNT_KEY || process.env.GOOGLE_SERVICE_KEY || '').replace(/\\n/g, '\n');
 
-  if (!email || !key) throw new Error('GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_SERVICE_ACCOUNT_KEY must be set in Vercel env vars.');
+  if (!email || !key) throw new Error('Service account email or key not set in Vercel env vars (GOOGLE_SERVICE_ACCOUNT_EMAIL / GOOGLE_SERVICE_ACCOUNT_KEY).');
 
   const now     = Math.floor(Date.now() / 1000);
   const header  = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
@@ -49,9 +49,9 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store, max-age=0, must-revalidate');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const sheetId = process.env.GOOGLE_SHEET_ID;
-  const email   = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const key     = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+  const sheetId = process.env.GOOGLE_SHEET_ID  || process.env.GOOGLE_SHEETS_ID;
+  const email   = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_SERVICE_EMAIL;
+  const key     = process.env.GOOGLE_SERVICE_ACCOUNT_KEY   || process.env.GOOGLE_SERVICE_KEY;
 
   const { range, meta, diag } = req.query;
 
