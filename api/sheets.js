@@ -1,30 +1,77 @@
+import crypto from 'crypto';
+
 const SHEETS_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
+const TOKEN_URL   = 'https://oauth2.googleapis.com/token';
+const SCOPE       = 'https://www.googleapis.com/auth/spreadsheets.readonly';
+
+// Cache the token for the lifetime of a warm function instance
+let cachedToken = null;
+let tokenExpiry = 0;
+
+async function getAccessToken() {
+  if (cachedToken && Date.now() < tokenExpiry) return cachedToken;
+
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const key   = (process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '').replace(/\\n/g, '\n');
+
+  if (!email || !key) throw new Error('GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_SERVICE_ACCOUNT_KEY must be set in Vercel env vars.');
+
+  const now     = Math.floor(Date.now() / 1000);
+  const header  = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify({
+    iss: email, scope: SCOPE,
+    aud: TOKEN_URL,
+    iat: now, exp: now + 3600,
+  })).toString('base64url');
+
+  const signer = crypto.createSign('RSA-SHA256');
+  signer.update(`${header}.${payload}`);
+  const signature = signer.sign(key, 'base64url');
+
+  const jwt = `${header}.${payload}.${signature}`;
+
+  const tokenRes = await fetch(TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`,
+  });
+
+  const tokenData = await tokenRes.json();
+  if (!tokenRes.ok) throw new Error(tokenData.error_description || tokenData.error);
+
+  cachedToken = tokenData.access_token;
+  tokenExpiry = Date.now() + (tokenData.expires_in - 60) * 1000;
+  return cachedToken;
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const apiKey  = process.env.GOOGLE_SHEETS_API_KEY;
   const sheetId = process.env.GOOGLE_SHEET_ID;
-
-  if (!apiKey || !sheetId) {
-    return res.status(500).json({ error: 'GOOGLE_SHEETS_API_KEY and GOOGLE_SHEET_ID must be set in Vercel environment variables.' });
-  }
+  if (!sheetId) return res.status(500).json({ error: 'GOOGLE_SHEET_ID not set in Vercel env vars.' });
 
   const { range, meta } = req.query;
 
-  let url;
-  if (meta) {
-    url = `${SHEETS_BASE}/${sheetId}?fields=sheets.properties&key=${apiKey}`;
-  } else if (range) {
-    url = `${SHEETS_BASE}/${sheetId}/values/${encodeURIComponent(range)}?key=${apiKey}`;
-  } else {
-    return res.status(400).json({ error: 'Provide ?range=Sheet!A1:Z100 or ?meta=1' });
-  }
+  try {
+    const token = await getAccessToken();
+    const headers = { Authorization: `Bearer ${token}` };
 
-  const upstream = await fetch(url);
-  const data = await upstream.json();
-  return res.status(upstream.status).json(data);
+    let url;
+    if (meta) {
+      url = `${SHEETS_BASE}/${sheetId}?fields=sheets.properties`;
+    } else if (range) {
+      url = `${SHEETS_BASE}/${sheetId}/values/${encodeURIComponent(range)}`;
+    } else {
+      return res.status(400).json({ error: 'Provide ?range=Sheet!A1:Z100 or ?meta=1' });
+    }
+
+    const upstream = await fetch(url, { headers });
+    const data = await upstream.json();
+    return res.status(upstream.status).json(data);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
 }
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
