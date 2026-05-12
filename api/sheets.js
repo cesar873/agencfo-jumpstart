@@ -46,6 +46,7 @@ async function getAccessToken() {
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'no-store, max-age=0, must-revalidate');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const sheetId = process.env.GOOGLE_SHEET_ID;
@@ -72,12 +73,4 @@ export default async function handler(req, res) {
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
-}
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 'no-store, max-age=0, must-revalidate');
-
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  
-  // ... rest of your code ...
 }

@@ -30,7 +30,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?")[0]
-        if path in ("/", "/dashboard.html"):
+        if path in ("/", "/index.html", "/dashboard.html"):
             self.serve_dashboard()
         else:
             self.send_error(404)
@@ -40,7 +40,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         api_key  = env.get("GOOGLE_SHEETS_API_KEY", "")
         sheet_id = env.get("GOOGLE_SHEET_ID", "")
 
-        with open("dashboard.html", "rb") as f:
+        with open("index.html", "rb") as f:
             html = f.read().decode("utf-8")
 
         inject = f"""<script>

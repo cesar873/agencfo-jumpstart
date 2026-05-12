@@ -3,1184 +3,2287 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AgenCFO x Jumpstart ROI</title>
+<title>AgenCFO × Jumpstart ROI · Finance Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
-:root {
-  --blue:        #1390eb;
-  --blue-soft:   rgba(19,144,235,0.18);
-  --green:       #22c55e;
-  --green-soft:  rgba(34,197,94,0.18);
-  --red:         #ef4444;
-  --red-soft:    rgba(239,68,68,0.18);
-  --amber:       #f59e0b;
-  --purple:      #c084fc;
-  --yellow:      #fde047;
-  --bg: linear-gradient(180deg, #000000 0%, #001a2e 50%, #003b6f 100%);
-  --card:        rgba(255,255,255,0.04);
-  --card-strong: rgba(255,255,255,0.07);
-  --card-border: rgba(255,255,255,0.08);
-  --text:  #ffffff;
-  --muted: rgba(255,255,255,0.55);
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: 'DM Sans', system-ui, sans-serif;
-  color: var(--text);
-  background: var(--bg);
-  background-attachment: fixed;
-  min-height: 100vh;
-  padding: 0 0 48px;
+/* ── 1.1 DESIGN TOKENS ──────────────────────────────────────────────── */
+:root{
+  --blue:#1390eb; --blue-soft:rgba(19,144,235,0.18);
+  --green:#22c55e; --green-soft:rgba(34,197,94,0.18);
+  --red:#ef4444; --red-soft:rgba(239,68,68,0.18);
+  --amber:#f59e0b; --amber-soft:rgba(245,158,11,0.15);
+  --purple:#c084fc; --yellow:#fde047;
+  --text:#ffffff; --muted:rgba(255,255,255,0.55);
+  --card:rgba(255,255,255,0.04);
+  --card-strong:rgba(255,255,255,0.07);
+  --card-border:rgba(255,255,255,0.08);
+  --border:rgba(255,255,255,0.10);
+  --sticky-bg:rgb(15,36,60);
+  --sticky-bg-strong:rgb(22,47,75);
+  --radius:12px;
 }
 
-/* ── HEADER ── */
-.header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 20px 36px 0;
+/* ── 1.2 BASE ───────────────────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;}
+body{
+  font-family:'DM Sans',system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif;
+  font-size:14px; line-height:1.5;
+  color:var(--text);
+  background:linear-gradient(180deg,#000 0%,#001a2e 50%,#003b6f 100%);
+  background-attachment:fixed;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
 }
-.logo { font-family: 'Anton', sans-serif; font-size: 26px; letter-spacing: 1px; }
-.logo .b { color: var(--blue); }
-.logo .x { color: var(--muted); font-size: 20px; margin: 0 6px; }
-.logo .client { color: var(--text); }
-.last-updated { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }
+table,.tabular-nums{font-variant-numeric:tabular-nums;}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:999px;}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22);}
 
-/* ── NAV ── */
-nav {
-  display: flex; padding: 18px 36px 0;
-  border-bottom: 1px solid var(--card-border);
-  overflow-x: auto;
+/* ── 1.3 TYPOGRAPHY ─────────────────────────────────────────────────── */
+.anton{font-family:'Anton',sans-serif;letter-spacing:1px;text-transform:uppercase;font-weight:400;}
+.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:500;}
+.sub-eyebrow{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:600;}
+
+/* ── 1.5 NAV ────────────────────────────────────────────────────────── */
+header.app-header{
+  position:sticky;top:0;z-index:50;
+  background:rgba(0,0,0,0.30); backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--card-border);
 }
-.tab-btn {
-  background: none; border: none; color: var(--muted);
-  font-family: 'Anton', sans-serif; font-size: 13px;
-  letter-spacing: 1.2px; text-transform: uppercase;
-  padding: 10px 22px 14px;
-  cursor: pointer; border-bottom: 2px solid transparent;
-  transition: color 0.15s, border-color 0.15s;
-  white-space: nowrap;
+.nav-row{
+  max-width:1400px;margin:0 auto;
+  display:flex;align-items:center;
+  padding:18px 36px;
+  gap:16px;
 }
-.tab-btn:hover { color: var(--text); }
-.tab-btn.active { color: var(--text); border-bottom-color: var(--blue); }
-
-/* ── PAGE ── */
-.page { display: none; padding: 28px 36px 0; }
-.page.active { display: block; }
-
-/* ── PANEL ── */
-.panel {
-  background: var(--card);
-  border: 1px solid var(--card-border);
-  border-radius: 12px;
-  padding: 20px;
-  backdrop-filter: blur(12px);
+.brand{
+  font-family:'Anton',sans-serif;
+  font-size:22px;letter-spacing:1px;line-height:1;
+  display:flex;align-items:center;gap:0;white-space:nowrap;
 }
-.panel h2 {
-  font-family: 'Anton', sans-serif;
-  font-size: 18px; text-transform: uppercase; letter-spacing: 1px;
-  margin-bottom: 4px;
+.brand .b1{color:var(--text);}
+.brand .b2{color:var(--blue);}
+.brand .x{color:rgba(255,255,255,.4);margin:0 8px;}
+.brand .b3{color:var(--text);}
+.tabs{
+  margin-left:auto;display:flex;align-items:center;gap:4px;
+  overflow-x:auto;
 }
-.panel .sub { color: var(--muted); font-size: 12px; margin-bottom: 16px; }
-
-/* ── KPI ── */
-.kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
-.kpi {
-  background: var(--card-strong); border: 1px solid var(--card-border);
-  border-radius: 10px; padding: 18px 20px;
+.tabs::-webkit-scrollbar{display:none;}
+.tab-btn{
+  font-family:'Anton',sans-serif;font-size:14px;
+  letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--muted); background:none;border:none;
+  padding:10px 18px; cursor:pointer;
+  position:relative;white-space:nowrap;
+  transition:color .12s;
 }
-.kpi .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
-.kpi .value { font-family: 'Anton', sans-serif; font-size: 30px; letter-spacing: 0.5px; line-height: 1; }
-.kpi .delta { font-size: 12px; margin-top: 5px; color: var(--muted); }
-.delta.up { color: var(--green); }
-.delta.down { color: var(--red); }
-
-/* ── GRID LAYOUTS ── */
-.grid-2  { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.grid-3  { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-.grid-21 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
-.grid-12 { display: grid; grid-template-columns: 1fr 2fr; gap: 16px; }
-.grid-13 { display: grid; grid-template-columns: 1fr 3fr; gap: 16px; }
-.gap { margin-bottom: 16px; }
-
-/* ── CHARTS ── */
-.chart-wrap { position: relative; height: 220px; }
-.chart-wrap.tall  { height: 290px; }
-.chart-wrap.short { height: 170px; }
-
-/* ── TABLES ── */
-.tbl-scroll { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th {
-  font-size: 11px; font-weight: 500; color: var(--muted);
-  text-transform: uppercase; letter-spacing: 0.7px;
-  text-align: left; padding: 7px 12px 7px 0;
-  border-bottom: 1px solid var(--card-border);
-  white-space: nowrap;
-}
-td {
-  padding: 7px 12px 7px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
-  vertical-align: middle;
-  white-space: nowrap;
-}
-tr:hover td { background: rgba(255,255,255,0.02); }
-tr:last-child td { border-bottom: none; }
-.num { font-variant-numeric: tabular-nums; text-align: right; padding-right: 0; }
-.grand-total td { font-weight: 700; border-top: 1px solid var(--blue); background: rgba(19,144,235,0.06); }
-
-/* ── CELL BAR ── */
-.cell-bar { display: inline-flex; align-items: center; gap: 6px; }
-.bar { display: inline-block; height: 5px; border-radius: 3px; flex-shrink: 0; vertical-align: middle; }
-.bar.blue   { background: var(--blue); }
-.bar.green  { background: var(--green); }
-.bar.red    { background: var(--red); }
-.bar.amber  { background: var(--amber); }
-.bar.purple { background: var(--purple); }
-
-/* ── PILLS ── */
-.pill { display: inline-block; font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 100px; letter-spacing: 0.5px; text-transform: uppercase; }
-.pill.active { background: var(--green-soft); color: var(--green); }
-.pill.lost   { background: var(--red-soft); color: var(--red); }
-.pill.warn   { background: rgba(245,158,11,0.18); color: var(--amber); }
-.pill.info   { background: var(--blue-soft); color: var(--blue); }
-
-/* ── DONUTS ── */
-.donut-wrap { position: relative; width: 130px; height: 130px; margin: 0 auto; }
-.donut-label {
-  position: absolute; top: 50%; left: 50%;
-  transform: translate(-50%,-50%); text-align: center;
-}
-.donut-label .dl-val { font-family: 'Anton', sans-serif; font-size: 22px; }
-.donut-label .dl-sub { font-size: 10px; color: var(--muted); letter-spacing: 0.5px; text-transform: uppercase; }
-
-/* ── FILTERS ── */
-.filter-row { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
-.filter-row label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.7px; }
-select {
-  background: var(--card-strong); border: 1px solid var(--card-border);
-  border-radius: 6px; color: var(--text); font-family: 'DM Sans', sans-serif;
-  font-size: 12px; padding: 6px 10px; cursor: pointer; outline: none;
-}
-select:hover { border-color: var(--blue); }
-
-/* ── STAT ROW ── */
-.stat-row { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 16px; }
-.stat-item .sl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; }
-.stat-item .sv { font-family: 'Anton', sans-serif; font-size: 22px; }
-
-/* ── RESPONSIVE ── */
-@media (max-width: 1100px) {
-  .kpi-grid { grid-template-columns: repeat(2,1fr); }
-  .grid-2, .grid-21, .grid-12, .grid-13, .grid-3 { grid-template-columns: 1fr; }
-  .page { padding: 20px 16px 0; }
+.tab-btn:hover{color:rgba(255,255,255,.9);}
+.tab-btn.active{color:var(--blue);}
+.tab-btn.active::after{
+  content:"";position:absolute;left:12px;right:12px;bottom:-2px;height:2px;
+  background:var(--blue);border-radius:1px;
 }
 
+/* ── 1.6 GLOBAL FILTER BAR ──────────────────────────────────────────── */
+.filter-bar{
+  position:sticky;top:57px;z-index:40;
+  background:rgba(0,0,0,0.22);backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--card-border);
+}
+.filter-row{
+  max-width:1400px;margin:0 auto;
+  display:flex;align-items:center;flex-wrap:wrap;gap:10px;
+  padding:10px 36px;
+}
+.filter-label{
+  font-size:10px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.16em;
+  color:var(--muted);
+}
+.chip{
+  display:inline-flex;align-items:center;gap:8px;
+  border:1px solid var(--card-border);
+  background:rgba(255,255,255,0.05);
+  border-radius:10px;padding:6px 11px;
+  font-size:13px;font-weight:500;
+  cursor:pointer; user-select:none;
+  transition:background .12s;
+}
+.chip:hover{background:rgba(255,255,255,0.08);}
+.chip .ce{
+  font-size:10px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.12em;
+  color:var(--muted);
+}
+.chip .cv{color:var(--text);}
+.chip .ca{color:var(--muted);font-size:10px;}
+.last-actuals{
+  margin-left:auto;
+  display:inline-flex;align-items:center;gap:8px;
+  border:1px solid var(--card-border);
+  background:rgba(255,255,255,0.04);
+  border-radius:8px;padding:6px 10px;
+  font-size:11px;color:var(--muted);
+}
+.la-eyebrow{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.45);}
+.la-value{font-weight:600;color:var(--text);}
+.refresh-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  border:1px solid var(--card-border);
+  background:var(--card);
+  color:var(--text); cursor:pointer;
+  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;
+  border-radius:10px;padding:7px 11px;
+  transition:background .12s;
+}
+.refresh-btn:hover{background:var(--card-strong);}
+.refresh-btn.spin svg{animation:spin .8s linear infinite;}
+.refresh-btn .ts{font-size:10px;color:var(--muted);}
 
-/* ── API STATUS BAR ── */
-#apiStatusBar {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 36px; font-size: 12px;
-  border-bottom: 1px solid var(--card-border);
-  background: rgba(0,0,0,0.2);
+/* ── STATUS BAR ─────────────────────────────────────────────────────── */
+.status-bar{
+  max-width:1400px;margin:0 auto;
+  display:flex;align-items:center;gap:10px;
+  padding:7px 36px;font-size:11px;color:var(--muted);
 }
-#apiStatusBar .dot {
-  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.dot.live{background:var(--green);box-shadow:0 0 6px var(--green);}
+.dot.warn{background:var(--amber);}
+.dot.error{background:var(--red);}
+.tab-found-list span{
+  background:var(--card-strong);border:1px solid var(--card-border);
+  border-radius:4px;padding:1px 7px;font-size:10px;margin-left:4px;
 }
-.dot.live  { background: var(--green); box-shadow: 0 0 6px var(--green); }
-.dot.warn  { background: var(--amber); }
-.dot.error { background: var(--red); }
-#apiStatusBar .tabs-found { color: var(--muted); margin-left: 8px; }
-#apiStatusBar .tabs-found span { color: var(--blue); margin: 0 4px; cursor: default; }
 
-/* ── LOADING OVERLAY ── */
-#loadingOverlay {
-  display: none; position: fixed; inset: 0; z-index: 999;
-  background: rgba(0,0,10,0.75); backdrop-filter: blur(4px);
-  align-items: center; justify-content: center; flex-direction: column; gap: 16px;
+/* ── 1.7 PAGE ───────────────────────────────────────────────────────── */
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+.page{max-width:1400px;margin:0 auto;padding:32px 36px 64px;}
+.section{margin-top:32px;}
+.section:first-of-type{margin-top:0;}
+.section.tight{margin-top:24px;}
+
+/* ── 1.4 PAGE HERO ──────────────────────────────────────────────────── */
+.page-hero{margin-bottom:24px;}
+.page-hero .eyebrow{margin-bottom:4px;}
+.page-hero h1{
+  font-family:'Anton',sans-serif;font-weight:400;
+  font-size:42px;letter-spacing:1px;
+  text-transform:uppercase;line-height:1;
+  margin-bottom:8px;
 }
-#loadingOverlay.visible { display: flex; }
-.spinner {
-  width: 36px; height: 36px; border-radius: 50%;
-  border: 3px solid rgba(255,255,255,0.1);
-  border-top-color: var(--blue);
-  animation: spin 0.8s linear infinite;
+@media(min-width:768px){.page-hero h1{font-size:46px;}}
+.page-hero .subline{font-size:12px;color:var(--muted);}
+.page-hero .subline a{color:var(--muted);text-decoration:underline;}
+.page-hero .subline a:hover{color:var(--text);}
+
+/* ── 3.3 WHAT TO DO NEXT ────────────────────────────────────────────── */
+.wtdn{
+  position:relative;overflow:hidden;
+  border:1px solid rgba(19,144,235,0.30);
+  border-radius:var(--radius);
+  padding:18px 22px;margin-bottom:28px;
+  background:linear-gradient(135deg,rgba(19,144,235,0.10),rgba(19,144,235,0.02));
 }
-@keyframes spin { to { transform: rotate(360deg); } }
-#loadingOverlay p { font-size: 13px; color: var(--muted); }
+.wtdn-head{
+  display:flex;align-items:center;gap:12px;margin-bottom:14px;
+}
+.wtdn-chip{
+  font-family:'Anton',sans-serif;
+  font-size:11px;letter-spacing:.18em;
+  color:var(--blue);
+  border:1px solid var(--blue);
+  border-radius:6px; padding:2px 8px;
+  text-transform:uppercase;
+}
+.wtdn-title{
+  font-family:'Anton',sans-serif;font-size:18px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--text);
+}
+.wtdn-list{list-style:none;display:flex;flex-direction:column;gap:10px;}
+.ins{display:flex;align-items:flex-start;gap:12px;}
+.ins-circle{
+  flex-shrink:0;width:20px;height:20px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  margin-top:1px;font-size:11px;font-weight:700;
+}
+.ins.alert .ins-circle{background:rgba(239,68,68,.12);color:var(--red);}
+.ins.warn  .ins-circle{background:rgba(245,158,11,.12);color:var(--amber);}
+.ins.win   .ins-circle{background:rgba(34,197,94,.12);color:var(--green);}
+.ins.info  .ins-circle{background:rgba(19,144,235,.12);color:var(--blue);}
+.ins-text{font-size:13px;line-height:1.55;color:rgba(255,255,255,.9);}
+.ins-text b{font-weight:600;color:var(--text);}
+
+/* ── 1.8 KPI STRIP ──────────────────────────────────────────────────── */
+.kpi-strip{
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:12px;
+}
+@media(max-width:1100px){.kpi-strip{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:700px) {.kpi-strip{grid-template-columns:repeat(2,1fr);}}
+.kpi{
+  border:1px solid var(--card-border);
+  background:var(--card);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  border-radius:var(--radius);
+  padding:14px 16px;
+}
+.kpi-label{
+  font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--muted);margin-bottom:8px;
+}
+.kpi-value{
+  font-family:'Anton',sans-serif;font-weight:400;
+  font-size:26px;letter-spacing:.5px;line-height:1.1;
+  margin-bottom:4px;
+}
+.kpi-value.success{color:var(--green);}
+.kpi-value.warning{color:var(--amber);}
+.kpi-value.danger{color:var(--red);}
+.kpi-delta{
+  display:flex;flex-direction:column;gap:0;
+  font-size:11px;color:var(--muted);
+}
+.kpi-delta .d{display:inline-flex;align-items:center;gap:4px;}
+.kpi-delta .d.up{color:var(--green);}
+.kpi-delta .d.down{color:var(--red);}
+.kpi-delta .d.flat{color:var(--amber);}
+.kpi-delta .ctx{color:rgba(255,255,255,.4);font-size:10px;letter-spacing:.04em;}
+
+/* ── 1.8 CARD / CHART SHELL / TABLE SHELL ───────────────────────────── */
+.shell{
+  border:1px solid var(--card-border);
+  background:var(--card);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  border-radius:16px;
+  padding:20px 22px;
+}
+.shell-head{margin-bottom:14px;display:flex;align-items:baseline;justify-content:space-between;gap:12px;}
+.shell-head h2{font-size:15px;font-weight:600;letter-spacing:.01em;}
+.shell-head .sub{font-size:11px;color:var(--muted);}
+.shell-head .helper{font-size:11px;color:var(--muted);text-align:right;}
+.chart-wrap{position:relative;height:300px;}
+.chart-wrap.tall{height:340px;}
+.chart-wrap.short{height:220px;}
+
+/* ── GRID LAYOUTS ───────────────────────────────────────────────────── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;}
+.grid-21{display:grid;grid-template-columns:2fr 1fr;gap:14px;}
+@media(max-width:1100px){.grid-2,.grid-3,.grid-21{grid-template-columns:1fr;}}
+
+/* ── 2.C TABLES ─────────────────────────────────────────────────────── */
+.table-shell{
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:16px; overflow:hidden;
+  background:var(--card);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+.table-toolbar{
+  display:flex;align-items:center;gap:10px;
+  padding:14px 18px;flex-wrap:wrap;
+  border-bottom:1px solid var(--card-border);
+}
+.table-toolbar h2{font-size:14px;font-weight:600;}
+.table-toolbar .sub{font-size:11px;color:var(--muted);}
+.table-toolbar .right{margin-left:auto;font-size:11px;color:var(--muted);}
+.table-scroll{
+  overflow:auto;max-height:560px;
+  position:relative;
+}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{
+  position:sticky;top:0;z-index:10;
+  background:var(--sticky-bg) !important;
+  font-size:10px;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.05em;
+  font-weight:500;
+  padding:10px 12px;text-align:left;
+  border-bottom:1px solid var(--card-border);
+  white-space:nowrap;
+}
+thead th.num{text-align:right;}
+thead th.fcst{
+  font-style:italic;color:rgba(255,255,255,.45);
+}
+thead th.fcst::after{
+  content:" FCST";font-style:normal;font-size:8px;
+  letter-spacing:.08em; margin-left:4px;
+  color:rgba(255,255,255,.4);
+}
+tbody td{
+  padding:8px 12px;
+  border-top:1px solid rgba(255,255,255,.04);
+  white-space:nowrap;vertical-align:middle;
+  color:var(--text);
+}
+tbody td.num{text-align:right;font-variant-numeric:tabular-nums;}
+tbody tr:hover td{background:rgba(255,255,255,.04);}
+td.fcst{
+  font-style:italic;color:rgba(255,255,255,.88);
+  background-image:repeating-linear-gradient(135deg,rgba(255,255,255,0.04) 0 6px,transparent 6px 12px);
+}
+td.fcst.zero{
+  background-image:repeating-linear-gradient(135deg,rgba(255,255,255,0.025) 0 6px,transparent 6px 12px);
+}
+tfoot td, tr.total td{
+  position:sticky;bottom:0;z-index:10;
+  background:var(--sticky-bg) !important;
+  border-top:1px solid rgba(255,255,255,.18) !important;
+  font-weight:600;
+}
+tr.subtotal td{
+  font-weight:600;
+  background:rgba(255,255,255,.02);
+}
+tr.grand td{
+  font-weight:700;
+  background:rgba(19,144,235,.06) !important;
+  border-top:2px solid var(--blue) !important;
+  color:var(--text);
+}
+td.sticky-left, th.sticky-left{
+  position:sticky;left:0;z-index:11;
+  background:var(--sticky-bg) !important;
+}
+thead th.sticky-left{z-index:20;}
+td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* ── 3.7 BAR-IN-CELL ────────────────────────────────────────────────── */
+.cb{display:flex;align-items:center;gap:8px;justify-content:flex-end;}
+.cb.split{justify-content:flex-start;}
+.cb .v{
+  min-width:54px;text-align:right;
+  font-variant-numeric:tabular-nums;
+}
+.cb .b{
+  height:5px;border-radius:3px;flex-shrink:0;
+  background:var(--blue);
+}
+.cb .bg{
+  position:relative; width:62px; height:5px;
+  background:rgba(255,255,255,.08);border-radius:3px;flex-shrink:0;
+  overflow:hidden;
+}
+.cb .bg > i{
+  position:absolute;left:0;top:0;height:100%;
+  display:block;border-radius:3px;
+}
+.b-blue   {background:var(--blue);}
+.b-green  {background:var(--green);}
+.b-red    {background:var(--red);}
+.b-amber  {background:var(--amber);}
+.b-purple {background:var(--purple);}
+.b-sky    {background:#38bdf8;}
+.b-rose   {background:#fb7185;}
+.b-emerald{background:#34d399;}
+.b-orange {background:#f97316;}
+
+/* MoM-style cell-with-bar — fills cell background */
+.mcell{position:relative;padding:6px 10px;text-align:center;}
+.mcell .bg{
+  position:absolute;left:6px;right:6px;top:3px;bottom:3px;border-radius:3px;
+  background:rgba(34,211,238,0.45);opacity:.18;
+}
+.mcell .v{position:relative;font-variant-numeric:tabular-nums;font-size:11px;}
+.mcell.zero .v{color:rgba(255,255,255,.30);}
+.mcell.fcst{
+  background-image:repeating-linear-gradient(135deg,rgba(255,255,255,0.04) 0 6px,transparent 6px 12px);
+}
+.mcell.fcst.zero{background-image:repeating-linear-gradient(135deg,rgba(255,255,255,0.025) 0 6px,transparent 6px 12px);}
+.mcell.fcst .v{font-style:italic;color:rgba(255,255,255,.85);}
+
+/* ── BADGES / PILLS ─────────────────────────────────────────────────── */
+.badge{
+  display:inline-block;font-size:11px;font-weight:600;
+  padding:2px 8px;border-radius:6px;letter-spacing:.02em;
+}
+.badge.ok   {background:rgba(34,197,94,.15);color:#86efac;}
+.badge.warn {background:rgba(245,158,11,.15);color:#fcd34d;}
+.badge.bad  {background:rgba(239,68,68,.15);color:#fda4af;}
+.badge.info {background:rgba(19,144,235,.15);color:#7dd3fc;}
+.badge.muted{background:rgba(255,255,255,.06);color:rgba(255,255,255,.55);}
+.pill{
+  display:inline-block;font-size:10px;font-weight:600;
+  padding:2px 7px;border-radius:5px;letter-spacing:.04em;
+  text-transform:uppercase;
+}
+.pill.active {background:rgba(34,197,94,.15);color:#86efac;}
+.pill.planned{background:rgba(19,144,235,.15);color:#7dd3fc;}
+.pill.lost   {background:rgba(255,255,255,.06);color:var(--muted);}
+.pill.warn   {background:rgba(245,158,11,.15);color:#fcd34d;}
+.pill.danger {background:rgba(239,68,68,.15);color:#fda4af;}
+
+/* ── PAGE FOOTER ────────────────────────────────────────────────────── */
+.page-footer{
+  margin-top:40px;font-size:10px;color:var(--muted);
+}
+.page-footer a{color:var(--muted);text-decoration:underline;}
+.page-footer a:hover{color:var(--text);}
+
+/* ── LOADING OVERLAY ────────────────────────────────────────────────── */
+#loading{
+  display:none;position:fixed;inset:0;z-index:999;
+  background:rgba(0,0,20,.78);backdrop-filter:blur(6px);
+  align-items:center;justify-content:center;flex-direction:column;gap:14px;
+}
+#loading.visible{display:flex;}
+.spinner{
+  width:32px;height:32px;border-radius:50%;
+  border:3px solid rgba(255,255,255,.1);
+  border-top-color:var(--blue);
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+#loadingMsg{font-size:12px;color:var(--muted);}
+
+/* ── UTILITIES ──────────────────────────────────────────────────────── */
+.row-flex{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.muted{color:var(--muted);}
+.right{text-align:right;}
+.center{text-align:center;}
+.tabular{font-variant-numeric:tabular-nums;}
+.num-cell{font-variant-numeric:tabular-nums;text-align:right;}
+.dim{color:rgba(255,255,255,.35);}
+
+/* ── MOVER CARD ─────────────────────────────────────────────────────── */
+.mover-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:6px 0;border-top:1px solid rgba(255,255,255,.04);
+  font-size:13px;
+}
+.mover-row:first-child{border-top:none;}
+.mover-row .name{color:var(--text);}
+.mover-row .meta{font-size:11px;color:var(--muted);}
+.mover-row .delta{font-variant-numeric:tabular-nums;font-weight:600;}
+.mover-row .delta.up{color:var(--green);}
+.mover-row .delta.down{color:var(--red);}
+
+/* ── SERVICE LINE CARD ──────────────────────────────────────────────── */
+.svc-card{
+  border:1px solid var(--card-border);
+  background:var(--card);
+  border-radius:14px; padding:16px 18px;
+}
+.svc-card h3{font-size:13px;font-weight:600;margin-bottom:10px;}
+.svc-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.svc-stat .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
+.svc-stat .v{font-family:'Anton',sans-serif;font-size:20px;line-height:1.1;margin-top:2px;}
+.svc-stat .v.ok {color:var(--green);}
+.svc-stat .v.bad{color:var(--red);}
+
+/* ── UTILIZATION CELL ───────────────────────────────────────────────── */
+.util-cell{display:flex;align-items:center;gap:8px;justify-content:flex-end;}
+.util-cell .val{min-width:42px;text-align:right;font-variant-numeric:tabular-nums;}
+.util-cell .bar{
+  position:relative;width:60px;height:6px;
+  background:rgba(255,255,255,.08);border-radius:3px;overflow:visible;
+}
+.util-cell .bar > i{
+  position:absolute;left:0;top:0;bottom:0;border-radius:3px;
+}
+.util-cell .bar > .tick{
+  position:absolute;top:-2px;width:1px;height:10px;
+  background:rgba(255,255,255,.7);
+}
+
 </style>
 </head>
 <body>
 
-<!-- LOADING OVERLAY -->
-<div id="loadingOverlay">
+<!-- LOADING -->
+<div id="loading">
   <div class="spinner"></div>
   <p id="loadingMsg">Connecting to Google Sheets…</p>
 </div>
 
-<!-- HEADER -->
-<div class="header">
-  <div class="logo">
-    <span>AGEN</span><span class="b">CFO</span>
-    <span class="x">×</span>
-    <span class="client">JUMPSTART ROI</span>
+<!-- HEADER + NAV (sticky) -->
+<header class="app-header">
+  <div class="nav-row">
+    <div class="brand">
+      <span class="b1">AGEN</span><span class="b2">CFO</span>
+      <span class="x">×</span>
+      <span class="b3">JUMPSTART ROI</span>
+    </div>
+    <div class="tabs" id="tabs">
+      <button class="tab-btn active" data-tab="financials" onclick="showTab(this)">Financials</button>
+      <button class="tab-btn" data-tab="revenue"    onclick="showTab(this)">Revenue</button>
+      <button class="tab-btn" data-tab="expenses"   onclick="showTab(this)">Expenses</button>
+      <button class="tab-btn" data-tab="analytics"  onclick="showTab(this)">Analytics</button>
+      <button class="tab-btn" data-tab="clients"    onclick="showTab(this)">Clients</button>
+      <button class="tab-btn" data-tab="people"     onclick="showTab(this)">People</button>
+    </div>
   </div>
-  <div id="lastUpdated" class="last-updated">Data last updated: May 5, 2026 · Apr 2026 Forecast</div>
+</header>
+
+<!-- GLOBAL FILTER BAR -->
+<div class="filter-bar">
+  <div class="filter-row">
+    <span class="filter-label">Filters</span>
+
+    <div class="chip" id="periodChip" onclick="cyclePeriod()" title="Click to cycle through months">
+      <span class="ce">Period</span>
+      <span class="cv" id="periodVal">Apr 2026</span>
+      <span class="ca">▾</span>
+    </div>
+
+    <div class="chip" id="rangeChip" title="Range bound to the global window">
+      <span class="ce">Range</span>
+      <span class="cv" id="rangeVal">Oct '25 → Apr '26</span>
+      <span class="ca">▾</span>
+    </div>
+
+    <div class="last-actuals">
+      <span class="la-eyebrow">Last actuals</span>
+      <span class="la-value" id="lastActualVal">Mar 2026</span>
+    </div>
+
+    <button class="refresh-btn" id="refreshBtn" onclick="manualRefresh()" title="Force a fresh read from Google Sheets">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+      <span id="refreshLabel">Refresh</span>
+      <span class="ts" id="refreshTs"></span>
+    </button>
+  </div>
+  <div class="status-bar">
+    <div class="dot warn" id="apiDot"></div>
+    <span id="apiStatusMsg">Connecting…</span>
+    <span class="tab-found-list" id="tabsFound"></span>
+  </div>
 </div>
 
-<!-- API STATUS BAR -->
-<div id="apiStatusBar">
-  <div class="dot warn" id="apiDot"></div>
-  <span id="apiStatusMsg">Checking connection…</span>
-  <span class="tabs-found" id="tabsFound"></span>
-</div>
 
-<nav>
-  <button class="tab-btn active" data-tab="executive"  onclick="showTab(this)">Executive</button>
-  <button class="tab-btn"        data-tab="financials" onclick="showTab(this)">Financials</button>
-  <button class="tab-btn"        data-tab="revenue"    onclick="showTab(this)">Revenue</button>
-  <button class="tab-btn"        data-tab="expenses"   onclick="showTab(this)">Expenses</button>
-  <button class="tab-btn"        data-tab="clients"    onclick="showTab(this)">Clients</button>
-  <button class="tab-btn"        data-tab="people"     onclick="showTab(this)">People</button>
-</nav>
+<!-- ═══════════════════════════════════════════════════════════════════
+     TAB 1 · FINANCIALS
+═══════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel active" id="tab-financials"><div class="page">
 
-<!-- ═══════════════════════════════════════════ EXECUTIVE ═══ -->
-<div id="executive" class="page active">
-  <div class="kpi-grid gap">
-    <div class="kpi">
-      <div class="label">Total Revenue (TTM)</div>
-      <div class="value">$2.64M</div>
-      <div class="delta up">▲ +22% vs prior 12 months</div>
-    </div>
-    <div class="kpi">
-      <div class="label">Operating Income (TTM)</div>
-      <div class="value">$944K</div>
-      <div class="delta up">▲ Avg 42% op. margin</div>
-    </div>
-    <div class="kpi">
-      <div class="label">Active Clients</div>
-      <div class="value">186</div>
-      <div class="delta up">▲ +17 vs Mar 2026</div>
-    </div>
-    <div class="kpi">
-      <div class="label">Gross Margin (Mar 2026)</div>
-      <div class="value">54.1%</div>
-      <div class="delta up">▲ +6.6pp vs Feb</div>
-    </div>
+  <div class="page-hero">
+    <p class="eyebrow">Financial overview</p>
+    <h1>Financials</h1>
+    <p class="subline" id="finSubline">April 2026 · live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Finance Model</p>
   </div>
 
-  <div class="grid-21 gap">
-    <div class="panel">
-      <h2>Revenue &amp; Operating Income</h2>
-      <p class="sub">Monthly trend — Jan 2025 to Mar 2026</p>
-      <div class="chart-wrap tall"><canvas id="execRevenueChart"></canvas></div>
+  <div class="wtdn">
+    <div class="wtdn-head">
+      <span class="wtdn-chip">Insights</span>
+      <span class="wtdn-title" id="finWtdnTitle">What to do next · April 2026</span>
     </div>
-    <div class="panel">
-      <h2>Gross &amp; Operating Margin</h2>
-      <p class="sub">Monthly % — labels shown at each point</p>
-      <div class="chart-wrap tall"><canvas id="execMarginChart"></canvas></div>
-    </div>
+    <ul class="wtdn-list">
+      <li class="ins warn"><div class="ins-circle">!</div><div class="ins-text"><b>Operating margin compressed -1.2pp</b> to 22.2% in April — OpEx grew 4.2% while revenue gained only 3.5%. Hold OpEx flat through May to recover.</div></li>
+      <li class="ins win"><div class="ins-circle">✓</div><div class="ins-text"><b>Revenue forecast +3.5% MoM</b> to $119K — sixth consecutive month of growth. Trailing-6 revenue up 23.9%.</div></li>
+      <li class="ins win"><div class="ins-circle">✓</div><div class="ins-text"><b>Gross margin holding at 54.6%</b> — within the 50-55% corridor. COGS scaling proportionally with revenue.</div></li>
+      <li class="ins info"><div class="ins-circle">i</div><div class="ins-text"><b>Net profit forecast $26.5K</b> (22.3% net margin) — strongest absolute month on record if delivered.</div></li>
+    </ul>
   </div>
 
-  <div class="grid-3 gap">
-    <div class="panel">
-      <h2>Client Movement</h2>
-      <p class="sub">Signed vs lost — last 6 months</p>
-      <div class="chart-wrap short"><canvas id="execChurnChart"></canvas></div>
-    </div>
-    <div class="panel">
-      <h2>Team Size</h2>
-      <p class="sub">Headcount over time</p>
-      <div class="chart-wrap short"><canvas id="execTeamChart"></canvas></div>
-    </div>
-    <div class="panel">
-      <h2>Revenue / Employee</h2>
-      <p class="sub">Monthly revenue per team member</p>
-      <div class="chart-wrap short"><canvas id="execRPEChart"></canvas></div>
-    </div>
-  </div>
-
-  <div class="grid-2 gap">
-    <div class="panel">
-      <h2>Key Metrics — Monthly Summary</h2>
-      <p class="sub">Last 6 months actuals + Apr 2026 forecast</p>
-      <div class="tbl-scroll">
-        <table>
-          <thead><tr>
-            <th>Month</th><th class="num">Revenue</th><th class="num">Gross Margin</th>
-            <th class="num">Op. Margin</th><th class="num">Clients</th><th class="num">Churn</th>
-          </tr></thead>
-          <tbody>
-            <tr><td>Oct 2025</td><td class="num">$218,611</td><td class="num">56.1%</td><td class="num">37.7%</td><td class="num">153</td><td class="num">1.7%</td></tr>
-            <tr><td>Nov 2025</td><td class="num">$209,851</td><td class="num">60.0%</td><td class="num">39.9%</td><td class="num">150</td><td class="num">3.3%</td></tr>
-            <tr><td>Dec 2025</td><td class="num">$250,533</td><td class="num">52.1%</td><td class="num">32.2%</td><td class="num">151</td><td class="num">2.4%</td></tr>
-            <tr><td>Jan 2026</td><td class="num">$219,509</td><td class="num">58.8%</td><td class="num">39.4%</td><td class="num">169</td><td class="num">17.6%</td></tr>
-            <tr><td>Feb 2026</td><td class="num">$242,281</td><td class="num">47.6%</td><td class="num">29.1%</td><td class="num">188</td><td class="num">12.6%</td></tr>
-            <tr><td>Mar 2026</td><td class="num">$270,079</td><td class="num">54.1%</td><td class="num">39.3%</td><td class="num">185</td><td class="num">20.9%</td></tr>
-            <tr class="grand-total"><td>Apr 2026 (F)</td><td class="num">$259,318</td><td class="num">54.7%</td><td class="num">43.5%</td><td class="num">186</td><td class="num">14.8%</td></tr>
-          </tbody>
-        </table>
+  <section class="section tight">
+    <div class="kpi-strip">
+      <div class="kpi">
+        <div class="kpi-label">Revenue</div>
+        <div class="kpi-value" id="kRev">—</div>
+        <div class="kpi-delta"><span class="d" id="kRevD">—</span><span class="ctx" id="kRevCtx">—</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Operating Profit</div>
+        <div class="kpi-value" id="kOp">—</div>
+        <div class="kpi-delta"><span class="d" id="kOpD">—</span><span class="ctx" id="kOpCtx">—</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Gross Margin</div>
+        <div class="kpi-value" id="kGm">—</div>
+        <div class="kpi-delta"><span class="d" id="kGmD">—</span><span class="ctx" id="kGmCtx">—</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Operating Margin</div>
+        <div class="kpi-value" id="kOm">—</div>
+        <div class="kpi-delta"><span class="d" id="kOmD">—</span><span class="ctx" id="kOmCtx">—</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Net Profit</div>
+        <div class="kpi-value" id="kNet">—</div>
+        <div class="kpi-delta"><span class="d" id="kNetD">—</span><span class="ctx" id="kNetCtx">—</span></div>
       </div>
     </div>
-    <div class="panel">
-      <h2>Revenue Mix (TTM)</h2>
-      <p class="sub">Share by service line</p>
-      <div class="chart-wrap"><canvas id="execServiceChart"></canvas></div>
-    </div>
-  </div>
-</div>
+  </section>
 
-<!-- ═══════════════════════════════════════════ FINANCIALS ═══ -->
-<div id="financials" class="page">
-  <div class="grid-21 gap">
-    <div class="panel">
-      <h2>Margins by Month</h2>
-      <p class="sub">Gross margin vs operating margin — Jan 2025 to Mar 2026</p>
+  <section class="section">
+    <div class="shell">
+      <div class="shell-head">
+        <div>
+          <h2>Revenue &amp; Operating Profit</h2>
+          <div class="sub">Monthly trend · same axis — visual gap shows how much profit lags revenue · forecast included</div>
+        </div>
+      </div>
+      <div class="chart-wrap tall"><canvas id="finRevOpChart"></canvas></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="shell">
+      <div class="shell-head">
+        <div>
+          <h2>Gross &amp; Operating Margin</h2>
+          <div class="sub">Two-line margin trend</div>
+        </div>
+      </div>
       <div class="chart-wrap tall"><canvas id="finMarginChart"></canvas></div>
     </div>
-    <div class="panel">
-      <h2>Mar 2026 — P&amp;L Summary</h2>
-      <p class="sub">Actuals</p>
-      <div style="margin-top:12px">
-        <div class="stat-row"><div class="stat-item"><div class="sl">Revenue</div><div class="sv" style="color:var(--blue)">$270,079</div></div><div class="stat-item"><div class="sl">COGS</div><div class="sv" style="color:var(--red)">-$123,917</div></div></div>
-        <div class="stat-row"><div class="stat-item"><div class="sl">Gross Profit</div><div class="sv" style="color:var(--green)">$146,162</div></div><div class="stat-item"><div class="sl">Gross Margin</div><div class="sv">54.1%</div></div></div>
-        <div class="stat-row"><div class="stat-item"><div class="sl">Op. Expenses</div><div class="sv" style="color:var(--red)">-$39,960</div></div><div class="stat-item"><div class="sl">Op. Income</div><div class="sv" style="color:var(--green)">$106,202</div></div></div>
-        <div class="stat-row"><div class="stat-item"><div class="sl">Net Income</div><div class="sv" style="color:var(--green)">$79,290</div></div><div class="stat-item"><div class="sl">Net Margin</div><div class="sv">29.4%</div></div></div>
-      </div>
-    </div>
-  </div>
+  </section>
 
-  <div class="panel gap">
-    <h2>P&amp;L by Month</h2>
-    <p class="sub">Jan 2025 → Mar 2026 actuals</p>
-    <div class="tbl-scroll">
-      <table>
-        <thead><tr>
-          <th>Line</th>
-          <th class="num">Jan 25</th><th class="num">Feb 25</th><th class="num">Mar 25</th>
-          <th class="num">Apr 25</th><th class="num">May 25</th><th class="num">Jun 25</th>
-          <th class="num">Jul 25</th><th class="num">Aug 25</th><th class="num">Sep 25</th>
-          <th class="num">Oct 25</th><th class="num">Nov 25</th><th class="num">Dec 25</th>
-          <th class="num">Jan 26</th><th class="num">Feb 26</th><th class="num">Mar 26</th>
-        </tr></thead>
-        <tbody>
-          <tr><td><strong>Revenue</strong></td><td class="num">$132,814</td><td class="num">$141,949</td><td class="num">$141,349</td><td class="num">$147,173</td><td class="num">$150,038</td><td class="num">$155,380</td><td class="num">$188,979</td><td class="num">$207,895</td><td class="num">$212,186</td><td class="num">$218,611</td><td class="num">$209,851</td><td class="num">$250,533</td><td class="num">$219,509</td><td class="num">$242,281</td><td class="num">$270,079</td></tr>
-          <tr><td>COGS</td><td class="num">-$62,541</td><td class="num">-$60,023</td><td class="num">-$63,429</td><td class="num">-$58,936</td><td class="num">-$62,139</td><td class="num">-$62,328</td><td class="num">-$76,781</td><td class="num">-$95,630</td><td class="num">-$94,201</td><td class="num">-$96,072</td><td class="num">-$83,888</td><td class="num">-$120,114</td><td class="num">-$90,506</td><td class="num">-$127,066</td><td class="num">-$123,918</td></tr>
-          <tr style="background:rgba(34,197,94,0.04)"><td><strong>Gross Profit</strong></td><td class="num">$70,273</td><td class="num">$81,926</td><td class="num">$77,920</td><td class="num">$88,237</td><td class="num">$87,899</td><td class="num">$93,052</td><td class="num">$112,198</td><td class="num">$112,266</td><td class="num">$117,985</td><td class="num">$122,539</td><td class="num">$125,963</td><td class="num">$130,419</td><td class="num">$129,003</td><td class="num">$115,214</td><td class="num">$146,162</td></tr>
-          <tr><td>Gross Margin</td><td class="num">52.9%</td><td class="num">57.7%</td><td class="num">55.1%</td><td class="num">60.0%</td><td class="num">58.6%</td><td class="num">59.9%</td><td class="num">59.4%</td><td class="num">54.0%</td><td class="num">55.6%</td><td class="num">56.1%</td><td class="num">60.0%</td><td class="num">52.1%</td><td class="num">58.8%</td><td class="num">47.6%</td><td class="num">54.1%</td></tr>
-          <tr><td>OpEx</td><td class="num">-$17,886</td><td class="num">-$18,281</td><td class="num">-$16,367</td><td class="num">-$17,013</td><td class="num">-$16,688</td><td class="num">-$24,058</td><td class="num">-$22,413</td><td class="num">-$32,834</td><td class="num">-$30,751</td><td class="num">-$40,124</td><td class="num">-$42,217</td><td class="num">-$49,666</td><td class="num">-$42,545</td><td class="num">-$44,724</td><td class="num">-$39,960</td></tr>
-          <tr class="grand-total"><td>Operating Income</td><td class="num">$52,386</td><td class="num">$63,645</td><td class="num">$61,553</td><td class="num">$71,224</td><td class="num">$71,211</td><td class="num">$68,995</td><td class="num">$89,785</td><td class="num">$79,432</td><td class="num">$87,235</td><td class="num">$82,415</td><td class="num">$83,747</td><td class="num">$80,753</td><td class="num">$86,459</td><td class="num">$70,490</td><td class="num">$106,202</td></tr>
-          <tr><td>Net Income</td><td class="num">$52,386</td><td class="num">$45,028</td><td class="num">$25,170</td><td class="num">$46,461</td><td class="num">$71,211</td><td class="num">$29,591</td><td class="num">$74,287</td><td class="num">$66,077</td><td class="num">$87,235</td><td class="num">$36,939</td><td class="num">$48,229</td><td class="num" style="color:var(--red)">-$7,150</td><td class="num">$57,635</td><td class="num">$35,972</td><td class="num">$79,290</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="grid-2 gap">
-    <div class="panel">
-      <h2>COGS Breakdown</h2>
-      <p class="sub">Cost of sales components — cumulative YTD</p>
-      <div class="chart-wrap"><canvas id="finCOGSChart"></canvas></div>
-    </div>
-    <div class="panel">
-      <h2>Mar 2026 — Waterfall</h2>
-      <p class="sub">From revenue to net income</p>
-      <div class="chart-wrap"><canvas id="finWaterfallChart"></canvas></div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════════════ REVENUE ═══ -->
-<div id="revenue" class="page">
-  <div class="grid-13 gap">
-    <div class="panel" style="display:flex;flex-direction:column;gap:16px">
-      <div>
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px">Total Revenue (TTM)</div>
-        <div style="font-family:'Anton',sans-serif;font-size:38px;color:var(--blue)">$2.64M</div>
-      </div>
-      <div>
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Meta Ads Mgmt</div>
-        <div style="font-family:'Anton',sans-serif;font-size:24px">$1.42M</div>
-      </div>
-      <div>
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Google Ads Mgmt</div>
-        <div style="font-family:'Anton',sans-serif;font-size:24px">$901K</div>
-      </div>
-      <div>
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Stripe Sales</div>
-        <div style="font-family:'Anton',sans-serif;font-size:24px">$124K</div>
-      </div>
-      <div>
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Projects &amp; Other</div>
-        <div style="font-family:'Anton',sans-serif;font-size:24px">$194K</div>
-      </div>
-    </div>
-    <div class="panel">
-      <div class="filter-row">
-        <label>Service:</label>
-        <select id="revServiceFilter" onchange="filterRevChart()">
-          <option value="all">All Services</option>
-          <option value="Meta Ads">Meta Ads</option>
-          <option value="Google Ads">Google Ads</option>
-          <option value="Stripe Sales">Stripe Sales</option>
-          <option value="LinkedIn Ads">LinkedIn Ads</option>
-          <option value="TikTok Ads">TikTok Ads</option>
-          <option value="Bing Ads">Bing Ads</option>
-          <option value="SEO">SEO</option>
-          <option value="Web Design">Web Design</option>
-          <option value="GoHighLevel">GoHighLevel</option>
-          <option value="Consulting">Consulting</option>
-          <option value="Cold Email">Cold Email</option>
-          <option value="SW Affiliates">SW Affiliates</option>
-        </select>
-      </div>
-      <h2>Revenue by Month</h2>
-      <div class="chart-wrap tall"><canvas id="revMonthlyChart"></canvas></div>
-    </div>
-  </div>
-
-  <div class="panel gap">
-    <h2>Revenue by Service Line — Monthly Detail</h2>
-    <p class="sub">All service lines — Jan 2025 to Mar 2026 actuals</p>
-    <div class="tbl-scroll">
-      <table>
-        <thead><tr>
-          <th>Service</th>
-          <th class="num">Jan 25</th><th class="num">Feb 25</th><th class="num">Mar 25</th>
-          <th class="num">Apr 25</th><th class="num">May 25</th><th class="num">Jun 25</th>
-          <th class="num">Jul 25</th><th class="num">Aug 25</th><th class="num">Sep 25</th>
-          <th class="num">Oct 25</th><th class="num">Nov 25</th><th class="num">Dec 25</th>
-          <th class="num">Jan 26</th><th class="num">Feb 26</th><th class="num">Mar 26</th>
-          <th class="num">TTM Total</th>
-        </tr></thead>
-        <tbody>
-          <tr><td>Meta Ads Mgmt</td><td class="num">$77,855</td><td class="num">$80,003</td><td class="num">$82,212</td><td class="num">$83,082</td><td class="num">$89,596</td><td class="num">$94,397</td><td class="num">$117,117</td><td class="num">$129,810</td><td class="num">$129,166</td><td class="num">$124,822</td><td class="num">$118,906</td><td class="num">$148,453</td><td class="num">$136,462</td><td class="num">$137,728</td><td class="num">$114,928</td><td class="num"><div class="cell-bar"><span>$1.42M</span>&nbsp;<span class="bar blue" style="width:70px"></span></div></td></tr>
-          <tr><td>Google Ads Mgmt</td><td class="num">$40,758</td><td class="num">$44,583</td><td class="num">$44,033</td><td class="num">$46,439</td><td class="num">$44,158</td><td class="num">$53,482</td><td class="num">$54,996</td><td class="num">$64,362</td><td class="num">$68,644</td><td class="num">$77,154</td><td class="num">$76,829</td><td class="num">$93,574</td><td class="num">$73,087</td><td class="num">$81,187</td><td class="num">$57,156</td><td class="num"><div class="cell-bar"><span>$901K</span>&nbsp;<span class="bar blue" style="width:45px"></span></div></td></tr>
-          <tr><td>Stripe Sales</td><td class="num">$0</td><td class="num">$0</td><td class="num">$0</td><td class="num">$0</td><td class="num">$0</td><td class="num">$0</td><td class="num">$0</td><td class="num">$0</td><td class="num">$0</td><td class="num">$0</td><td class="num">$0</td><td class="num">$0</td><td class="num">$0</td><td class="num">$0</td><td class="num">$70,896</td><td class="num"><div class="cell-bar"><span>$124K</span>&nbsp;<span class="bar green" style="width:6px"></span></div></td></tr>
-          <tr><td>LinkedIn Ads</td><td class="num">$6,000</td><td class="num">$6,000</td><td class="num">$3,500</td><td class="num">$4,750</td><td class="num">$2,750</td><td class="num">$4,000</td><td class="num">$5,063</td><td class="num">$5,479</td><td class="num">$8,979</td><td class="num">$4,979</td><td class="num">$4,229</td><td class="num">$4,729</td><td class="num">$4,229</td><td class="num">$5,229</td><td class="num">$4,229</td><td class="num"><div class="cell-bar"><span>$74K</span>&nbsp;<span class="bar purple" style="width:4px"></span></div></td></tr>
-          <tr><td>TikTok Ads</td><td class="num">$1,350</td><td class="num">$750</td><td class="num">$0</td><td class="num">$0</td><td class="num">$0</td><td class="num">$0</td><td class="num">$0</td><td class="num">$500</td><td class="num">$500</td><td class="num">$500</td><td class="num">$1,500</td><td class="num">$1,500</td><td class="num">$1,500</td><td class="num">$1,500</td><td class="num">$3,000</td><td class="num"><div class="cell-bar"><span>$14K</span>&nbsp;<span class="bar amber" style="width:1px"></span></div></td></tr>
-          <tr><td>Bing Ads</td><td class="num">$2,850</td><td class="num">$4,350</td><td class="num">$4,350</td><td class="num">$4,350</td><td class="num">$3,600</td><td class="num">-$2,250</td><td class="num">$0</td><td class="num">$0</td><td class="num">$0</td><td class="num">$1,000</td><td class="num">$1,000</td><td class="num">$0</td><td class="num">$750</td><td class="num">$1,750</td><td class="num">$750</td><td class="num"><div class="cell-bar"><span>$22K</span>&nbsp;<span class="bar amber" style="width:1px"></span></div></td></tr>
-          <tr><td>SEO Services</td><td class="num">$0</td><td class="num">$0</td><td class="num">$750</td><td class="num">$1,150</td><td class="num">$2,250</td><td class="num">$2,650</td><td class="num">$2,400</td><td class="num">$2,000</td><td class="num">$1,600</td><td class="num">$1,800</td><td class="num">$1,400</td><td class="num">$2,200</td><td class="num">$1,400</td><td class="num">$1,400</td><td class="num">$1,800</td><td class="num"><div class="cell-bar"><span>$23K</span>&nbsp;<span class="bar purple" style="width:1px"></span></div></td></tr>
-          <tr><td>Web Design</td><td class="num">$0</td><td class="num">$0</td><td class="num">$1,000</td><td class="num">$0</td><td class="num">$575</td><td class="num">$200</td><td class="num">$750</td><td class="num">$200</td><td class="num">$1,100</td><td class="num">$3,300</td><td class="num">$700</td><td class="num">$2,300</td><td class="num">$2,050</td><td class="num">$4,100</td><td class="num">$5,100</td><td class="num"><div class="cell-bar"><span>$21K</span>&nbsp;<span class="bar green" style="width:1px"></span></div></td></tr>
-          <tr><td>GoHighLevel</td><td class="num">$1,200</td><td class="num">$1,600</td><td class="num">$2,200</td><td class="num">$1,300</td><td class="num">$2,300</td><td class="num">$1,300</td><td class="num">$1,300</td><td class="num">$300</td><td class="num">$300</td><td class="num">$300</td><td class="num">$1,650</td><td class="num">$450</td><td class="num">$1,600</td><td class="num">$2,750</td><td class="num">$900</td><td class="num"><div class="cell-bar"><span>$19K</span>&nbsp;<span class="bar amber" style="width:1px"></span></div></td></tr>
-          <tr><td>Consulting &amp; Escrow</td><td class="num">$1,180</td><td class="num">$3,480</td><td class="num">$1,980</td><td class="num">$3,827</td><td class="num">$3,136</td><td class="num">$680</td><td class="num">$1,480</td><td class="num">$1,278</td><td class="num">$510</td><td class="num">$2,593</td><td class="num">$3,733</td><td class="num">$2,135</td><td class="num">$3,105</td><td class="num">$5,047</td><td class="num">$8,908</td><td class="num"><div class="cell-bar"><span>$43K</span>&nbsp;<span class="bar green" style="width:2px"></span></div></td></tr>
-          <tr><td>Cold Email</td><td class="num">$500</td><td class="num">$500</td><td class="num">$500</td><td class="num">$500</td><td class="num">$500</td><td class="num">$500</td><td class="num">$500</td><td class="num">$500</td><td class="num">$500</td><td class="num">$500</td><td class="num">$500</td><td class="num">$500</td><td class="num">$500</td><td class="num">$500</td><td class="num">$500</td><td class="num"><div class="cell-bar"><span>$8K</span>&nbsp;<span class="bar amber" style="width:0px"></span></div></td></tr>
-          <tr><td>SW Affiliates</td><td class="num">$1,121</td><td class="num">$563</td><td class="num">$824</td><td class="num">$1,500</td><td class="num">$623</td><td class="num">$421</td><td class="num">$1,779</td><td class="num">$3,466</td><td class="num">$214</td><td class="num">$278</td><td class="num">$346</td><td class="num">$183</td><td class="num">$142</td><td class="num">$931</td><td class="num">$66</td><td class="num"><div class="cell-bar"><span>$12K</span>&nbsp;<span class="bar amber" style="width:1px"></span></div></td></tr>
-          <tr class="grand-total"><td><strong>Total Revenue</strong></td><td class="num">$132,814</td><td class="num">$141,949</td><td class="num">$141,349</td><td class="num">$147,173</td><td class="num">$150,038</td><td class="num">$155,380</td><td class="num">$188,979</td><td class="num">$207,895</td><td class="num">$212,186</td><td class="num">$218,611</td><td class="num">$209,851</td><td class="num">$250,533</td><td class="num">$219,509</td><td class="num">$242,281</td><td class="num">$270,079</td><td class="num"><div class="cell-bar"><span>$2.64M</span>&nbsp;<span class="bar blue" style="width:70px"></span></div></td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="grid-2 gap">
-    <div class="panel">
-      <h2>Open Invoices</h2>
-      <p class="sub">Accounts receivable aging — $36,040 outstanding</p>
-      <div style="display:flex;align-items:flex-start;gap:24px;margin-top:8px">
+  <section class="section">
+    <div class="table-shell">
+      <div class="table-toolbar">
         <div>
-          <div class="donut-wrap" style="width:110px;height:110px">
-            <canvas id="arDonut"></canvas>
-            <div class="donut-label"><div class="dl-val" style="font-size:18px">$36k</div><div class="dl-sub">AR</div></div>
-          </div>
-          <div style="display:flex;gap:12px;justify-content:center;margin-top:10px;font-size:11px;color:var(--muted)">
-            <span style="color:var(--blue)">● Unpaid</span>
-            <span style="color:var(--green)">● Write Off</span>
-          </div>
+          <h2>P&amp;L by month</h2>
+          <div class="sub">Six-month actuals + April 2026 forecast · cells crosshatched + italic where forecast</div>
         </div>
-        <div class="tbl-scroll" style="flex:1">
-          <table>
-            <thead><tr><th>Customer</th><th class="num">Days Overdue</th><th class="num">Amount</th></tr></thead>
-            <tbody>
-              <tr><td>Flow Neuroscience</td><td class="num">89</td><td class="num"><div class="cell-bar"><span>$1,200</span>&nbsp;<span class="bar red" style="width:5px"></span></div></td></tr>
-              <tr><td>Madhappy</td><td class="num">56</td><td class="num"><div class="cell-bar"><span>$2,000</span>&nbsp;<span class="bar amber" style="width:9px"></span></div></td></tr>
-              <tr><td>Travel + Leisure</td><td class="num">55</td><td class="num"><div class="cell-bar"><span>$6,400</span>&nbsp;<span class="bar red" style="width:28px"></span></div></td></tr>
-              <tr><td>Peppertux</td><td class="num">54</td><td class="num"><div class="cell-bar"><span>$3,200</span>&nbsp;<span class="bar amber" style="width:14px"></span></div></td></tr>
-              <tr><td>Flow Neuroscience</td><td class="num">42</td><td class="num"><div class="cell-bar"><span>$800</span>&nbsp;<span class="bar amber" style="width:4px"></span></div></td></tr>
-              <tr><td>COMERCIAL BM</td><td class="num">24</td><td class="num"><div class="cell-bar"><span>$2,560</span>&nbsp;<span class="bar blue" style="width:11px"></span></div></td></tr>
-              <tr><td>Kava Haven</td><td class="num">5</td><td class="num"><div class="cell-bar"><span>$1,500</span>&nbsp;<span class="bar blue" style="width:7px"></span></div></td></tr>
-              <tr class="grand-total"><td colspan="2">Grand Total</td><td class="num">$36,040</td></tr>
-            </tbody>
-          </table>
-        </div>
+        <div class="right">7 months · grand total <span class="tabular" id="plGrandTotal">$636K</span></div>
       </div>
-    </div>
-    <div class="panel">
-      <h2>Revenue Mix by Service</h2>
-      <p class="sub">TTM share — all service lines</p>
-      <div class="chart-wrap"><canvas id="revMixChart"></canvas></div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════════════ EXPENSES ═══ -->
-<div id="expenses" class="page">
-  <div class="kpi-grid gap">
-    <div class="kpi"><div class="label">Total Expenses (TTM)</div><div class="value">$1.70M</div><div class="delta down">▼ Incl. COGS + payroll</div></div>
-    <div class="kpi"><div class="label">COGS (TTM)</div><div class="value">$1.11M</div><div class="delta">65% of total expenses</div></div>
-    <div class="kpi"><div class="label">OpEx (TTM)</div><div class="value">$396K</div><div class="delta">Avg $26.4k / month</div></div>
-    <div class="kpi"><div class="label">Stripe Fees (TTM)</div><div class="value">$112K</div><div class="delta down">▼ 4.3% of revenue</div></div>
-  </div>
-
-  <div class="grid-21 gap">
-    <div class="panel">
-      <h2>Total Expenses by Month</h2>
-      <p class="sub">COGS vs operating expenses — stacked</p>
-      <div class="chart-wrap tall"><canvas id="expMonthlyChart"></canvas></div>
-    </div>
-    <div class="panel">
-      <h2>Expense by Category</h2>
-      <p class="sub">Cumulative breakdown</p>
-      <table>
-        <thead><tr><th>Category</th><th class="num">Total</th></tr></thead>
-        <tbody>
-          <tr><td>Media Buyers (COGS)</td><td class="num"><div class="cell-bar"><span>$860K</span>&nbsp;<span class="bar red" style="width:70px"></span></div></td></tr>
-          <tr><td>Wages (Payroll)</td><td class="num"><div class="cell-bar"><span>$331K</span>&nbsp;<span class="bar red" style="width:27px"></span></div></td></tr>
-          <tr><td>Account Managers</td><td class="num"><div class="cell-bar"><span>$245K</span>&nbsp;<span class="bar red" style="width:20px"></span></div></td></tr>
-          <tr><td>Stripe Fees</td><td class="num"><div class="cell-bar"><span>$112K</span>&nbsp;<span class="bar amber" style="width:9px"></span></div></td></tr>
-          <tr><td>Agency Software</td><td class="num"><div class="cell-bar"><span>$78K</span>&nbsp;<span class="bar amber" style="width:6px"></span></div></td></tr>
-          <tr><td>Coaching &amp; Consulting</td><td class="num"><div class="cell-bar"><span>$77K</span>&nbsp;<span class="bar amber" style="width:6px"></span></div></td></tr>
-          <tr><td>Graphic Designers</td><td class="num"><div class="cell-bar"><span>$68K</span>&nbsp;<span class="bar amber" style="width:6px"></span></div></td></tr>
-          <tr><td>Video Editors</td><td class="num"><div class="cell-bar"><span>$57K</span>&nbsp;<span class="bar amber" style="width:5px"></span></div></td></tr>
-          <tr><td>Referral Partners</td><td class="num"><div class="cell-bar"><span>$40K</span>&nbsp;<span class="bar amber" style="width:3px"></span></div></td></tr>
-          <tr><td>Financial Services</td><td class="num"><div class="cell-bar"><span>$39K</span>&nbsp;<span class="bar amber" style="width:3px"></span></div></td></tr>
-          <tr><td>Virtual Assistants</td><td class="num"><div class="cell-bar"><span>$29K</span>&nbsp;<span class="bar amber" style="width:2px"></span></div></td></tr>
-          <tr class="grand-total"><td>Grand Total</td><td class="num"><div class="cell-bar"><span>$2.31M</span>&nbsp;<span class="bar red" style="width:70px"></span></div></td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="grid-2 gap">
-    <div class="panel">
-      <h2>COGS Detail — Stacked Monthly</h2>
-      <p class="sub">Media buyers, account managers, designers, video editors</p>
-      <div class="chart-wrap"><canvas id="expCOGSStackChart"></canvas></div>
-    </div>
-    <div class="panel">
-      <h2>OpEx Detail — Stacked Monthly</h2>
-      <p class="sub">Stripe fees, software, coaching, referral partners</p>
-      <div class="chart-wrap"><canvas id="expOpExChart"></canvas></div>
-    </div>
-  </div>
-</div>
-
-<!-- ═══════════════════════════════════════════ CLIENTS ═══ -->
-<div id="clients" class="page">
-  <div class="grid-12 gap">
-    <div class="panel" style="display:flex;flex-direction:column;align-items:center;gap:16px">
-      <div class="donut-wrap">
-        <canvas id="clientMarginDonut"></canvas>
-        <div class="donut-label"><div class="dl-val">49%</div><div class="dl-sub">Client Margin</div></div>
-      </div>
-      <div style="text-align:center">
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px">Active Clients</div>
-        <div style="font-family:'Anton',sans-serif;font-size:32px">186</div>
-      </div>
-      <div style="width:100%">
-        <table style="font-size:12px">
-          <thead><tr><th>Month</th><th class="num">Revenue</th><th class="num">Client Profit</th></tr></thead>
-          <tbody>
-            <tr><td>Oct 2025</td><td class="num">$64k</td><td class="num" style="color:var(--green)">$32.86k</td></tr>
-            <tr><td>Nov 2025</td><td class="num">$95k</td><td class="num" style="color:var(--green)">$60.46k</td></tr>
-            <tr><td>Dec 2025</td><td class="num">$95k</td><td class="num" style="color:var(--green)">$60.46k</td></tr>
-            <tr class="grand-total"><td>Total</td><td class="num">$254k</td><td class="num" style="color:var(--green)">$153.78k</td></tr>
-          </tbody>
+      <div class="table-scroll">
+        <table id="plTable">
+          <thead id="plHead"></thead>
+          <tbody id="plBody"></tbody>
         </table>
       </div>
     </div>
-    <div class="panel">
-      <div class="filter-row">
-        <label>Service:</label>
-        <select id="clientServiceFilter" onchange="filterClientTable()">
-          <option value="all">All Services</option>
-          <option value="Google Ads">Google Ads</option>
-          <option value="Meta Ads">Meta Ads</option>
-          <option value="Email Marketing">Email Marketing</option>
-        </select>
-        <label>Intensity:</label>
-        <select id="clientIntensityFilter" onchange="filterClientTable()">
-          <option value="all">All Intensity</option>
-          <option value="High">High</option>
-          <option value="Mid">Mid</option>
-          <option value="Low">Low</option>
-        </select>
-      </div>
-      <div class="grid-3" style="gap:12px">
-        <div class="panel" style="padding:12px">
-          <h2 style="font-size:13px">Margin by Month</h2>
-          <div class="chart-wrap short"><canvas id="clientMonthChart"></canvas></div>
-        </div>
-        <div class="panel" style="padding:12px">
-          <h2 style="font-size:13px">Margin by Service</h2>
-          <div class="chart-wrap short"><canvas id="clientServiceChart"></canvas></div>
-        </div>
-        <div class="panel" style="padding:12px">
-          <h2 style="font-size:13px">Margin by Intensity</h2>
-          <div class="chart-wrap short"><canvas id="clientIntensityChart"></canvas></div>
-        </div>
-      </div>
-    </div>
+  </section>
+
+  <p class="page-footer">Live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Finance Model · cached 5 minutes</p>
+</div></div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     TAB 2 · REVENUE
+═══════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-revenue"><div class="page">
+
+  <div class="page-hero">
+    <p class="eyebrow">Service revenue</p>
+    <h1>Revenue</h1>
+    <p class="subline">April 2026 · live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Services + Clients</p>
   </div>
 
-  <div class="panel gap">
-    <h2>Client Overview — Dec 2025</h2>
-    <p class="sub">Revenue, people cost, referral fees, profit, margin</p>
-    <div class="tbl-scroll">
-      <table id="clientTable">
-        <thead><tr>
-          <th>Client</th><th>Service</th><th>Intensity</th>
-          <th class="num">Revenue</th><th class="num">People Cost</th>
-          <th class="num">Referral Fees</th>
-          <th class="num">Client Profit</th><th class="num">Margin</th>
-        </tr></thead>
-        <tbody>
-          <tr data-service="Google Ads" data-intensity="Low"><td>Harbor Home</td><td>Google Ads</td><td>Low</td><td class="num"><div class="cell-bar"><span>$40k</span>&nbsp;<span class="bar blue" style="width:70px"></span></div></td><td class="num"><div class="cell-bar"><span>$4.31k</span>&nbsp;<span class="bar red" style="width:8px"></span></div></td><td class="num"><div class="cell-bar"><span>$12k</span>&nbsp;<span class="bar red" style="width:21px"></span></div></td><td class="num"><div class="cell-bar"><span>$23.69k</span>&nbsp;<span class="bar green" style="width:41px"></span></div></td><td class="num" style="color:var(--green)">58.0%</td></tr>
-          <tr data-service="Meta Ads" data-intensity="High"><td>Echo Health</td><td>Meta Ads</td><td>High</td><td class="num"><div class="cell-bar"><span>$35k</span>&nbsp;<span class="bar blue" style="width:61px"></span></div></td><td class="num"><div class="cell-bar"><span>$5.81k</span>&nbsp;<span class="bar red" style="width:10px"></span></div></td><td class="num">$0</td><td class="num"><div class="cell-bar"><span>$29.19k</span>&nbsp;<span class="bar green" style="width:51px"></span></div></td><td class="num" style="color:var(--green)">78.5%</td></tr>
-          <tr data-service="Google Ads" data-intensity="High"><td>Apex Digital</td><td>Google Ads</td><td>High</td><td class="num"><div class="cell-bar"><span>$28k</span>&nbsp;<span class="bar blue" style="width:49px"></span></div></td><td class="num"><div class="cell-bar"><span>$7.88k</span>&nbsp;<span class="bar red" style="width:14px"></span></div></td><td class="num">$0</td><td class="num"><div class="cell-bar"><span>$20.13k</span>&nbsp;<span class="bar green" style="width:35px"></span></div></td><td class="num" style="color:var(--green)">71.6%</td></tr>
-          <tr data-service="Google Ads" data-intensity="Mid"><td>Iron Works</td><td>Google Ads</td><td>Mid</td><td class="num"><div class="cell-bar"><span>$25k</span>&nbsp;<span class="bar blue" style="width:44px"></span></div></td><td class="num"><div class="cell-bar"><span>$11.63k</span>&nbsp;<span class="bar red" style="width:20px"></span></div></td><td class="num"><div class="cell-bar"><span>$5k</span>&nbsp;<span class="bar red" style="width:9px"></span></div></td><td class="num"><div class="cell-bar"><span>$8.38k</span>&nbsp;<span class="bar green" style="width:15px"></span></div></td><td class="num" style="color:var(--amber)">28.3%</td></tr>
-          <tr data-service="Google Ads" data-intensity="Low"><td>Kings Coffee</td><td>Google Ads</td><td>Low</td><td class="num"><div class="cell-bar"><span>$24k</span>&nbsp;<span class="bar blue" style="width:42px"></span></div></td><td class="num"><div class="cell-bar"><span>$10.31k</span>&nbsp;<span class="bar red" style="width:18px"></span></div></td><td class="num"><div class="cell-bar"><span>$4.8k</span>&nbsp;<span class="bar red" style="width:8px"></span></div></td><td class="num"><div class="cell-bar"><span>$8.89k</span>&nbsp;<span class="bar green" style="width:16px"></span></div></td><td class="num" style="color:var(--amber)">37.0%</td></tr>
-          <tr data-service="Google Ads" data-intensity="Mid"><td>Luna Legal</td><td>Google Ads</td><td>Mid</td><td class="num"><div class="cell-bar"><span>$23k</span>&nbsp;<span class="bar blue" style="width:40px"></span></div></td><td class="num"><div class="cell-bar"><span>$3.23k</span>&nbsp;<span class="bar red" style="width:6px"></span></div></td><td class="num">$0</td><td class="num"><div class="cell-bar"><span>$19.78k</span>&nbsp;<span class="bar green" style="width:35px"></span></div></td><td class="num" style="color:var(--green)">84.9%</td></tr>
-          <tr data-service="Google Ads" data-intensity="High"><td>Cedar Finance</td><td>Google Ads</td><td>High</td><td class="num"><div class="cell-bar"><span>$15k</span>&nbsp;<span class="bar blue" style="width:26px"></span></div></td><td class="num"><div class="cell-bar"><span>$7.88k</span>&nbsp;<span class="bar red" style="width:14px"></span></div></td><td class="num"><div class="cell-bar"><span>$3k</span>&nbsp;<span class="bar red" style="width:5px"></span></div></td><td class="num"><div class="cell-bar"><span>$4.13k</span>&nbsp;<span class="bar green" style="width:7px"></span></div></td><td class="num" style="color:var(--amber)">27.5%</td></tr>
-          <tr data-service="Google Ads" data-intensity="Low"><td>Forge Fitness</td><td>Google Ads</td><td>Low</td><td class="num"><div class="cell-bar"><span>$15k</span>&nbsp;<span class="bar blue" style="width:26px"></span></div></td><td class="num"><div class="cell-bar"><span>$8.4k</span>&nbsp;<span class="bar red" style="width:15px"></span></div></td><td class="num">$0</td><td class="num"><div class="cell-bar"><span>$6.6k</span>&nbsp;<span class="bar green" style="width:12px"></span></div></td><td class="num" style="color:var(--amber)">44.0%</td></tr>
-          <tr data-service="Meta Ads" data-intensity="Mid"><td>Jade Jewelry</td><td>Meta Ads</td><td>Mid</td><td class="num"><div class="cell-bar"><span>$15k</span>&nbsp;<span class="bar blue" style="width:26px"></span></div></td><td class="num"><div class="cell-bar"><span>$1.48k</span>&nbsp;<span class="bar red" style="width:3px"></span></div></td><td class="num"><div class="cell-bar"><span>$1.5k</span>&nbsp;<span class="bar red" style="width:3px"></span></div></td><td class="num"><div class="cell-bar"><span>$12.02k</span>&nbsp;<span class="bar green" style="width:21px"></span></div></td><td class="num" style="color:var(--green)">80.2%</td></tr>
-          <tr data-service="Meta Ads" data-intensity="Mid"><td>Global Gear</td><td>Meta Ads</td><td>Mid</td><td class="num"><div class="cell-bar"><span>$13k</span>&nbsp;<span class="bar blue" style="width:23px"></span></div></td><td class="num"><div class="cell-bar"><span>$1.84k</span>&nbsp;<span class="bar red" style="width:3px"></span></div></td><td class="num">$0</td><td class="num"><div class="cell-bar"><span>$11.16k</span>&nbsp;<span class="bar green" style="width:20px"></span></div></td><td class="num" style="color:var(--green)">85.0%</td></tr>
-          <tr data-service="Meta Ads" data-intensity="Mid"><td>Bloom Beauty (Meta)</td><td>Meta Ads</td><td>Mid</td><td class="num"><div class="cell-bar"><span>$12k</span>&nbsp;<span class="bar blue" style="width:21px"></span></div></td><td class="num"><div class="cell-bar"><span>$1.84k</span>&nbsp;<span class="bar red" style="width:3px"></span></div></td><td class="num">$0</td><td class="num"><div class="cell-bar"><span>$10.16k</span>&nbsp;<span class="bar green" style="width:18px"></span></div></td><td class="num" style="color:var(--green)">84.7%</td></tr>
-          <tr data-service="Google Ads" data-intensity="Low"><td>Bloom Beauty (Google)</td><td>Google Ads</td><td>Low</td><td class="num"><div class="cell-bar"><span>$6k</span>&nbsp;<span class="bar blue" style="width:10px"></span></div></td><td class="num"><div class="cell-bar"><span>$3.38k</span>&nbsp;<span class="bar red" style="width:6px"></span></div></td><td class="num"><div class="cell-bar"><span>$900</span>&nbsp;<span class="bar red" style="width:2px"></span></div></td><td class="num"><div class="cell-bar"><span>$1.73k</span>&nbsp;<span class="bar green" style="width:3px"></span></div></td><td class="num" style="color:var(--amber)">28.8%</td></tr>
-          <tr data-service="Email Marketing" data-intensity="High"><td>Bloom Beauty (Email)</td><td>Email Marketing</td><td>High</td><td class="num"><div class="cell-bar"><span>$3k</span>&nbsp;<span class="bar blue" style="width:5px"></span></div></td><td class="num"><div class="cell-bar"><span>$5.06k</span>&nbsp;<span class="bar red" style="width:9px"></span></div></td><td class="num">$0</td><td class="num"><div class="cell-bar"><span>-$2.06k</span>&nbsp;<span class="bar red" style="width:4px"></span></div></td><td class="num" style="color:var(--red)">-68.8%</td></tr>
-          <tr class="grand-total" data-service="all" data-intensity="all"><td colspan="3">Grand Total</td><td class="num">$254k</td><td class="num">$73.03k</td><td class="num">$27.2k</td><td class="num" style="color:var(--green)">$153.77k</td><td class="num" style="color:var(--green)">49.2%</td></tr>
-        </tbody>
-      </table>
+  <div class="wtdn">
+    <div class="wtdn-head">
+      <span class="wtdn-chip">Insights</span>
+      <span class="wtdn-title">What to do next · April 2026</span>
     </div>
+    <ul class="wtdn-list">
+      <li class="ins warn"><div class="ins-circle">!</div><div class="ins-text"><b>Top-3 service lines now 82% of revenue</b> — concentration creeping up. SEO + Growth + Reporting drive every dollar above $75K. Monitor diversification.</div></li>
+      <li class="ins win"><div class="ins-circle">✓</div><div class="ins-text"><b>SEO leads at $38K in March</b> — 33% of revenue, sixth straight monthly gain. Largest service line and most stable.</div></li>
+      <li class="ins win"><div class="ins-circle">✓</div><div class="ins-text"><b>Revenue +19.7% over six months</b> — $96K in Oct '25 to $114.9K in Mar '26. All five lines positive.</div></li>
+      <li class="ins info"><div class="ins-circle">i</div><div class="ins-text"><b>Stripe Sales emerging</b> at $14K · 12.3% share — newest channel and worth tracking as an upsell vector.</div></li>
+    </ul>
   </div>
-</div>
 
-<!-- ═══════════════════════════════════════════ PEOPLE ═══ -->
-<div id="people" class="page">
-  <div class="grid-13 gap">
-    <div class="panel" style="display:flex;flex-direction:column;align-items:center;gap:18px">
-      <div class="donut-wrap">
-        <canvas id="revDonut"></canvas>
-        <div class="donut-label"><div class="dl-val">$254k</div><div class="dl-sub">Revenue</div></div>
+  <section class="section tight">
+    <div class="kpi-strip">
+      <div class="kpi">
+        <div class="kpi-label">Revenue · Mar</div>
+        <div class="kpi-value">$114.9K</div>
+        <div class="kpi-delta"><span class="d up">▲ +6.4%</span><span class="ctx">vs Feb 2026</span></div>
       </div>
-      <div class="donut-wrap">
-        <canvas id="utilDonut"></canvas>
-        <div class="donut-label"><div class="dl-val">58%</div><div class="dl-sub">Utilization</div></div>
+      <div class="kpi">
+        <div class="kpi-label">Active Service Lines</div>
+        <div class="kpi-value">5</div>
+        <div class="kpi-delta"><span class="ctx">SEO · Growth · Reporting · Stripe · Other</span></div>
       </div>
-      <div style="width:100%">
-        <table style="font-size:12px">
-          <thead><tr><th>Month</th><th class="num">Rev Covered</th><th class="num">People Profit</th></tr></thead>
-          <tbody>
-            <tr><td>Oct 2025</td><td class="num">$64k</td><td class="num" style="color:var(--green)">$2k</td></tr>
-            <tr><td>Nov 2025</td><td class="num">$95k</td><td class="num" style="color:var(--green)">$22k</td></tr>
-            <tr><td>Dec 2025</td><td class="num">$95k</td><td class="num" style="color:var(--green)">$20k</td></tr>
-            <tr class="grand-total"><td>Total</td><td class="num">$254k</td><td class="num" style="color:var(--green)">$44k</td></tr>
-          </tbody>
+      <div class="kpi">
+        <div class="kpi-label">Largest Line</div>
+        <div class="kpi-value">SEO</div>
+        <div class="kpi-delta"><span class="d up">$38.0K · 33% share</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">6-month Growth</div>
+        <div class="kpi-value success">+19.7%</div>
+        <div class="kpi-delta"><span class="ctx">Oct '25 → Mar '26</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Top-3 Concentration</div>
+        <div class="kpi-value warning">82%</div>
+        <div class="kpi-delta"><span class="d flat">▲ +1pp vs Feb</span><span class="ctx">SEO + Growth + Reporting</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="shell">
+      <div class="shell-head">
+        <div>
+          <h2>Revenue by service line</h2>
+          <div class="sub">Stacked monthly · biggest service at the base · darker = larger</div>
+        </div>
+      </div>
+      <div class="chart-wrap tall"><canvas id="revStackedChart"></canvas></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="grid-3">
+      <div class="shell">
+        <div class="shell-head"><div><h2>By Industry · Mar 2026</h2><div class="sub">Snapshot share</div></div></div>
+        <div class="chart-wrap"><canvas id="revIndustryChart"></canvas></div>
+      </div>
+      <div class="shell">
+        <div class="shell-head"><div><h2>By Source · Mar 2026</h2><div class="sub">Where new revenue came from</div></div></div>
+        <div class="chart-wrap"><canvas id="revSourceChart"></canvas></div>
+      </div>
+      <div class="shell">
+        <div class="shell-head"><div><h2>By Pod · Mar 2026</h2><div class="sub">Team allocation</div></div></div>
+        <div class="chart-wrap"><canvas id="revPodChart"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="grid-2">
+      <div class="shell">
+        <div class="shell-head"><div><h2>Top growers</h2><div class="sub">Comparing Mar 2026 vs Feb 2026</div></div></div>
+        <div id="topGrowers"></div>
+      </div>
+      <div class="shell">
+        <div class="shell-head"><div><h2>Top decliners</h2><div class="sub">Comparing Mar 2026 vs Feb 2026</div></div></div>
+        <div id="topDecliners"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="table-shell">
+      <div class="table-toolbar">
+        <div><h2>Revenue by service line — monthly</h2><div class="sub">All service lines · Oct '25 to Apr '26 · italic for forecast</div></div>
+        <div class="right" id="revMomTotals">5 lines · grand total $701K</div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr>
+            <th class="sticky-left">Service Line</th>
+            <th class="num">Oct '25</th><th class="num">Nov '25</th><th class="num">Dec '25</th>
+            <th class="num">Jan '26</th><th class="num">Feb '26</th><th class="num">Mar '26</th>
+            <th class="num fcst">Apr '26</th>
+            <th class="num">Total</th><th class="num">Share</th>
+          </tr></thead>
+          <tbody id="revRows"></tbody>
         </table>
       </div>
     </div>
-    <div class="panel">
-      <div class="grid-3" style="gap:12px;margin-bottom:14px">
-        <div class="panel" style="padding:12px">
-          <h2 style="font-size:13px">Margin by Month</h2>
-          <div class="chart-wrap short"><canvas id="peopleTrendChart"></canvas></div>
+  </section>
+
+  <p class="page-footer">Live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Services + Clients · cached 5 minutes</p>
+</div></div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     TAB 3 · EXPENSES
+═══════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-expenses"><div class="page">
+
+  <div class="page-hero">
+    <p class="eyebrow">Costs</p>
+    <h1>Expenses</h1>
+    <p class="subline">April 2026 · live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Costs + Finance Model</p>
+  </div>
+
+  <div class="wtdn">
+    <div class="wtdn-head">
+      <span class="wtdn-chip">Insights</span>
+      <span class="wtdn-title">What to do next · April 2026</span>
+    </div>
+    <ul class="wtdn-list">
+      <li class="ins warn"><div class="ins-circle">!</div><div class="ins-text"><b>Total expenses up 6.0% MoM</b> — marginally faster than revenue (+6.4% but close). The gap is narrow; protect by holding OpEx flat next month.</div></li>
+      <li class="ins warn"><div class="ins-circle">!</div><div class="ins-text"><b>Software costs +28% over 3 months</b> — biggest OpEx growth driver. Audit subscriptions before May renewal cycle.</div></li>
+      <li class="ins info"><div class="ins-circle">i</div><div class="ins-text"><b>OpEx now 31.3% of revenue</b> — below the 35% ceiling but trending up. Watch the trajectory through Q2.</div></li>
+      <li class="ins win"><div class="ins-circle">✓</div><div class="ins-text"><b>COGS / Revenue held at 45.2%</b> — improved 0.6pp vs Feb. Gross margin protected at 54.8%.</div></li>
+    </ul>
+  </div>
+
+  <section class="section tight">
+    <div class="kpi-strip">
+      <div class="kpi">
+        <div class="kpi-label">Total Expenses · Mar</div>
+        <div class="kpi-value">$88.0K</div>
+        <div class="kpi-delta"><span class="d down">▲ +6.0%</span><span class="ctx">vs Feb 2026</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">COGS</div>
+        <div class="kpi-value">$52.0K</div>
+        <div class="kpi-delta"><span class="d down">▲ +5.1%</span><span class="ctx">59% of total</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">OpEx</div>
+        <div class="kpi-value">$36.0K</div>
+        <div class="kpi-delta"><span class="d down">▲ +7.5%</span><span class="ctx">41% of total</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Expenses / Revenue</div>
+        <div class="kpi-value warning">76.6%</div>
+        <div class="kpi-delta"><span class="d flat">▲ +0.8pp</span><span class="ctx">vs Feb 2026</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Active Vendors</div>
+        <div class="kpi-value">11</div>
+        <div class="kpi-delta"><span class="ctx">Distinct vendors w/ activity</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="shell">
+      <div class="shell-head">
+        <div><h2>Expenses by type — monthly</h2><div class="sub">COGS vs operating expenses · stacked · biggest at base</div></div>
+      </div>
+      <div class="chart-wrap tall"><canvas id="expStackedChart"></canvas></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="shell">
+      <div class="shell-head">
+        <div><h2>Expenses as % of revenue</h2><div class="sub">COGS % and OpEx % tracked month-over-month</div></div>
+      </div>
+      <div class="chart-wrap tall"><canvas id="expPctChart"></canvas></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="grid-2">
+      <div class="shell">
+        <div class="shell-head"><div><h2>By type</h2><div class="sub">COGS · OpEx · Mixed</div></div></div>
+        <div class="chart-wrap"><canvas id="expByTypeChart"></canvas></div>
+      </div>
+      <div class="shell">
+        <div class="shell-head"><div><h2>By category</h2><div class="sub">Top 10 categories · selected period</div></div></div>
+        <div class="chart-wrap"><canvas id="expByCategoryChart"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="table-shell">
+      <div class="table-toolbar">
+        <div><h2>Vendor MoM expense</h2><div class="sub">Sorted by total descending · italic for forecast</div></div>
+        <div class="right">11 vendors · grand total $522K</div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr>
+            <th class="sticky-left">Vendor</th>
+            <th>Category</th>
+            <th>Type</th>
+            <th class="num">Oct '25</th><th class="num">Nov '25</th><th class="num">Dec '25</th>
+            <th class="num">Jan '26</th><th class="num">Feb '26</th><th class="num">Mar '26</th>
+            <th class="num fcst">Apr '26</th>
+            <th class="num">Total</th>
+          </tr></thead>
+          <tbody id="vendorRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <p class="page-footer">Live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Costs + Finance Model · cached 5 minutes</p>
+</div></div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     TAB 4 · ANALYTICS
+═══════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-analytics"><div class="page">
+
+  <div class="page-hero">
+    <p class="eyebrow">Unit economics</p>
+    <h1>Analytics</h1>
+    <p class="subline">April 2026 · live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Metrics</p>
+  </div>
+
+  <div class="wtdn">
+    <div class="wtdn-head">
+      <span class="wtdn-chip">Insights</span>
+      <span class="wtdn-title">What to do next · April 2026</span>
+    </div>
+    <ul class="wtdn-list">
+      <li class="ins win"><div class="ins-circle">✓</div><div class="ins-text"><b>LTV / CAC at 3.3x</b> — every $1 of acquisition returns $3.30 in lifetime value. Above the 3x healthy threshold.</div></li>
+      <li class="ins win"><div class="ins-circle">✓</div><div class="ins-text"><b>Zero client churn in March</b> — no lost clients this month. Net new of +1 client; total active now 11.</div></li>
+      <li class="ins warn"><div class="ins-circle">!</div><div class="ins-text"><b>CAC up +4.2% vs Feb</b> — acquisition getting more expensive. Track payback period carefully through Q2.</div></li>
+      <li class="ins info"><div class="ins-circle">i</div><div class="ins-text"><b>MRR forecast $119K for April</b> — sustained 6-month growth trajectory at ~3.5% monthly.</div></li>
+    </ul>
+  </div>
+
+  <section class="section tight">
+    <div class="kpi-strip">
+      <div class="kpi">
+        <div class="kpi-label">LTV (Est.)</div>
+        <div class="kpi-value">$41.0K</div>
+        <div class="kpi-delta"><span class="ctx">Avg $3.4K/mo × 12-mo retention</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">CAC (Est.)</div>
+        <div class="kpi-value">$12.5K</div>
+        <div class="kpi-delta"><span class="d down">▲ +4.2%</span><span class="ctx">vs Feb 2026</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">LTV / CAC</div>
+        <div class="kpi-value success">3.3x</div>
+        <div class="kpi-delta"><span class="d up">▲ healthy (≥3x)</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">MRR · Mar 2026</div>
+        <div class="kpi-value">$114.9K</div>
+        <div class="kpi-delta"><span class="d up">▲ +6.4%</span><span class="ctx">vs Feb 2026</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Client Churn</div>
+        <div class="kpi-value success">0.0%</div>
+        <div class="kpi-delta"><span class="d up">▼ best month YTD</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="shell">
+      <div class="shell-head"><div><h2>LTV, CAC, and ratio</h2><div class="sub">Currency on the left · ratio on the right · forecast included</div></div></div>
+      <div class="chart-wrap tall"><canvas id="ltvCacChart"></canvas></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="shell">
+      <div class="shell-head"><div><h2>Churn</h2><div class="sub">MRR churn vs client churn</div></div></div>
+      <div class="chart-wrap"><canvas id="churnChart"></canvas></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="shell">
+      <div class="shell-head"><div><h2>Signed &amp; Lost clients</h2><div class="sub">Net movement with total client trend · green = signed, red = lost, blue line = total active</div></div></div>
+      <div class="chart-wrap tall"><canvas id="signedLostChart"></canvas></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="grid-3">
+      <div class="svc-card">
+        <h3>SEO</h3>
+        <div class="svc-stats">
+          <div class="svc-stat"><div class="l">Revenue · Mar</div><div class="v">$38.0K</div></div>
+          <div class="svc-stat"><div class="l">Margin</div><div class="v ok">58%</div></div>
+          <div class="svc-stat"><div class="l">NRR</div><div class="v ok">112%</div></div>
+          <div class="svc-stat"><div class="l">Churn</div><div class="v">0%</div></div>
+          <div class="svc-stat"><div class="l">Avg Invoice</div><div class="v">$3.8K</div></div>
+          <div class="svc-stat"><div class="l">Active</div><div class="v">10</div></div>
         </div>
-        <div class="panel" style="padding:12px">
-          <h2 style="font-size:13px">Revenue Gap by Member</h2>
-          <div class="chart-wrap short"><canvas id="revenueGapChart"></canvas></div>
+      </div>
+      <div class="svc-card">
+        <h3>Growth Marketing</h3>
+        <div class="svc-stats">
+          <div class="svc-stat"><div class="l">Revenue · Mar</div><div class="v">$34.0K</div></div>
+          <div class="svc-stat"><div class="l">Margin</div><div class="v ok">52%</div></div>
+          <div class="svc-stat"><div class="l">NRR</div><div class="v ok">108%</div></div>
+          <div class="svc-stat"><div class="l">Churn</div><div class="v">1.2%</div></div>
+          <div class="svc-stat"><div class="l">Avg Invoice</div><div class="v">$4.2K</div></div>
+          <div class="svc-stat"><div class="l">Active</div><div class="v">8</div></div>
         </div>
-        <div class="panel" style="padding:12px">
-          <h2 style="font-size:13px">Margin by Department</h2>
-          <div class="chart-wrap short"><canvas id="deptMarginChart"></canvas></div>
+      </div>
+      <div class="svc-card">
+        <h3>Reporting / Analytics</h3>
+        <div class="svc-stats">
+          <div class="svc-stat"><div class="l">Revenue · Mar</div><div class="v">$22.0K</div></div>
+          <div class="svc-stat"><div class="l">Margin</div><div class="v ok">53%</div></div>
+          <div class="svc-stat"><div class="l">NRR</div><div class="v">102%</div></div>
+          <div class="svc-stat"><div class="l">Churn</div><div class="v">0%</div></div>
+          <div class="svc-stat"><div class="l">Avg Invoice</div><div class="v">$2.4K</div></div>
+          <div class="svc-stat"><div class="l">Active</div><div class="v">9</div></div>
         </div>
       </div>
     </div>
+  </section>
+
+  <p class="page-footer">Live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Metrics · cached 5 minutes</p>
+</div></div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     TAB 5 · CLIENTS
+═══════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-clients"><div class="page">
+
+  <div class="page-hero">
+    <p class="eyebrow">Client profitability</p>
+    <h1>Clients</h1>
+    <p class="subline">March 2026 · live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Client Profit</p>
   </div>
 
-  <div class="panel gap">
-    <h2>Team Overview — Dec 2025</h2>
-    <p class="sub">Revenue covered, salary, people profit, utilization vs target</p>
-    <div class="tbl-scroll">
-      <table>
-        <thead><tr>
-          <th>Team Member</th><th>Department</th>
-          <th class="num">Rev Covered</th><th class="num">Salary</th>
-          <th class="num">People Profit</th><th class="num">People Margin</th>
-          <th class="num">Utilization</th><th class="num">Target</th>
-        </tr></thead>
-        <tbody>
-          <tr><td>Lisa Wong</td><td>Client Success</td><td class="num"><div class="cell-bar"><span>$63.35k</span>&nbsp;<span class="bar blue" style="width:70px"></span></div></td><td class="num">$45k</td><td class="num" style="color:var(--green)">$18.35k</td><td class="num" style="color:var(--green)">40.8%</td><td class="num"><div class="cell-bar"><span>150%</span>&nbsp;<span class="bar green" style="width:55px"></span></div></td><td class="num" style="color:var(--muted)">75%</td></tr>
-          <tr><td>Jake Thompson</td><td>Media Buying</td><td class="num"><div class="cell-bar"><span>$51.01k</span>&nbsp;<span class="bar blue" style="width:56px"></span></div></td><td class="num">$40k</td><td class="num" style="color:var(--green)">$11.01k</td><td class="num" style="color:var(--green)">29.3%</td><td class="num"><div class="cell-bar"><span>40.6%</span>&nbsp;<span class="bar amber" style="width:15px"></span></div></td><td class="num" style="color:var(--muted)">75%</td></tr>
-          <tr><td>Priya Patel</td><td>Media Buying</td><td class="num"><div class="cell-bar"><span>$44.21k</span>&nbsp;<span class="bar blue" style="width:49px"></span></div></td><td class="num">$15k</td><td class="num" style="color:var(--green)">$29.21k</td><td class="num" style="color:var(--green)">194.7%</td><td class="num"><div class="cell-bar"><span>68.8%</span>&nbsp;<span class="bar green" style="width:25px"></span></div></td><td class="num" style="color:var(--muted)">75%</td></tr>
-          <tr><td>Marcus Rivera</td><td>Media Buying</td><td class="num"><div class="cell-bar"><span>$40.9k</span>&nbsp;<span class="bar blue" style="width:45px"></span></div></td><td class="num">$10k</td><td class="num" style="color:var(--green)">$30.9k</td><td class="num" style="color:var(--green)">322.9%</td><td class="num"><div class="cell-bar"><span>84.4%</span>&nbsp;<span class="bar green" style="width:31px"></span></div></td><td class="num" style="color:var(--muted)">75%</td></tr>
-          <tr><td>Tom Bradley</td><td>Client Success</td><td class="num"><div class="cell-bar"><span>$37.81k</span>&nbsp;<span class="bar blue" style="width:42px"></span></div></td><td class="num">$15k</td><td class="num" style="color:var(--green)">$22.81k</td><td class="num" style="color:var(--green)">152.1%</td><td class="num"><div class="cell-bar"><span>100%</span>&nbsp;<span class="bar green" style="width:37px"></span></div></td><td class="num" style="color:var(--muted)">100%</td></tr>
-          <tr><td>Nina Okafor</td><td>Client Success</td><td class="num"><div class="cell-bar"><span>$16.72k</span>&nbsp;<span class="bar blue" style="width:18px"></span></div></td><td class="num">$15k</td><td class="num" style="color:var(--amber)">$1.72k</td><td class="num" style="color:var(--amber)">11.5%</td><td class="num"><div class="cell-bar"><span>19.4%</span>&nbsp;<span class="bar red" style="width:7px"></span></div></td><td class="num" style="color:var(--muted)">100%</td></tr>
-          <tr><td>David Kim</td><td>Operations</td><td class="num">$0</td><td class="num">$42k</td><td class="num" style="color:var(--red)">-$42k</td><td class="num" style="color:var(--red)">-100%</td><td class="num">0%</td><td class="num" style="color:var(--muted)">0%</td></tr>
-          <tr><td>Sarah Chen</td><td>Leadership</td><td class="num">$0</td><td class="num">$28k</td><td class="num" style="color:var(--red)">-$28k</td><td class="num" style="color:var(--red)">-100%</td><td class="num">0%</td><td class="num" style="color:var(--muted)">25%</td></tr>
-          <tr class="grand-total"><td colspan="2">Grand Total</td><td class="num">$254k</td><td class="num">$210k</td><td class="num" style="color:var(--green)">$44k</td><td class="num">68.9%</td><td class="num">57.9%</td><td class="num">65.6%</td></tr>
-        </tbody>
-      </table>
+  <div class="wtdn">
+    <div class="wtdn-head">
+      <span class="wtdn-chip">Insights</span>
+      <span class="wtdn-title">What to do next · March 2026</span>
     </div>
+    <ul class="wtdn-list">
+      <li class="ins win"><div class="ins-circle">✓</div><div class="ins-text"><b>All 11 active clients profitable</b> — zero negative-margin accounts. Clean book of business.</div></li>
+      <li class="ins win"><div class="ins-circle">✓</div><div class="ins-text"><b>Top-3 profit drivers</b>: Apex Digital ($15.7K), Northwind ($11.5K), Beacon Co ($9.6K). Combined ~58% of monthly profit.</div></li>
+      <li class="ins warn"><div class="ins-circle">!</div><div class="ins-text"><b>Top client = 24.8% of revenue</b> — concentration creeping toward 25% threshold. Diversify pipeline through Q2.</div></li>
+      <li class="ins info"><div class="ins-circle">i</div><div class="ins-text"><b>Average client margin 54.1%</b> — strong. Target is to hold above 45% as headcount scales.</div></li>
+    </ul>
   </div>
-</div>
+
+  <section class="section tight">
+    <div class="kpi-strip">
+      <div class="kpi">
+        <div class="kpi-label">Total Client Profit</div>
+        <div class="kpi-value success">$62.1K</div>
+        <div class="kpi-delta"><span class="d up">▲ +6.2%</span><span class="ctx">vs Feb 2026</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Avg Margin</div>
+        <div class="kpi-value success">54.1%</div>
+        <div class="kpi-delta"><span class="d up">▲ +0.6pp</span><span class="ctx">vs Feb 2026</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Profitable Clients</div>
+        <div class="kpi-value success">11</div>
+        <div class="kpi-delta"><span class="ctx">All active clients</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Unprofitable Clients</div>
+        <div class="kpi-value success">0</div>
+        <div class="kpi-delta"><span class="d up">▼ clean book</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Top Client % Revenue</div>
+        <div class="kpi-value warning">24.8%</div>
+        <div class="kpi-delta"><span class="d flat">▲ +0.9pp</span><span class="ctx">monitor concentration</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="shell">
+      <div class="shell-head"><div><h2>Client profit · ranked</h2><div class="sub">Selected period · top contributors first · labels show dollars</div></div></div>
+      <div class="chart-wrap tall"><canvas id="clientProfitChart"></canvas></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="shell">
+      <div class="shell-head"><div><h2>Margin by client</h2><div class="sub">Red below 0 · blue above · sorted desc</div></div></div>
+      <div class="chart-wrap tall"><canvas id="clientMarginChart"></canvas></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="table-shell">
+      <div class="table-toolbar">
+        <div><h2>Client profit table</h2><div class="sub">All 11 active clients · March 2026</div></div>
+        <div class="right">Sorted by client profit desc</div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr>
+            <th class="sticky-left">Client</th>
+            <th>Service</th>
+            <th>Pod</th>
+            <th class="num">Revenue</th>
+            <th class="num">People Cost</th>
+            <th class="num">Referral</th>
+            <th class="num">Other</th>
+            <th class="num">Profit</th>
+            <th>Margin</th>
+          </tr></thead>
+          <tbody id="clientRows"></tbody>
+          <tr class="total"><td class="sticky-left">Total (11)</td><td>—</td><td>—</td><td class="num">$114,928</td><td class="num">$36,200</td><td class="num">$8,400</td><td class="num">$8,200</td><td class="num"><b>$62,128</b></td><td><span class="badge ok">54.1%</span></td></tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <p class="page-footer">Live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Client Profit · cached 5 minutes</p>
+</div></div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     TAB 6 · PEOPLE
+═══════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-people"><div class="page">
+
+  <div class="page-hero">
+    <p class="eyebrow">Team profitability</p>
+    <h1>People</h1>
+    <p class="subline">March 2026 · live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Team Profit</p>
+  </div>
+
+  <div class="wtdn">
+    <div class="wtdn-head">
+      <span class="wtdn-chip">Insights</span>
+      <span class="wtdn-title">What to do next · March 2026</span>
+    </div>
+    <ul class="wtdn-list">
+      <li class="ins alert"><div class="ins-circle">!</div><div class="ins-text"><b>Brennan H. at 52% util (-$6K gap)</b> — biggest under-target on the team. Review allocation immediately.</div></li>
+      <li class="ins warn"><div class="ins-circle">!</div><div class="ins-text"><b>Revenue gap of -$12.4K</b> — 4 team members below target. Combined gap is ~11% of monthly revenue.</div></li>
+      <li class="ins win"><div class="ins-circle">✓</div><div class="ins-text"><b>9 of 13 team members on target</b> — up from 7/13 in Feb. Top contributors: Kyle T., Jonathan V., Chris E.</div></li>
+      <li class="ins info"><div class="ins-circle">i</div><div class="ins-text"><b>Sai T. &amp; Nic V. unbilled</b> — confirm onboarding status and assign billable work.</div></li>
+    </ul>
+  </div>
+
+  <section class="section tight">
+    <div class="kpi-strip">
+      <div class="kpi">
+        <div class="kpi-label">Revenue Covered</div>
+        <div class="kpi-value">$114.9K</div>
+        <div class="kpi-delta"><span class="d up">▲ full team output</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Avg Utilization</div>
+        <div class="kpi-value warning">72%</div>
+        <div class="kpi-delta"><span class="d up">▲ +4pp</span><span class="ctx">target 80%</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">On Target</div>
+        <div class="kpi-value">9 / 13</div>
+        <div class="kpi-delta"><span class="d up">▲ +2 vs Feb</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Revenue Gap</div>
+        <div class="kpi-value danger">-$12.4K</div>
+        <div class="kpi-delta"><span class="d down">▲ 4 below target</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Hours Billable</div>
+        <div class="kpi-value">1,560</div>
+        <div class="kpi-delta"><span class="ctx">of 2,170 available</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="shell">
+      <div class="shell-head"><div><h2>Revenue gap by person</h2><div class="sub">Red = below target · green = surplus · zero line is break-even</div></div></div>
+      <div class="chart-wrap tall"><canvas id="peopleGapChart"></canvas></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="shell">
+      <div class="shell-head"><div><h2>Utilization by department</h2><div class="sub">Target 80% (dashed line)</div></div></div>
+      <div class="chart-wrap tall"><canvas id="deptUtilChart"></canvas></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="table-shell">
+      <div class="table-toolbar">
+        <div><h2>People profit table</h2><div class="sub">All 13 team members · March 2026 · sorted by revenue covered desc</div></div>
+        <div class="right">9 on target · 4 under</div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr>
+            <th class="sticky-left">Team Member</th>
+            <th>Department</th>
+            <th class="num">Hours Avail</th>
+            <th class="num">Revenue Covered</th>
+            <th>Utilization</th>
+            <th>vs Target</th>
+            <th class="num">Revenue Gap</th>
+          </tr></thead>
+          <tbody id="peopleRows"></tbody>
+          <tr class="total">
+            <td class="sticky-left">Total (13)</td>
+            <td>—</td>
+            <td class="num">2,170</td>
+            <td class="num"><b>$114,928</b></td>
+            <td><span class="badge warn">72%</span></td>
+            <td><span class="badge warn">-9pp</span></td>
+            <td class="num"><b>-$12,400</b></td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <p class="page-footer">Live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Team Profit · cached 5 minutes</p>
+</div></div>
+
 
 <script>
-// ─── Unregister datalabels globally (opt-in per chart) ───────────────────────
+/* ═══════════════════════════════════════════════════════════════════════
+   CHART.JS GLOBAL CONFIG  (formatting.md §2.A)
+═══════════════════════════════════════════════════════════════════════ */
 Chart.unregister(ChartDataLabels);
-
-Chart.defaults.color = 'rgba(255,255,255,0.65)';
-Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+Chart.defaults.color       = 'rgba(255,255,255,0.65)';
+Chart.defaults.borderColor = 'rgba(120,120,120,0.12)';
 Chart.defaults.font.family = "'DM Sans', system-ui, sans-serif";
-Chart.defaults.font.size = 11;
+Chart.defaults.font.size   = 11;
 
-// ─── DATA ────────────────────────────────────────────────────────────────────
-const MONTHS = ['Jan 25','Feb 25','Mar 25','Apr 25','May 25','Jun 25',
-                'Jul 25','Aug 25','Sep 25','Oct 25','Nov 25','Dec 25',
-                'Jan 26','Feb 26','Mar 26'];
+const $ = id => document.getElementById(id);
 
-const REVENUE   = [132814,141949,141349,147173,150038,155380,188979,207895,212186,218611,209851,250533,219509,242281,270079];
-const OPINCOME  = [52386,63645,61553,71224,71211,68995,89785,79432,87235,82415,83747,80753,86459,70490,106202];
-const GROSSMARG = [52.91,57.71,55.13,59.95,58.58,59.89,59.37,54,55.6,56.05,60.03,52.06,58.77,47.55,54.12];
-const OPMARG    = [39.44,44.84,43.55,48.39,47.46,44.40,47.51,38.21,41.11,37.70,39.91,32.23,39.39,29.09,39.32];
-const COGS      = [62541,60023,63429,58936,62139,62328,76781,95630,94201,96072,83888,120114,90506,127066,123918];
-const OPEX      = [17886,18281,16367,17013,16688,24058,22413,32834,30751,40124,42217,49666,42545,44724,39960];
-const TEAM      = [17,15,15,15,14,15,15,20,20,20,20,20,22,22,22];
-const SIGNED    = [0,0,2,2,1,5,6,9,3,6,2,4,10,12,18];
-const LOST      = [0,0,0,0,0,0,0,0,0,2,4,3,23,18,28];
-const RPE       = REVENUE.map((r,i)=>Math.round(r/TEAM[i]));
-
-// All service line revenue data
-const SVC = {
-  'Meta Ads':      [77855,80003,82212,83082,89596,94397,117117,129810,129166,124822,118906,148453,136462,137728,114928],
-  'Google Ads':    [40758,44583,44033,46439,44158,53482,54996,64362,68644,77154,76829,93574,73087,81187,57156],
-  'Stripe Sales':  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,70896],
-  'LinkedIn Ads':  [6000,6000,3500,4750,2750,4000,5063,5479,8979,4979,4229,4729,4229,5229,4229],
-  'TikTok Ads':    [1350,750,0,0,0,0,0,500,500,500,1500,1500,1500,1500,3000],
-  'Bing Ads':      [2850,4350,4350,4350,3600,-2250,0,0,0,1000,1000,0,750,1750,750],
-  'SEO':           [0,0,750,1150,2250,2650,2400,2000,1600,1800,1400,2200,1400,1400,1800],
-  'Web Design':    [0,0,1000,0,575,200,750,200,1100,3300,700,2300,2050,4100,5100],
-  'GoHighLevel':   [1200,1600,2200,1300,2300,1300,1300,300,300,300,1650,450,1600,2750,900],
-  'Consulting':    [1180,3480,1980,3827,3136,680,1480,1278,510,2593,3733,2135,3105,5047,8908],
-  'Cold Email':    [500,500,500,500,500,500,500,500,500,500,500,500,500,500,500],
-  'SW Affiliates': [1121,563,824,1500,623,421,1779,3466,214,278,346,183,142,931,66],
-};
-const SVC_COLORS = {
-  'Meta Ads':'#1390eb', 'Google Ads':'#22c55e', 'Stripe Sales':'#c084fc',
-  'LinkedIn Ads':'#fde047', 'TikTok Ads':'#f59e0b', 'Bing Ads':'#64748b',
-  'SEO':'#06b6d4', 'Web Design':'#10b981', 'GoHighLevel':'#f97316',
-  'Consulting':'#a855f7', 'Cold Email':'#ec4899', 'SW Affiliates':'#84cc16',
+const TOOLTIP = {
+  backgroundColor: 'rgba(11,31,51,0.97)',
+  titleColor: '#fff', bodyColor: '#fff',
+  borderColor: 'rgba(255,255,255,0.10)', borderWidth: 1,
+  padding: 10, cornerRadius: 8,
+  titleFont: {size:12, weight:'600'}, bodyFont: {size:12},
+  boxPadding: 4,
 };
 
-// ─── TAB LOGIC ───────────────────────────────────────────────────────────────
-function showTab(btn) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById(btn.dataset.tab).classList.add('active');
-  btn.classList.add('active');
+/* Formatters (formatting.md §1.9) */
+const fmtCompactCur = v => {
+  const abs = Math.abs(v);
+  const sign = v<0 ? '-' : '';
+  if (abs>=1e6)  return sign+'$'+(abs/1e6).toFixed(2)+'M';
+  if (abs>=1e3)  return sign+'$'+(abs/1e3).toFixed(1)+'K';
+  return sign+'$'+Math.round(abs);
+};
+const fmtFullCur = v => {
+  if (v===0) return '—';
+  const sign = v<0 ? '-' : '';
+  return sign+'$'+Math.abs(Math.round(v)).toLocaleString('en-US');
+};
+const fmtPctWhole = v => Math.round(v)+'%';
+const fmtPct1     = v => v.toFixed(1)+'%';
+const fmtNum      = v => Math.round(v).toLocaleString('en-US');
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DATA  (Jumpstart ROI — Oct '25 → Apr '26, last month is forecast)
+═══════════════════════════════════════════════════════════════════════ */
+const LABELS    = ["Oct '25","Nov '25","Dec '25","Jan '26","Feb '26","Mar '26","Apr '26"];
+const FCST_FROM = 6;     // index of first forecast month
+const LAST_ACT  = 5;     // index of last actual month
+
+const D = {
+  revenue:    [96000, 101000, 100500, 105000, 108000, 114928, 119000],
+  cogs:       [45000,  47000,  46500,  48000,  49500,  52000,  54000],
+  grossProf:  [51000,  54000,  54000,  57000,  58500,  62928,  65000],
+  grossMarg:  [53.1,   53.5,   53.7,   54.3,   54.2,   54.8,   54.6],
+  opex:       [32000,  33000,  31500,  34000,  33500,  36000,  37500],
+  opProf:     [19000,  21000,  22500,  23000,  25000,  26928,  27500],
+  opMarg:     [19.8,   20.8,   22.4,   21.9,   23.1,   23.4,   23.1],
+  net:        [17500,  19500,  21000,  21500,  23500,  25000,  26500],
+  // service-line revenue
+  seo:        [32000,  33000,  33500,  35000,  36000,  38000,  39500],
+  growth:     [28000,  30000,  29500,  31000,  32000,  34000,  35500],
+  reporting:  [18000,  19000,  18500,  20000,  21000,  22000,  22500],
+  stripe:     [12000,  12000,  13000,  13000,  13000,  14000,  14500],
+  other:      [ 6000,   7000,   6000,   6000,   6000,   6928,   7000],
+  // analytics
+  ltv:        [38000, 38500, 39200, 39800, 40300, 41040, 41600],
+  cac:        [11800, 12000, 12100, 11900, 12000, 12500, 12600],
+  ratio:      [3.22,  3.21,  3.24,  3.34,  3.36,  3.28,  3.30],
+  mrrChurn:   [1.8,   2.1,   1.9,   1.4,   1.1,   0.0,   0.5],
+  cltChurn:   [3.1,   2.8,   2.0,   1.5,   1.0,   0.0,   0.4],
+  signed:     [2, 1, 0, 2, 1, 1, 2],
+  lost:       [0, 1, 1, 0, 0, 0, 1],
+  totalCl:    [9, 9, 8, 10, 11, 12, 13],
+  util:       [60, 63, 65, 68, 68, 72, 74],
+};
+
+/* Financials tab — live-overridable when Sheets data arrives. Other tabs keep using D + LABELS as demo. */
+let fin = {
+  labels:    [...LABELS],
+  revenue:   [...D.revenue],
+  cogs:      [...D.cogs],
+  grossProf: [...D.grossProf],
+  grossMarg: [...D.grossMarg],
+  opex:      [...D.opex],
+  opProf:    [...D.opProf],
+  opMarg:    [...D.opMarg],
+  net:       [...D.net],
+  lastAct:   LAST_ACT,
+  fcstFrom:  FCST_FROM,
+  source:    'Finance Model (demo)',
+};
+
+const SERVICE_LINES = [
+  { name:'SEO',                 key:'seo',       color:'#1390eb' }, // darkest blue (biggest)
+  { name:'Growth Marketing',    key:'growth',    color:'#0ea5e9' },
+  { name:'Reporting / Analytics', key:'reporting', color:'#38bdf8' },
+  { name:'Stripe Sales',        key:'stripe',    color:'#7dd3fc' },
+  { name:'Other',               key:'other',     color:'#bae6fd' },
+];
+
+const CLIENTS = [
+  // Mar 2026 snapshot. profit = revenue - people - referral - other
+  { name:'Apex Digital',      svc:'SEO',                pod:'Alpha',   rev:28500, ppl:8800,  ref:2000, oth:2000, status:'Active' },
+  { name:'Northwind Co.',     svc:'Growth Marketing',   pod:'Alpha',   rev:22000, ppl:7500,  ref:1500, oth:1500, status:'Active' },
+  { name:'Beacon Software',   svc:'SEO + Reporting',    pod:'Alpha',   rev:18000, ppl:6000,  ref:1200, oth:1200, status:'Active' },
+  { name:'Iron Works LLC',    svc:'Growth Marketing',   pod:'Bravo',   rev:14500, ppl:5000,  ref:1000, oth:1000, status:'Active' },
+  { name:'Cedar Finance',     svc:'Reporting',          pod:'Bravo',   rev:11000, ppl:3800,  ref:700,  oth:700,  status:'Active' },
+  { name:'Echo Health',       svc:'Stripe Sales',       pod:'Bravo',   rev:6500,  ppl:2300,  ref:500,  oth:500,  status:'Active' },
+  { name:'Harbor Home',       svc:'SEO',                pod:'Charlie', rev:5500,  ppl:1700,  ref:500,  oth:500,  status:'Active' },
+  { name:'Luna Legal',        svc:'Growth Marketing',   pod:'Charlie', rev:3500,  ppl:1000,  ref:250,  oth:250,  status:'Active' },
+  { name:'Forge Fitness',     svc:'Stripe Sales',       pod:'Charlie', rev:2800,  ppl:850,   ref:250,  oth:250,  status:'Active' },
+  { name:'Jade Jewelry',      svc:'Other',              pod:'Bravo',   rev:1700,  ppl:550,   ref:150,  oth:150,  status:'Active' },
+  { name:'Kings Coffee',      svc:'Reporting',          pod:'Charlie', rev:928,   ppl:300,   ref:100,  oth:100,  status:'Active' },
+];
+
+const VENDORS = [
+  // Oct '25 → Apr '26  (last col is forecast)
+  { name:'Media Buyers',     cat:'Payroll',   type:'COGS',  vals:[18000,19000,19500,20000,21000,22000,23000] },
+  { name:'Account Managers', cat:'Payroll',   type:'COGS',  vals:[12000,13000,12500,13500,13500,14500,15000] },
+  { name:'Graphic Designers',cat:'Payroll',   type:'COGS',  vals:[6500, 6800, 6500, 6800, 7000, 7500, 7700]  },
+  { name:'Video Editors',    cat:'Payroll',   type:'COGS',  vals:[4500, 4700, 4500, 4700, 4800, 5000, 5100]  },
+  { name:'Stripe Fees',      cat:'Software',  type:'Mixed', vals:[3200, 3400, 3300, 3500, 3600, 3850, 4000]  },
+  { name:'Software (SaaS)',  cat:'Software',  type:'OpEx',  vals:[3800, 4000, 3800, 4200, 4400, 5500, 5800]  },
+  { name:'Coaching/Consulting',cat:'Services',type:'OpEx',  vals:[2800, 2900, 2800, 3000, 3000, 3200, 3300]  },
+  { name:'Referral Partners',cat:'Marketing', type:'OpEx',  vals:[1700, 1800, 1700, 1800, 1800, 1900, 2000]  },
+  { name:'Financial Services',cat:'Services', type:'OpEx',  vals:[1500, 1500, 1500, 1700, 1700, 1800, 1850]  },
+  { name:'Virtual Assistants',cat:'Payroll',  type:'OpEx',  vals:[ 800,  900,  800,  900,  900,  950, 1000]  },
+  { name:'Other',            cat:'Other',     type:'OpEx',  vals:[ 200,  200,  200,  200,  200,  250,  250]  },
+];
+
+const PEOPLE = [
+  { name:'Kyle Tuttle',     dept:'Leadership',   hours:200, rev:22000, util:88, target:80, gap: 2000 },
+  { name:'Jonathan Vinther',dept:'Client Success',hours:200,rev:18500, util:82, target:80, gap: 1500 },
+  { name:'Carson Pavia',    dept:'Media Buying', hours:180, rev:14000, util:78, target:80, gap: -500 },
+  { name:'Chris Erickson',  dept:'SEO',          hours:200, rev:12500, util:75, target:75, gap:   500 },
+  { name:'Anthony Stuart',  dept:'Growth',       hours:170, rev:11000, util:68, target:80, gap: -2000 },
+  { name:'Jacob Cummer',    dept:'Reporting',    hours:160, rev: 9500, util:65, target:75, gap: -2500 },
+  { name:'Jarrett M.',      dept:'Client Success',hours:140,rev: 8500, util:62, target:60, gap:   500 },
+  { name:'Max Trotter',     dept:'SEO',          hours:160, rev: 7500, util:58, target:75, gap: -1500 },
+  { name:'Brennan Haelig',  dept:'Growth',       hours:150, rev: 5000, util:52, target:80, gap: -6000 },
+  { name:'Joey de Wit',     dept:'Operations',   hours:120, rev: 3000, util:40, target:40, gap:  1000 },
+  { name:'Serimi Kono',     dept:'Reporting',    hours:140, rev: 2428, util:35, target:50, gap:  -572 },
+  { name:'Sai Timbol',      dept:'SEO',          hours:150, rev:    0, util: 0, target:75, gap:     0 },
+  { name:'Nic Velasco',     dept:'Growth',       hours:200, rev:    0, util: 0, target:80, gap:     0 },
+];
+
+/* ═══════════════════════════════════════════════════════════════════════
+   FORECAST CHART PLUGIN — draws shaded area + dashed line + label
+═══════════════════════════════════════════════════════════════════════ */
+const forecastPlugin = {
+  id: 'forecastDivider',
+  afterDraw(chart, args, opts) {
+    const idx = opts && opts.fromIndex;
+    if (idx == null || idx < 0) return;
+    const xScale = chart.scales.x;
+    const yArea = chart.chartArea;
+    const xLast = xScale.getPixelForValue(chart.data.labels.length - 1);
+    let xStart;
+    try { xStart = xScale.getPixelForValue(idx); } catch (e) { return; }
+    if (xStart == null || isNaN(xStart)) return;
+    const ctx = chart.ctx;
+    // shaded reference area
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    ctx.fillRect(xStart, yArea.top, xLast - xStart + 8, yArea.bottom - yArea.top);
+    // dashed line
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3,3]);
+    ctx.beginPath();
+    ctx.moveTo(xStart, yArea.top);
+    ctx.lineTo(xStart, yArea.bottom);
+    ctx.stroke();
+    // label
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = '600 10px "DM Sans"';
+    ctx.textBaseline = 'top';
+    ctx.fillText('Forecast →', xStart + 6, yArea.top + 4);
+    ctx.restore();
+  }
+};
+Chart.register(forecastPlugin);
+
+/* Common axes config */
+const xAxis = {
+  grid:{display:false},
+  ticks:{font:{size:11},color:'rgba(255,255,255,0.65)'},
+};
+const yCurAxis = {
+  grid:{color:'rgba(120,120,120,0.12)',drawBorder:false},
+  ticks:{font:{size:11},color:'rgba(255,255,255,0.65)',
+    callback: v => fmtCompactCur(v)
+  }
+};
+const yPctAxis = (min=0,max=null) => ({
+  grid:{color:'rgba(120,120,120,0.12)',drawBorder:false},
+  ticks:{font:{size:11},color:'rgba(255,255,255,0.65)',callback:v=>fmtPctWhole(v)},
+  min, max
+});
+
+/* Forecast-aware per-bar background opacity */
+function barFillFn(baseColor){
+  return ctx => ctx.dataIndex >= FCST_FROM
+    ? baseColor.replace(/[\d.]+\)$/, '0.42)')
+    : baseColor;
 }
 
-// ─── CHART HELPERS ───────────────────────────────────────────────────────────
-function fmtK(v) { return '$'+(v>=1000?(v/1000).toFixed(0)+'k':v); }
-
-function mkLine(id, labels, datasets, opts={}) {
-  return new Chart(document.getElementById(id), {
-    type:'line', data:{labels, datasets},
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{
-        legend:{display:datasets.length>1,position:'top',labels:{boxWidth:10,boxHeight:10,padding:12}},
-        ...opts.plugins
-      },
-      scales:{
-        x:{grid:{display:false}, ticks:{maxTicksLimit:opts.xTicks||8}},
-        y:{grid:{color:'rgba(255,255,255,0.05)'},
-           ticks:{callback:opts.yFmt||(v=>'$'+(v/1000).toFixed(0)+'k')},
-           min:opts.yMin, max:opts.yMax}
-      }
-    }
-  });
-}
-
-function mkBar(id, labels, datasets, opts={}) {
-  return new Chart(document.getElementById(id), {
-    type:'bar', data:{labels, datasets},
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{
-        legend:{display:datasets.length>1,position:'top',labels:{boxWidth:10,boxHeight:10,padding:12}},
-        ...opts.plugins
-      },
-      scales:{
-        x:{stacked:!!opts.stacked, grid:{display:false}, ticks:{maxTicksLimit:opts.xTicks||8}},
-        y:{stacked:!!opts.stacked, grid:{color:'rgba(255,255,255,0.05)'},
-           ticks:{callback:opts.yFmt||(v=>'$'+(v/1000).toFixed(0)+'k')},
-           min:opts.yMin, max:opts.yMax}
-      }
-    }
-  });
-}
-
-function mkDonut(id, data, labels, colors) {
-  return new Chart(document.getElementById(id), {
-    type:'doughnut',
-    data:{labels, datasets:[{data, backgroundColor:colors, borderWidth:0, hoverOffset:4}]},
-    options:{
-      responsive:true, maintainAspectRatio:false, cutout:'72%',
-      plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>' '+ctx.label+': '+ctx.formattedValue}}}
-    }
-  });
-}
-
-// Margin line chart with datalabels on every other point
-function mkMarginChart(id, labels, datasets, title) {
-  return new Chart(document.getElementById(id), {
-    type:'line', data:{labels, datasets},
+/* ═══════════════════════════════════════════════════════════════════════
+   CHART FACTORIES
+═══════════════════════════════════════════════════════════════════════ */
+function line(id, labels, datasets, opts={}) {
+  return new Chart($(id), {
+    type:'line',
+    data:{labels,datasets},
     plugins:[ChartDataLabels],
     options:{
       responsive:true, maintainAspectRatio:false,
-      layout:{padding:{top:18, right:8}},
+      interaction:{mode:'index',intersect:false},
+      layout:{padding:{top:24,right:14,bottom:4,left:6}},
       plugins:{
-        legend:{display:true,position:'top',labels:{boxWidth:10,boxHeight:10,padding:12}},
-        datalabels:{
-          display: (ctx) => ctx.dataIndex % 2 === 0,
-          color: ctx => ctx.dataset.borderColor,
-          font:{size:9, weight:'500'},
-          anchor:'end', align:'top',
-          formatter: v => v.toFixed(1)+'%',
-          offset: 2,
-        }
+        legend: datasets.length>1
+          ? {position:'top',align:'end',labels:{boxWidth:9,boxHeight:9,padding:14,font:{size:11},color:'rgba(255,255,255,.65)'}}
+          : {display:false},
+        tooltip:{...TOOLTIP, callbacks: opts.tooltipCallbacks||{}},
+        datalabels: opts.datalabels === false ? {display:false} : {
+          align:'top',anchor:'end',
+          color:ctx=>ctx.dataset.borderColor,
+          font:{size:11,weight:'600'},
+          offset:6,
+          formatter: opts.dlFmt || (v=>fmtCompactCur(v))
+        },
+        forecastDivider: { fromIndex: opts.fcstFrom != null ? opts.fcstFrom : FCST_FROM }
       },
       scales:{
-        x:{grid:{display:false}, ticks:{maxTicksLimit:8}},
-        y:{grid:{color:'rgba(255,255,255,0.05)'},
-           ticks:{callback:v=>v+'%'},
-           min:0, max:68,
-           title:{display:false}}
+        x: xAxis,
+        y: opts.yPct ? yPctAxis(opts.yMin, opts.yMax) : {...yCurAxis, min:opts.yMin, max:opts.yMax}
       }
     }
   });
 }
 
-// ═══════════════════════════════════ BUILD CHARTS ════════════════════════════
-
-// EXECUTIVE
-mkLine('execRevenueChart', MONTHS, [
-  {label:'Revenue',data:REVENUE,borderColor:'#1390eb',backgroundColor:'rgba(19,144,235,0.08)',fill:true,tension:0.35,pointRadius:3,borderWidth:2},
-  {label:'Operating Income',data:OPINCOME,borderColor:'#22c55e',backgroundColor:'transparent',tension:0.35,pointRadius:3,borderWidth:2}
-]);
-
-mkMarginChart('execMarginChart', MONTHS, [
-  {label:'Gross Margin',data:GROSSMARG,borderColor:'#1390eb',backgroundColor:'rgba(19,144,235,0.08)',fill:true,tension:0.35,pointRadius:3,borderWidth:2},
-  {label:'Operating Margin',data:OPMARG,borderColor:'#22c55e',backgroundColor:'transparent',tension:0.35,pointRadius:3,borderWidth:2}
-]);
-
-mkBar('execChurnChart',['Oct 25','Nov 25','Dec 25','Jan 26','Feb 26','Mar 26'],[
-  {label:'Signed',data:[6,2,4,10,12,18],backgroundColor:'#22c55e',borderRadius:3},
-  {label:'Lost',data:[2,4,3,23,18,28],backgroundColor:'#ef4444',borderRadius:3}
-],{yFmt:v=>v});
-
-mkLine('execTeamChart',MONTHS,[
-  {label:'Headcount',data:TEAM,borderColor:'#c084fc',backgroundColor:'rgba(192,132,252,0.08)',fill:true,tension:0.35,pointRadius:3,borderWidth:2}
-],{yFmt:v=>v,yMin:10,yMax:25});
-
-mkLine('execRPEChart',MONTHS,[
-  {label:'Rev/Employee',data:RPE,borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,0.08)',fill:true,tension:0.35,pointRadius:3,borderWidth:2}
-]);
-
-new Chart(document.getElementById('execServiceChart'),{
-  type:'doughnut',
-  data:{
-    labels:['Meta Ads','Google Ads','Stripe Sales','LinkedIn','Projects/Other'],
-    datasets:[{data:[1420000,901000,124000,74000,122000],backgroundColor:['#1390eb','#22c55e','#c084fc','#fde047','#f59e0b'],borderWidth:0,hoverOffset:4}]
-  },
-  options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
-    plugins:{legend:{display:true,position:'right',labels:{boxWidth:10,boxHeight:10,padding:10,font:{size:11}}},
-    tooltip:{callbacks:{label:ctx=>' '+ctx.label+': $'+(ctx.raw/1000).toFixed(0)+'k'}}}}
-});
-
-// FINANCIALS
-mkMarginChart('finMarginChart', MONTHS, [
-  {label:'Gross Margin',data:GROSSMARG,borderColor:'#1390eb',backgroundColor:'rgba(19,144,235,0.08)',fill:true,tension:0.35,pointRadius:3,borderWidth:2},
-  {label:'Operating Margin',data:OPMARG,borderColor:'#22c55e',backgroundColor:'transparent',tension:0.35,pointRadius:3,borderWidth:2}
-]);
-
-new Chart(document.getElementById('finCOGSChart'),{
-  type:'doughnut',
-  data:{labels:['Media Buyers','Account Managers','Graphic Designers','Video Editors','Other'],
-    datasets:[{data:[860000,245000,68000,57000,27000],backgroundColor:['#ef4444','#f59e0b','#c084fc','#fde047','#1390eb'],borderWidth:0,hoverOffset:4}]},
-  options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
-    plugins:{legend:{display:true,position:'right',labels:{boxWidth:10,boxHeight:10,padding:10,font:{size:11}}},
-    tooltip:{callbacks:{label:ctx=>' '+ctx.label+': $'+(ctx.raw/1000).toFixed(0)+'k'}}}}
-});
-
-new Chart(document.getElementById('finWaterfallChart'),{
-  type:'bar',
-  data:{
-    labels:['Revenue','– COGS','Gross Profit','– OpEx','Op. Income','– Payroll','Net Income'],
-    datasets:[{
-      data:[270079,-123918,146161,-39960,106202,-26913,79289],
-      backgroundColor:ctx=>{const v=ctx.raw; return v===270079?'#1390eb':v>0?'rgba(34,197,94,0.75)':'rgba(239,68,68,0.75)';},
-      borderRadius:4
-    }]
-  },
-  options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
-    plugins:{legend:{display:false},
-      datalabels:{display:false}},
-    scales:{x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{callback:v=>'$'+(v/1000).toFixed(0)+'k'}},y:{grid:{display:false}}}}
-});
-
-// REVENUE — interactive chart
-const revDatasets = Object.entries(SVC).map(([name,data])=>({
-  label:name, data,
-  borderColor:SVC_COLORS[name],
-  backgroundColor:'transparent',
-  tension:0.35, pointRadius:2, borderWidth:2,
-}));
-const revChart = new Chart(document.getElementById('revMonthlyChart'),{
-  type:'line',
-  data:{labels:MONTHS, datasets:revDatasets},
-  options:{
-    responsive:true, maintainAspectRatio:false,
-    plugins:{legend:{display:true,position:'top',labels:{boxWidth:10,boxHeight:10,padding:8,font:{size:10}}}},
-    scales:{
-      x:{grid:{display:false},ticks:{maxTicksLimit:8}},
-      y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{callback:v=>'$'+(v/1000).toFixed(0)+'k'}}
+function bar(id, labels, datasets, opts={}) {
+  return new Chart($(id), {
+    type:'bar',
+    data:{labels,datasets},
+    plugins:[ChartDataLabels],
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      layout:{padding:{top:24,right:14,bottom:4,left:6}},
+      plugins:{
+        legend: datasets.length>1
+          ? {position:'top',align:'end',labels:{boxWidth:9,boxHeight:9,padding:14,font:{size:11},color:'rgba(255,255,255,.65)'}}
+          : {display:false},
+        tooltip:{...TOOLTIP, callbacks: opts.tooltipCallbacks||{}},
+        datalabels: opts.datalabels === false ? {display:false} : {
+          align:'top', anchor:'end',
+          color:'currentColor',
+          font:{size:11,weight:'600'},
+          formatter: opts.dlFmt || (v=>fmtCompactCur(v)),
+          display: opts.dlDisplay || true,
+        },
+        forecastDivider: opts.noForecast ? {} : { fromIndex: FCST_FROM }
+      },
+      scales:{
+        x:{...xAxis, stacked:!!opts.stacked, ticks:{...xAxis.ticks, maxTicksLimit:opts.xTicks||10}},
+        y: opts.yPct ? {...yPctAxis(opts.yMin,opts.yMax), stacked:!!opts.stacked} : {...yCurAxis, stacked:!!opts.stacked, min:opts.yMin, max:opts.yMax}
+      }
     }
-  }
-});
+  });
+}
 
-function filterRevChart() {
-  const sel = document.getElementById('revServiceFilter').value;
-  revChart.data.datasets.forEach(ds => {
-    if (sel === 'all') {
-      ds.hidden = false;
-      ds.borderWidth = 2;
-      ds.borderColor = SVC_COLORS[ds.label];
+function hbar(id, labels, data, color='#1390eb', opts={}) {
+  return new Chart($(id), {
+    type:'bar',
+    data:{labels,datasets:[{
+      data, backgroundColor: opts.colorFn || color,
+      borderRadius:3,barThickness:opts.thickness||16,
+    }]},
+    plugins:[ChartDataLabels],
+    options:{
+      indexAxis:'y',
+      responsive:true, maintainAspectRatio:false,
+      layout:{padding:{top:4,right:60,bottom:4,left:6}},
+      plugins:{
+        legend:{display:false},
+        tooltip:TOOLTIP,
+        datalabels:{
+          anchor:'end', align:'right', offset:6,
+          color:'rgba(255,255,255,.85)',
+          font:{size:11,weight:'500'},
+          formatter: opts.dlFmt || (v=>fmtCompactCur(v))
+        }
+      },
+      scales:{
+        x:{grid:{color:'rgba(120,120,120,.12)',drawBorder:false},
+           ticks:{font:{size:11},color:'rgba(255,255,255,.65)',callback:opts.xFmt||(v=>fmtCompactCur(v))}},
+        y:{grid:{display:false},ticks:{font:{size:11},color:'rgba(255,255,255,.75)'}}
+      }
+    }
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   FINANCIALS — live-data renderers (read from `fin`)
+═══════════════════════════════════════════════════════════════════════ */
+function buildFinCharts() {
+  // Destroy if already mounted so we can re-run on live data
+  ['finRevOpChart','finMarginChart'].forEach(id => {
+    const existing = Chart.getChart(id);
+    if (existing) existing.destroy();
+  });
+
+  const lastAct = fin.lastAct;
+  const fcstFrom = fin.fcstFrom;
+
+  line('finRevOpChart', fin.labels, [
+    {label:'Revenue', data:fin.revenue,
+     borderColor:'#1390eb', backgroundColor:'rgba(19,144,235,0.10)',
+     fill:true, tension:.35, pointRadius:3, borderWidth:2,
+     segment:{borderDash: ctx=>ctx.p0DataIndex>=lastAct?[4,4]:undefined}},
+    {label:'Operating Profit', data:fin.opProf,
+     borderColor:'#22c55e', backgroundColor:'rgba(34,197,94,0.08)',
+     fill:false, tension:.35, pointRadius:3, borderWidth:2,
+     segment:{borderDash: ctx=>ctx.p0DataIndex>=lastAct?[4,4]:undefined}},
+  ], {
+    fcstFrom,
+    dlFmt: v=>fmtCompactCur(v),
+    datalabels: true,
+    tooltipCallbacks:{ label: ctx=>` ${ctx.dataset.label}: ${fmtFullCur(ctx.raw)}` }
+  });
+
+  line('finMarginChart', fin.labels, [
+    {label:'Gross Margin', data:fin.grossMarg,
+     borderColor:'#1390eb', backgroundColor:'rgba(19,144,235,0.08)',
+     fill:true, tension:.35, pointRadius:3, borderWidth:2,
+     segment:{borderDash: ctx=>ctx.p0DataIndex>=lastAct?[4,4]:undefined}},
+    {label:'Operating Margin', data:fin.opMarg,
+     borderColor:'#22c55e', backgroundColor:'rgba(34,197,94,0.06)',
+     fill:false, tension:.35, pointRadius:3, borderWidth:2,
+     segment:{borderDash: ctx=>ctx.p0DataIndex>=lastAct?[4,4]:undefined}},
+  ], { yPct:true, yMin:0, yMax:70, fcstFrom, dlFmt:v=>v.toFixed(1)+'%',
+       tooltipCallbacks:{ label:ctx=>` ${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%`}});
+}
+
+function renderPL() {
+  const head = $('plHead');
+  const body = $('plBody');
+  if (!head || !body) return;
+  const n = fin.labels.length;
+  const headHTML = `<tr><th class="sticky-left">Line item</th>` +
+    fin.labels.map((m,i)=>`<th class="num ${i>=fin.fcstFrom?'fcst':''}">${m}</th>`).join('') +
+    `</tr>`;
+  head.innerHTML = headHTML;
+
+  const fmtCell = (v,i) => `<td class="num ${i>=fin.fcstFrom?'fcst':''} ${v===0?'zero':''}">${v===0?'<span class="dim">—</span>':fmtFullCur(v)}</td>`;
+  const fmtPctCell = (v,i) => `<td class="num ${i>=fin.fcstFrom?'fcst':''}">${(v||0).toFixed(1)}%</td>`;
+
+  const rows = [];
+  rows.push(`<tr><td class="sticky-left">Total Revenue</td>${fin.revenue.map(fmtCell).join('')}</tr>`);
+  rows.push(`<tr><td class="sticky-left">Total COGS</td>${fin.cogs.map(fmtCell).join('')}</tr>`);
+  rows.push(`<tr class="subtotal"><td class="sticky-left">Gross Profit</td>${fin.grossProf.map(fmtCell).join('')}</tr>`);
+  rows.push(`<tr><td class="sticky-left dim" style="padding-left:28px">Gross Margin %</td>${fin.grossMarg.map(fmtPctCell).join('')}</tr>`);
+  rows.push(`<tr><td class="sticky-left">Total OpEx</td>${fin.opex.map(fmtCell).join('')}</tr>`);
+  rows.push(`<tr class="subtotal"><td class="sticky-left">Operating Profit</td>${fin.opProf.map(fmtCell).join('')}</tr>`);
+  rows.push(`<tr><td class="sticky-left dim" style="padding-left:28px">Operating Margin %</td>${fin.opMarg.map(fmtPctCell).join('')}</tr>`);
+  rows.push(`<tr class="grand"><td class="sticky-left">Net Profit</td>${fin.net.map(fmtCell).join('')}</tr>`);
+  body.innerHTML = rows.join('');
+
+  const grand = fin.revenue.reduce((a,b)=>a+b,0);
+  const el = $('plGrandTotal');
+  if (el) el.textContent = fmtCompactCur(grand);
+  const head2 = document.querySelector('#tab-financials .table-toolbar .right');
+  if (head2) head2.innerHTML = `${n} months · grand total <span class="tabular">${fmtCompactCur(grand)}</span>`;
+}
+
+function renderFinKpis() {
+  const i = fin.lastAct;
+  if (i < 0 || i >= fin.revenue.length) return;
+  const prev = i - 1 >= 0 ? i - 1 : null;
+  const prevLabel = prev != null ? fin.labels[prev] : null;
+
+  const setVal = (id, val) => { const el = $(id); if (el) el.textContent = val; };
+  const setCls = (id, cls) => { const el = $(id); if (el) el.className = 'kpi-value ' + cls; };
+  const setDelta = (id, ctxId, pctDelta, prevText, kind='pct') => {
+    const elD = $(id); const elC = $(ctxId);
+    if (!elD || !elC) return;
+    if (pctDelta == null || !isFinite(pctDelta)) { elD.textContent='—'; elD.className='d flat'; elC.textContent='no prior period'; return; }
+    const up = pctDelta >= 0.05;
+    const down = pctDelta <= -0.05;
+    const arrow = up ? '▲' : down ? '▼' : '▬';
+    const sign  = pctDelta >= 0 ? '+' : '';
+    if (kind === 'pp') {
+      elD.textContent = `${arrow} ${sign}${pctDelta.toFixed(1)}pp`;
     } else {
-      ds.hidden = ds.label !== sel;
+      elD.textContent = `${arrow} ${sign}${pctDelta.toFixed(1)}%`;
+    }
+    elD.className = 'd ' + (up?'up':down?'down':'flat');
+    elC.textContent = prevText ? `vs ${prevText}` : '';
+  };
+
+  // Revenue
+  setVal('kRev', fmtCompactCur(fin.revenue[i]));
+  setCls('kRev', '');
+  setDelta('kRevD','kRevCtx',
+    prev!=null ? ((fin.revenue[i]-fin.revenue[prev])/Math.max(fin.revenue[prev],1))*100 : null,
+    prevLabel);
+
+  // Operating profit
+  setVal('kOp', fmtCompactCur(fin.opProf[i]));
+  setCls('kOp', fin.opProf[i] > 0 ? 'success' : fin.opProf[i] < 0 ? 'danger' : '');
+  setDelta('kOpD','kOpCtx',
+    prev!=null ? ((fin.opProf[i]-fin.opProf[prev])/Math.max(Math.abs(fin.opProf[prev]),1))*100 : null,
+    prevLabel);
+
+  // Gross margin
+  setVal('kGm', fmtPct1(fin.grossMarg[i]));
+  setCls('kGm', fin.grossMarg[i] >= 50 ? 'success' : fin.grossMarg[i] >= 30 ? 'warning' : 'danger');
+  setDelta('kGmD','kGmCtx',
+    prev!=null ? (fin.grossMarg[i]-fin.grossMarg[prev]) : null,
+    prevLabel, 'pp');
+
+  // Operating margin
+  setVal('kOm', fmtPct1(fin.opMarg[i]));
+  setCls('kOm', fin.opMarg[i] >= 15 ? 'success' : fin.opMarg[i] >= 5 ? 'warning' : 'danger');
+  setDelta('kOmD','kOmCtx',
+    prev!=null ? (fin.opMarg[i]-fin.opMarg[prev]) : null,
+    prevLabel, 'pp');
+
+  // Net profit
+  setVal('kNet', fmtCompactCur(fin.net[i]));
+  setCls('kNet', fin.net[i] > 0 ? 'success' : fin.net[i] < 0 ? 'danger' : '');
+  setDelta('kNetD','kNetCtx',
+    prev!=null ? ((fin.net[i]-fin.net[prev])/Math.max(Math.abs(fin.net[prev]),1))*100 : null,
+    prevLabel);
+}
+
+function renderFinMeta() {
+  const i = fin.lastAct;
+  const label = fin.labels[i] || '';
+  const sub = $('finSubline');
+  if (sub) {
+    const linkM = sub.querySelector('a');
+    const linkHTML = linkM ? linkM.outerHTML : 'Jumpstart ROI';
+    sub.innerHTML = `${label} · live from ${linkHTML} — ${fin.source}`;
+  }
+  const wt = $('finWtdnTitle');
+  if (wt) wt.textContent = `What to do next · ${label.toUpperCase()}`;
+  const la = $('lastActualVal');
+  if (la) la.textContent = label;
+  const pv = $('periodVal');
+  if (pv) pv.textContent = label;
+  const rv = $('rangeVal');
+  if (rv && fin.labels.length>1) rv.textContent = `${fin.labels[0]} → ${fin.labels[fin.labels.length-1]}`;
+}
+
+function refreshFinancials() {
+  buildFinCharts();
+  renderPL();
+  renderFinKpis();
+  renderFinMeta();
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   INIT CHARTS
+═══════════════════════════════════════════════════════════════════════ */
+function initCharts() {
+
+  /* ── FINANCIALS ───────────────────────────────────────────────── */
+  buildFinCharts();
+
+  /* ── REVENUE ──────────────────────────────────────────────────── */
+  // Stacked monthly + synthetic invisible "total" line for labels above each stack
+  const stackedDatasets = SERVICE_LINES.map(s => ({
+    label:s.name, data:D[s.key],
+    backgroundColor: ctx => {
+      const idx = ctx.dataIndex;
+      const c = s.color;
+      // forecast → reduce opacity
+      const op = idx>=FCST_FROM ? 0.42 : 0.88;
+      // convert hex to rgba
+      const r=parseInt(c.slice(1,3),16), g=parseInt(c.slice(3,5),16), b=parseInt(c.slice(5,7),16);
+      return `rgba(${r},${g},${b},${op})`;
+    },
+    borderRadius: 0,
+    borderColor: 'transparent',
+    datalabels: { display: false },
+  }));
+  const monthTotals = LABELS.map((_,i)=>SERVICE_LINES.reduce((a,s)=>a+D[s.key][i],0));
+  // Synthetic "total" bar of 0 height — Chart.js will render data labels via plugin even without bar
+  stackedDatasets.push({
+    type:'line',
+    label:'__total',
+    data: monthTotals,
+    backgroundColor:'transparent', borderColor:'transparent',
+    pointRadius:0, fill:false,
+    datalabels:{
+      align:'top', anchor:'end', offset:6,
+      color:'rgba(255,255,255,.92)',
+      font:{size:11, weight:'700'},
+      formatter:(v,ctx)=>ctx.dataIndex>=FCST_FROM?'• '+fmtCompactCur(v):fmtCompactCur(v),
+    },
+  });
+  new Chart($('revStackedChart'),{
+    type:'bar',
+    data:{labels:LABELS, datasets:stackedDatasets},
+    plugins:[ChartDataLabels],
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      layout:{padding:{top:32,right:14,bottom:4,left:6}},
+      plugins:{
+        legend:{position:'top',align:'end',
+          labels:{boxWidth:9,boxHeight:9,padding:12,font:{size:11},color:'rgba(255,255,255,.65)',
+            filter:item=>item.text!=='__total'}},
+        tooltip:{...TOOLTIP,
+          callbacks:{
+            label: ctx=>` ${ctx.dataset.label}: ${fmtFullCur(ctx.raw)}`,
+            filter: ctx=>ctx.dataset.label!=='__total'
+          }
+        },
+        forecastDivider:{ fromIndex: FCST_FROM }
+      },
+      scales:{
+        x:{...xAxis, stacked:true},
+        y:{...yCurAxis, stacked:true}
+      }
     }
   });
-  revChart.update();
-}
 
-mkDonut('arDonut',[22440,13600],['Unpaid','Write Off'],['#1390eb','#22c55e']);
+  // Mar 2026 snapshot — three breakdowns
+  hbar('revIndustryChart',
+    ['Healthcare','SaaS','E-commerce','Legal','Finance','Other'],
+    [36000, 28000, 22000, 14000, 9000, 5928],
+    '#1390eb');
 
-new Chart(document.getElementById('revMixChart'),{
-  type:'doughnut',
-  data:{
-    labels:Object.keys(SVC),
-    datasets:[{
-      data:Object.values(SVC).map(arr=>arr.reduce((a,b)=>a+b,0)),
-      backgroundColor:Object.values(SVC_COLORS),
-      borderWidth:0, hoverOffset:4
-    }]
-  },
-  options:{responsive:true,maintainAspectRatio:false,cutout:'55%',
-    plugins:{legend:{display:true,position:'right',labels:{boxWidth:9,boxHeight:9,padding:8,font:{size:10}}},
-    tooltip:{callbacks:{label:ctx=>' '+ctx.label+': $'+(ctx.raw/1000).toFixed(0)+'k'}}}}
-});
+  hbar('revSourceChart',
+    ['Referral','Inbound','Outbound','Partner','Direct'],
+    [42000, 30000, 22000, 14000, 6928],
+    '#22c55e');
 
-// EXPENSES
-mkBar('expMonthlyChart',MONTHS,[
-  {label:'COGS',data:COGS,backgroundColor:'rgba(239,68,68,0.6)',borderRadius:3},
-  {label:'OpEx',data:OPEX,backgroundColor:'rgba(245,158,11,0.6)',borderRadius:3}
-],{stacked:true});
+  hbar('revPodChart',
+    ['Alpha','Bravo','Charlie'],
+    [68500, 32200, 14228],
+    '#c084fc');
 
-const acctMgrs   = [7000,7000,7000,7000,3500,7500,11778,18600,14140,19050,18750,24900,23100,27200,34700];
-const mediaBuyers= [47492,47409,48031,47696,50165,48351,55348,69730,72666,66193,54575,82191,57398,90437,78849];
-const graphicDes = [4822,3878,2635,2453,2428,2799,2754,2841,1623,6469,6336,8134,5468,4428,4253];
-const videoEds   = [2118,628,4655,648,2757,2540,2560,3023,5773,4361,4227,4888,3536,4308,4014];
-mkBar('expCOGSStackChart',MONTHS,[
-  {label:'Media Buyers',data:mediaBuyers,backgroundColor:'rgba(239,68,68,0.75)',borderRadius:2},
-  {label:'Account Mgrs',data:acctMgrs,backgroundColor:'rgba(245,158,11,0.75)',borderRadius:2},
-  {label:'Graphic Des.',data:graphicDes,backgroundColor:'rgba(192,132,252,0.75)',borderRadius:2},
-  {label:'Video Editors',data:videoEds,backgroundColor:'rgba(253,224,71,0.75)',borderRadius:2}
-],{stacked:true});
-
-const stripeFees = [4598,4842,4914,4765,5082,5417,6583,7505,7393,7984,7437,8859,7984,8812,9324];
-const software   = [3662,5060,4017,4064,3371,4588,4438,6240,4515,4986,8589,5151,6509,8996,6970];
-const coaching   = [2289,999,999,1124,999,1999,3099,5287,0,6599,6721,14106,6296,6296,11924];
-const referral   = [1700,1850,1600,1600,1825,1325,1325,3325,5146,3882,4401,3625,3530,1405,2900];
-mkBar('expOpExChart',MONTHS,[
-  {label:'Stripe Fees',data:stripeFees,backgroundColor:'rgba(19,144,235,0.75)',borderRadius:2},
-  {label:'Software',data:software,backgroundColor:'rgba(192,132,252,0.75)',borderRadius:2},
-  {label:'Coaching',data:coaching,backgroundColor:'rgba(245,158,11,0.75)',borderRadius:2},
-  {label:'Referral',data:referral,backgroundColor:'rgba(34,197,94,0.75)',borderRadius:2}
-],{stacked:true});
-
-// CLIENTS
-mkDonut('clientMarginDonut',[49,51],['Margin','Cost'],['#22c55e','rgba(255,255,255,0.08)']);
-
-mkBar('clientMonthChart',['Oct 25','Nov 25','Dec 25'],[
-  {label:'Client Margin',data:[44.19,51.71,51.71],
-   backgroundColor:['rgba(245,158,11,0.75)','rgba(34,197,94,0.75)','rgba(34,197,94,0.75)'],borderRadius:4}
-],{yFmt:v=>v+'%',yMin:0,yMax:70});
-
-mkBar('clientServiceChart',['Email Mktg','Google Ads','Meta Ads'],[
-  {data:[-68.75,47.51,82.08],backgroundColor:ctx=>ctx.raw<0?'rgba(239,68,68,0.75)':'rgba(192,132,252,0.75)',borderRadius:3}
-],{yFmt:v=>v+'%'});
-
-mkBar('clientIntensityChart',['High','Low','Mid'],[
-  {data:[27.2,41.95,72.61],backgroundColor:['rgba(239,68,68,0.75)','rgba(245,158,11,0.75)','rgba(192,132,252,0.75)'],borderRadius:3}
-],{yFmt:v=>v+'%',yMin:0,yMax:90});
-
-// Client table filters
-function filterClientTable() {
-  const svc = document.getElementById('clientServiceFilter').value;
-  const intens = document.getElementById('clientIntensityFilter').value;
-  document.querySelectorAll('#clientTable tbody tr').forEach(row => {
-    if (row.classList.contains('grand-total')) { row.style.display=''; return; }
-    const rowSvc   = row.dataset.service   || '';
-    const rowIntns = row.dataset.intensity || '';
-    const svcOk    = svc    === 'all' || rowSvc   === svc;
-    const intOk    = intens === 'all' || rowIntns === intens;
-    row.style.display = (svcOk && intOk) ? '' : 'none';
+  // Movers — based on Mar vs Feb deltas
+  const moMDeltas = SERVICE_LINES.map(s=>{
+    const cur = D[s.key][LAST_ACT], prev = D[s.key][LAST_ACT-1];
+    return {name:s.name, cur, prev, dlt:cur-prev, pct: (cur-prev)/(prev||1)*100};
   });
+  const growers = [...moMDeltas].sort((a,b)=>b.dlt-a.dlt).slice(0,3);
+  const decliners = [...moMDeltas].sort((a,b)=>a.dlt-b.dlt).slice(0,3);
+  $('topGrowers').innerHTML = growers.map(m=>`
+    <div class="mover-row">
+      <div><div class="name">${m.name}</div><div class="meta">${fmtFullCur(m.prev)} → ${fmtFullCur(m.cur)}</div></div>
+      <div class="delta ${m.dlt>=0?'up':'down'}">${m.dlt>=0?'+':''}${fmtCompactCur(m.dlt)} <span class="meta">${m.pct>=0?'+':''}${m.pct.toFixed(1)}%</span></div>
+    </div>`).join('');
+  $('topDecliners').innerHTML = decliners.map(m=>`
+    <div class="mover-row">
+      <div><div class="name">${m.name}</div><div class="meta">${fmtFullCur(m.prev)} → ${fmtFullCur(m.cur)}</div></div>
+      <div class="delta ${m.dlt>=0?'up':'down'}">${m.dlt>=0?'+':''}${fmtCompactCur(m.dlt)} <span class="meta">${m.pct>=0?'+':''}${m.pct.toFixed(1)}%</span></div>
+    </div>`).join('');
+
+  // Service-line MoM table — bar-in-cell heatmap
+  const totalRev = SERVICE_LINES.reduce((a,s)=>a+D[s.key].reduce((x,y)=>x+y,0),0);
+  const maxCell  = Math.max(...SERVICE_LINES.flatMap(s=>D[s.key]));
+  const rowsHTML = SERVICE_LINES.map(s=>{
+    const vals = D[s.key];
+    const lineTotal = vals.reduce((a,b)=>a+b,0);
+    const share = lineTotal/totalRev*100;
+    const shareBadge = share>=20 ? 'ok' : share>=10 ? 'warn' : 'bad';
+    return `<tr>
+      <td class="sticky-left">${s.name}</td>
+      ${vals.map((v,i)=>{
+        const pct = Math.round(v/maxCell*100);
+        const fcst = i>=FCST_FROM;
+        const op = (fcst?0.08:0.15) + (pct/100)*(fcst?0.22:0.40);
+        return `<td class="mcell ${fcst?'fcst':''} ${v===0?'zero':''}">
+          <div class="bg" style="background:rgba(34,211,238,0.55);opacity:${op.toFixed(2)}"></div>
+          <div class="v">${v===0?'—':fmtCompactCur(v)}</div>
+        </td>`;
+      }).join('')}
+      <td class="num">${fmtCompactCur(lineTotal)}</td>
+      <td><span class="badge ${shareBadge}">${share.toFixed(1)}%</span></td>
+    </tr>`;
+  }).join('');
+  const totalsByMonth = LABELS.map((_,i)=>SERVICE_LINES.reduce((a,s)=>a+D[s.key][i],0));
+  const grandTotal = totalsByMonth.reduce((a,b)=>a+b,0);
+  $('revRows').innerHTML = rowsHTML + `<tr class="total">
+    <td class="sticky-left">Total revenue</td>
+    ${totalsByMonth.map((v,i)=>`<td class="num ${i>=FCST_FROM?'fcst':''}"><b>${fmtCompactCur(v)}</b></td>`).join('')}
+    <td class="num"><b>${fmtCompactCur(grandTotal)}</b></td>
+    <td><span class="badge info">100%</span></td>
+  </tr>`;
+  $('revMomTotals').textContent = `${SERVICE_LINES.length} lines · grand total ${fmtCompactCur(grandTotal)}`;
+
+  /* ── EXPENSES ─────────────────────────────────────────────────── */
+  bar('expStackedChart', LABELS, [
+    {label:'COGS', data:D.cogs,
+     backgroundColor:ctx=>ctx.dataIndex>=FCST_FROM?'rgba(239,68,68,0.42)':'rgba(239,68,68,0.85)',
+     borderRadius:0, datalabels:{display:false}},
+    {label:'OpEx', data:D.opex,
+     backgroundColor:ctx=>ctx.dataIndex>=FCST_FROM?'rgba(245,158,11,0.42)':'rgba(245,158,11,0.85)',
+     borderRadius:[4,4,0,0],
+     datalabels:{
+       align:'top',anchor:'end',offset:4,
+       color:'rgba(255,255,255,.9)',
+       font:{size:11,weight:'700'},
+       formatter:(v,ctx)=>fmtCompactCur(D.cogs[ctx.dataIndex]+v)
+     }
+    },
+  ], {stacked:true, datalabels:false});
+
+  const cogsPct = LABELS.map((_,i)=>+(D.cogs[i]/(D.revenue[i]||1)*100).toFixed(1));
+  const opexPct = LABELS.map((_,i)=>+(D.opex[i]/(D.revenue[i]||1)*100).toFixed(1));
+  line('expPctChart', LABELS, [
+    {label:'COGS %',  data:cogsPct, borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,0.08)', fill:false, tension:.35, pointRadius:3, borderWidth:2,
+     segment:{borderDash:ctx=>ctx.p0DataIndex>=LAST_ACT?[4,4]:undefined}},
+    {label:'OpEx %',  data:opexPct, borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,0.06)', fill:false, tension:.35, pointRadius:3, borderWidth:2,
+     segment:{borderDash:ctx=>ctx.p0DataIndex>=LAST_ACT?[4,4]:undefined}},
+  ], {yPct:true,yMin:0,yMax:70, dlFmt:v=>v.toFixed(1)+'%'});
+
+  // By type (Mar 2026)
+  const typeAgg = {COGS:0,OpEx:0,Mixed:0};
+  VENDORS.forEach(v=>{ typeAgg[v.type] += v.vals[LAST_ACT]; });
+  new Chart($('expByTypeChart'),{
+    type:'bar',
+    data:{labels:Object.keys(typeAgg), datasets:[{
+      data:Object.values(typeAgg),
+      backgroundColor:['rgba(239,68,68,0.85)','rgba(245,158,11,0.85)','rgba(192,132,252,0.85)'],
+      borderRadius:[4,4,0,0], barThickness:48
+    }]},
+    plugins:[ChartDataLabels],
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      layout:{padding:{top:24}},
+      plugins:{
+        legend:{display:false},
+        tooltip:TOOLTIP,
+        datalabels:{align:'top',anchor:'end',offset:4,color:'rgba(255,255,255,.9)',font:{size:11,weight:'700'},formatter:v=>fmtCompactCur(v)}
+      },
+      scales:{x:xAxis, y:yCurAxis}
+    }
+  });
+
+  // By category — top 10
+  const catAgg = {};
+  VENDORS.forEach(v=>{ catAgg[v.cat] = (catAgg[v.cat]||0) + v.vals[LAST_ACT]; });
+  const catSorted = Object.entries(catAgg).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  hbar('expByCategoryChart',
+    catSorted.map(c=>c[0]),
+    catSorted.map(c=>c[1]),
+    '#ef4444');
+
+  // Vendor MoM rows
+  const vendMax = Math.max(...VENDORS.flatMap(v=>v.vals));
+  $('vendorRows').innerHTML = VENDORS.map(v=>{
+    const lineTotal = v.vals.reduce((a,b)=>a+b,0);
+    const typePill = v.type==='COGS'?'pill danger' : v.type==='OpEx'?'pill warn' : 'pill lost';
+    return `<tr>
+      <td class="sticky-left">${v.name}</td>
+      <td>${v.cat}</td>
+      <td><span class="${typePill}">${v.type}</span></td>
+      ${v.vals.map((x,i)=>{
+        const pct = Math.round(x/vendMax*100);
+        const fcst = i>=FCST_FROM;
+        const op = (fcst?0.08:0.15)+(pct/100)*(fcst?0.22:0.40);
+        return `<td class="mcell ${fcst?'fcst':''} ${x===0?'zero':''}">
+          <div class="bg" style="background:rgba(251,113,133,0.55);opacity:${op.toFixed(2)}"></div>
+          <div class="v">${x===0?'—':fmtCompactCur(x)}</div>
+        </td>`;
+      }).join('')}
+      <td class="num"><b>${fmtCompactCur(lineTotal)}</b></td>
+    </tr>`;
+  }).join('');
+
+  /* ── ANALYTICS ───────────────────────────────────────────────── */
+  new Chart($('ltvCacChart'),{
+    type:'line',
+    data:{labels:LABELS, datasets:[
+      {label:'LTV', data:D.ltv, yAxisID:'l',
+       borderColor:'#1390eb', backgroundColor:'rgba(19,144,235,0.08)', fill:true, tension:.35, pointRadius:3, borderWidth:2,
+       segment:{borderDash:ctx=>ctx.p0DataIndex>=LAST_ACT?[4,4]:undefined}},
+      {label:'CAC', data:D.cac, yAxisID:'l',
+       borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,0.06)', fill:false, tension:.35, pointRadius:3, borderWidth:2,
+       segment:{borderDash:ctx=>ctx.p0DataIndex>=LAST_ACT?[4,4]:undefined}},
+      {label:'LTV/CAC', data:D.ratio, yAxisID:'r',
+       borderColor:'#22c55e', backgroundColor:'transparent', fill:false, tension:.35, pointRadius:3, borderWidth:2,
+       borderDash: ctx=>undefined,
+       segment:{borderDash:ctx=>ctx.p0DataIndex>=LAST_ACT?[4,4]:undefined}},
+    ]},
+    plugins:[ChartDataLabels],
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      layout:{padding:{top:32,right:14,bottom:4,left:6}},
+      plugins:{
+        legend:{position:'top',align:'end',labels:{boxWidth:9,boxHeight:9,padding:12,font:{size:11},color:'rgba(255,255,255,.65)'}},
+        tooltip:{...TOOLTIP, callbacks:{label: ctx=>{
+          if (ctx.dataset.label==='LTV/CAC') return ` ${ctx.dataset.label}: ${ctx.raw.toFixed(2)}x`;
+          return ` ${ctx.dataset.label}: ${fmtFullCur(ctx.raw)}`;
+        }}},
+        datalabels:{
+          align:'top',anchor:'end',offset:ctx=>6+ctx.datasetIndex*14,
+          color:ctx=>ctx.dataset.borderColor,
+          font:{size:10,weight:'600'},
+          formatter:(v,ctx)=>ctx.dataset.label==='LTV/CAC'?v.toFixed(1)+'x':fmtCompactCur(v),
+          display:ctx=>ctx.dataIndex===LAST_ACT || ctx.dataIndex===FCST_FROM
+        },
+        forecastDivider:{ fromIndex:FCST_FROM }
+      },
+      scales:{
+        x: xAxis,
+        l: {position:'left', ...yCurAxis},
+        r: {position:'right', grid:{display:false}, ticks:{font:{size:11},color:'rgba(255,255,255,.65)',callback:v=>v.toFixed(1)+'x'}, min:0, max:5}
+      }
+    }
+  });
+
+  line('churnChart', LABELS, [
+    {label:'MRR Churn', data:D.mrrChurn, borderColor:'#ef4444', backgroundColor:'transparent', fill:false, tension:.35, pointRadius:3, borderWidth:2,
+     segment:{borderDash:ctx=>ctx.p0DataIndex>=LAST_ACT?[4,4]:undefined}},
+    {label:'Client Churn', data:D.cltChurn, borderColor:'#f59e0b', backgroundColor:'transparent', fill:false, tension:.35, pointRadius:3, borderWidth:2,
+     segment:{borderDash:ctx=>ctx.p0DataIndex>=LAST_ACT?[4,4]:undefined}},
+  ], {yPct:true, yMin:0, yMax:5, dlFmt:v=>v.toFixed(1)+'%'});
+
+  // Signed/Lost with total clients line (right axis)
+  new Chart($('signedLostChart'),{
+    type:'bar',
+    data:{labels:LABELS, datasets:[
+      {label:'Signed', yAxisID:'b', data:D.signed,
+       backgroundColor:ctx=>ctx.dataIndex>=FCST_FROM?'rgba(34,197,94,0.42)':'rgba(34,197,94,0.88)',
+       borderRadius:[3,3,0,0], barThickness:18,
+       datalabels:{align:'top',anchor:'end',offset:4,color:'#86efac',font:{size:11,weight:'700'},formatter:v=>v}},
+      {label:'Lost', yAxisID:'b', data:D.lost.map(v=>-v),
+       backgroundColor:ctx=>ctx.dataIndex>=FCST_FROM?'rgba(239,68,68,0.42)':'rgba(239,68,68,0.88)',
+       borderRadius:[3,3,0,0], barThickness:18,
+       datalabels:{align:'bottom',anchor:'start',offset:4,color:'#fda4af',font:{size:10,weight:'600'},formatter:v=>v===0?'':-v}},
+      {type:'line', label:'Total active', yAxisID:'t', data:D.totalCl,
+       borderColor:'#1390eb', backgroundColor:'transparent', fill:false, tension:.35,
+       pointRadius:3, borderWidth:2,
+       segment:{borderDash:ctx=>ctx.p0DataIndex>=LAST_ACT?[4,4]:undefined},
+       datalabels:{align:'top',anchor:'end',offset:12,color:'#7dd3fc',font:{size:11,weight:'700'},formatter:v=>v}},
+    ]},
+    plugins:[ChartDataLabels],
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      layout:{padding:{top:30,right:14,bottom:4,left:6}},
+      plugins:{
+        legend:{position:'top',align:'end',labels:{boxWidth:9,boxHeight:9,padding:12,font:{size:11},color:'rgba(255,255,255,.65)'}},
+        tooltip:{...TOOLTIP, callbacks:{label: ctx=> ` ${ctx.dataset.label}: ${Math.abs(ctx.raw)}`}},
+        forecastDivider:{ fromIndex: FCST_FROM }
+      },
+      scales:{
+        x: xAxis,
+        b: {position:'left', grid:{color:'rgba(120,120,120,.12)'}, ticks:{font:{size:11},color:'rgba(255,255,255,.65)',callback:v=>v}, suggestedMin:-3, suggestedMax:3},
+        t: {position:'right', grid:{display:false}, ticks:{font:{size:11},color:'rgba(255,255,255,.65)'}, beginAtZero:true, suggestedMax:18}
+      }
+    }
+  });
+
+  /* ── CLIENTS ──────────────────────────────────────────────────── */
+  const cliSort = [...CLIENTS].sort((a,b)=>{
+    const ap = a.rev - a.ppl - a.ref - a.oth;
+    const bp = b.rev - b.ppl - b.ref - b.oth;
+    return bp - ap;
+  });
+  hbar('clientProfitChart',
+    cliSort.map(c=>c.name),
+    cliSort.map(c=>c.rev - c.ppl - c.ref - c.oth),
+    '#1390eb',
+    { thickness:14 });
+
+  // margin by client — diverging (all positive in this dataset, but spec says red below 0)
+  const cliMargins = cliSort.map(c=>{
+    const profit = c.rev - c.ppl - c.ref - c.oth;
+    return (profit/c.rev)*100;
+  });
+  new Chart($('clientMarginChart'),{
+    type:'bar',
+    data:{labels:cliSort.map(c=>c.name),
+      datasets:[{
+        data:cliMargins,
+        backgroundColor: cliMargins.map(m=>m<0?'rgba(248,113,113,0.85)':'rgba(19,144,235,0.85)'),
+        borderRadius:3, barThickness:14
+      }]},
+    plugins:[ChartDataLabels],
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      layout:{padding:{top:4,right:60,bottom:4,left:6}},
+      plugins:{
+        legend:{display:false}, tooltip:TOOLTIP,
+        datalabels:{anchor:'end',align:'right',offset:6,color:'rgba(255,255,255,.85)',font:{size:11,weight:'500'},formatter:v=>v.toFixed(1)+'%'}
+      },
+      scales:{
+        x:{grid:{color:'rgba(120,120,120,.12)'},ticks:{font:{size:11},color:'rgba(255,255,255,.65)',callback:v=>v.toFixed(0)+'%'}},
+        y:{grid:{display:false},ticks:{font:{size:11},color:'rgba(255,255,255,.75)'}}
+      }
+    }
+  });
+
+  // Client table rows
+  const cliMaxRev = Math.max(...CLIENTS.map(c=>c.rev));
+  const cliMaxPpl = Math.max(...CLIENTS.map(c=>c.ppl));
+  const cliMaxPft = Math.max(...CLIENTS.map(c=>c.rev-c.ppl-c.ref-c.oth));
+  $('clientRows').innerHTML = cliSort.map(c=>{
+    const profit = c.rev - c.ppl - c.ref - c.oth;
+    const margin = (profit/c.rev)*100;
+    const marginCls = margin>=60?'ok':margin>=40?'warn':margin>0?'bad':'muted';
+    const barCell = (val,max,color)=>val===0
+      ? `<td class="num"><span class="dim">—</span></td>`
+      : `<td class="num"><div class="cb"><span class="v">${fmtCompactCur(val)}</span><span class="bg"><i class="${color}" style="width:${Math.round(val/max*100)}%"></i></span></div></td>`;
+    return `<tr>
+      <td class="sticky-left truncate" title="${c.name}">${c.name}</td>
+      <td>${c.svc}</td>
+      <td>${c.pod}</td>
+      ${barCell(c.rev, cliMaxRev, 'b-sky')}
+      ${barCell(c.ppl, cliMaxPpl, 'b-rose')}
+      <td class="num">${c.ref===0?'<span class="dim">—</span>':fmtCompactCur(c.ref)}</td>
+      <td class="num">${c.oth===0?'<span class="dim">—</span>':fmtCompactCur(c.oth)}</td>
+      ${barCell(profit, cliMaxPft, profit<0?'b-rose':'b-emerald')}
+      <td><span class="badge ${marginCls}">${margin.toFixed(1)}%</span></td>
+    </tr>`;
+  }).join('');
+
+  /* ── PEOPLE ───────────────────────────────────────────────────── */
+  const ppSort = [...PEOPLE].sort((a,b)=>a.gap-b.gap);
+  new Chart($('peopleGapChart'),{
+    type:'bar',
+    data:{labels:ppSort.map(p=>p.name),
+      datasets:[{
+        data:ppSort.map(p=>p.gap),
+        backgroundColor:ppSort.map(p=>p.gap<0?'rgba(248,113,113,0.85)':p.gap>0?'rgba(52,211,153,0.85)':'rgba(255,255,255,.10)'),
+        borderRadius:3, barThickness:14
+      }]},
+    plugins:[ChartDataLabels],
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      layout:{padding:{top:4,right:60,bottom:4,left:6}},
+      plugins:{
+        legend:{display:false}, tooltip:TOOLTIP,
+        datalabels:{
+          align: ctx=>ctx.raw>=0?'right':'left',
+          anchor: ctx=>ctx.raw>=0?'end':'start',
+          offset:6, color:'rgba(255,255,255,.85)',
+          font:{size:11,weight:'500'},
+          formatter: v=>v===0?'—':(v>0?'+':'')+fmtCompactCur(v)
+        }
+      },
+      scales:{
+        x:{grid:{color:'rgba(120,120,120,.12)'},ticks:{font:{size:11},color:'rgba(255,255,255,.65)',callback:v=>fmtCompactCur(v)}},
+        y:{grid:{display:false},ticks:{font:{size:11},color:'rgba(255,255,255,.75)'}}
+      }
+    }
+  });
+
+  // Dept util trend (synthesized from people grouped by dept)
+  const depts = ['Client Success','Media Buying','SEO','Growth','Reporting','Leadership','Operations'];
+  const palette = ['#0369a1','#0284c7','#0ea5e9','#1390eb','#38bdf8','#7dd3fc','#bae6fd'];
+  const synthDept = (base, jitter) => LABELS.map((_,i)=>{
+    const t = i / (LABELS.length-1);
+    return Math.round(base + (jitter * Math.sin(i*1.1 + base*0.07)) + t*4);
+  });
+  const deptSeries = depts.map((d,i)=>({
+    label:d, data: synthDept(60+i*2.5, 5+i),
+    borderColor: palette[i], backgroundColor:'transparent',
+    fill:false, tension:.35, pointRadius:0, borderWidth:2,
+    segment:{borderDash:ctx=>ctx.p0DataIndex>=LAST_ACT?[4,4]:undefined}
+  }));
+  line('deptUtilChart', LABELS, deptSeries, {
+    yPct:true, yMin:30, yMax:100,
+    datalabels: false
+  });
+
+  // People table rows
+  const ppByRev = [...PEOPLE].sort((a,b)=>b.rev-a.rev);
+  const ppMaxRev = Math.max(...PEOPLE.map(p=>p.rev));
+  const ppMaxGap = Math.max(...PEOPLE.map(p=>Math.abs(p.gap)));
+  $('peopleRows').innerHTML = ppByRev.map(p=>{
+    const utilCls = p.util>=75?'ok':p.util>=50?'warn':p.util===0?'muted':'bad';
+    const tgtDelta = p.util - p.target;
+    const tgtCls = tgtDelta>=0?'ok':tgtDelta>=-10?'warn':'bad';
+    const gapCls = p.gap===0?'muted':p.gap<0?'b-rose':'b-emerald';
+    return `<tr>
+      <td class="sticky-left truncate" title="${p.name}">${p.name}</td>
+      <td>${p.dept}</td>
+      <td class="num">${p.hours}</td>
+      <td class="num">${p.rev===0?'<span class="dim">—</span>':`<div class="cb"><span class="v">${fmtCompactCur(p.rev)}</span><span class="bg"><i class="b-sky" style="width:${Math.round(p.rev/ppMaxRev*100)}%"></i></span></div>`}</td>
+      <td><div class="util-cell"><span class="val">${p.util}%</span><span class="bar"><i style="width:${p.util}%;background:${p.util===0?'rgba(255,255,255,.15)':p.util>=75?'#34d399':p.util>=50?'#fcd34d':'#fda4af'}"></i><span class="tick" style="left:${p.target}%"></span></span></div></td>
+      <td><span class="badge ${tgtCls}">${tgtDelta>=0?'+':''}${tgtDelta}pp</span></td>
+      <td class="num">${p.gap===0?'<span class="dim">—</span>':`<div class="cb"><span class="v">${(p.gap>0?'+':'')}${fmtCompactCur(p.gap)}</span><span class="bg"><i class="${gapCls}" style="width:${Math.round(Math.abs(p.gap)/ppMaxGap*100)}%"></i></span></div>`}</td>
+    </tr>`;
+  }).join('');
 }
 
-// PEOPLE
-mkDonut('revDonut',[254000,46000],['Covered','Gap'],['#1390eb','rgba(255,255,255,0.08)']);
-mkDonut('utilDonut',[58,42],['Utilized','Available'],['#22c55e','rgba(255,255,255,0.08)']);
 
-mkBar('peopleTrendChart',['Oct 25','Nov 25','Dec 25'],[
-  {label:'People Margin',data:[51.23,77.74,77.74],
-   backgroundColor:['rgba(245,158,11,0.75)','rgba(34,197,94,0.75)','rgba(34,197,94,0.75)'],borderRadius:4}
-],{yFmt:v=>v+'%',yMin:0,yMax:100});
+/* ═══════════════════════════════════════════════════════════════════════
+   UI HELPERS
+═══════════════════════════════════════════════════════════════════════ */
+function showTab(btn) {
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  $('tab-'+btn.dataset.tab).classList.add('active');
+  // resize charts in newly-shown tab
+  setTimeout(()=>{ for (const id in Chart.instances) Chart.instances[id].resize(); }, 30);
+}
 
-mkBar('revenueGapChart',['Jake T.','Nina O.','Sarah C.','Priya P.','Tom B.','David K.','Marcus R.','Lisa W.'],[
-  {data:[20630,11610,7500,937,0,0,0,-1130],
-   backgroundColor:ctx=>ctx.raw>0?'rgba(239,68,68,0.75)':'rgba(19,144,235,0.75)',borderRadius:3}
-],{yFmt:v=>'$'+(v/1000).toFixed(0)+'k'});
+function cyclePeriod() {
+  const months = ["Mar 2026","Feb 2026","Jan 2026","Dec 2025","Nov 2025","Oct 2025","Apr 2026"];
+  const cur = $('periodVal').textContent;
+  const next = months[(months.indexOf(cur)+1) % months.length];
+  $('periodVal').textContent = next;
+}
 
-mkBar('deptMarginChart',['Client Success','Media Buying','Leadership','Operations'],[
-  {data:[68.11,182.31,-100,-100],
-   backgroundColor:ctx=>ctx.raw>0?'rgba(192,132,252,0.75)':'rgba(239,68,68,0.75)',borderRadius:3}
-],{yFmt:v=>v+'%'});
-
-// ─── GOOGLE SHEETS LIVE DATA ─────────────────────────────────────────────────
-const SHEETS_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 function setStatus(state, msg, tabs=[]) {
-  document.getElementById('apiDot').className = 'dot ' + state;
-  document.getElementById('apiStatusMsg').textContent = msg;
-  const tabEl = document.getElementById('tabsFound');
-  tabEl.innerHTML = tabs.length
-    ? 'Tabs: ' + tabs.map(t => `<span>${t}</span>`).join('')
+  $('apiDot').className = 'dot '+state;
+  $('apiStatusMsg').textContent = msg;
+  $('tabsFound').innerHTML = tabs.length
+    ? 'Tabs: '+tabs.map(t=>`<span>${t}</span>`).join('')
     : '';
 }
 
 function setLoading(show, msg='') {
-  document.getElementById('loadingOverlay').classList.toggle('visible', show);
-  if (msg) document.getElementById('loadingMsg').textContent = msg;
+  $('loading').classList.toggle('visible', show);
+  if (msg) $('loadingMsg').textContent = msg;
 }
 
-// All Sheets calls go through /api/sheets — key stays server-side in Vercel env vars
+function manualRefresh(){
+  const b = $('refreshBtn');
+  if (b.classList.contains('spin')) return;
+  b.classList.add('spin');
+  $('refreshLabel').textContent = 'Refreshing…';
+  initLiveData().finally(()=>{
+    b.classList.remove('spin');
+    $('refreshLabel').textContent = 'Refresh';
+    const ts = new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+    $('refreshTs').textContent = ts;
+  });
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LIVE DATA (Sheets API via /api/sheets proxy)
+═══════════════════════════════════════════════════════════════════════ */
 async function sheetsGet(range) {
   const res = await fetch(`/api/sheets?range=${encodeURIComponent(range)}`);
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  if (!res.ok) {
+    const e = await res.json().catch(()=>({}));
+    throw new Error(e.error || res.statusText);
+  }
   return (await res.json()).values || [];
 }
 
 async function fetchSheetMeta() {
   const res = await fetch('/api/sheets?meta=1');
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-  const json = await res.json();
-  return (json.sheets || []).map(s => s.properties.title);
+  if (!res.ok) {
+    const e = await res.json().catch(()=>({}));
+    throw new Error(e.error || res.statusText);
+  }
+  return ((await res.json()).sheets || []).map(s=>s.properties.title);
 }
 
-// Parse a number from a cell value
-function num(v) {
-  if (!v && v !== 0) return 0;
+function num(v){
+  if (!v && v!==0) return 0;
   return parseFloat(v.toString().replace(/[$,%\s]/g,'').replace(/\((.+)\)/,'-$1')) || 0;
 }
 
-// Find first row whose col-A matches a label pattern
-function findRow(rows, label) {
-  return rows.findIndex(r => r[0] && r[0].toString().toLowerCase().includes(label.toLowerCase()));
-}
-
-// ── Parse P&L sheet ───────────────────────────────────────────────────────────
-async function loadPL(tabName) {
-  setLoading(true, `Loading ${tabName}…`);
-  const rows = await sheetsGet(`${tabName}!A1:AH300`);
-
-  const headerIdx = rows.findIndex(r => r.some(c => /jan.+202/i.test(String(c))));
-  if (headerIdx === -1) { console.warn('No month headers found in', tabName); return null; }
-
-  const headers   = rows[headerIdx];
-  const monthCols = headers.slice(1).map(h => String(h).trim()).filter(Boolean);
-  const colCount  = monthCols.length;
-
-  const getRow = label => {
-    const idx = findRow(rows, label);
-    if (idx === -1) return Array(colCount).fill(0);
-    return rows[idx].slice(1, colCount + 1).map(num);
+async function loadPL(tab){
+  setLoading(true, `Loading ${tab}…`);
+  const rows = await sheetsGet(`${tab}!A1:AH300`);
+  const hIdx = rows.findIndex(r=>r.some(c=>/jan.+202|feb.+202|mar.+202|apr.+202|may.+202|jun.+202|jul.+202|aug.+202|sep.+202|oct.+202|nov.+202|dec.+202/i.test(String(c))));
+  if (hIdx===-1) { console.warn('No month headers in', tab); return null; }
+  const hdrs = rows[hIdx];
+  const mCols = hdrs.slice(1).map(h=>String(h).trim()).filter(Boolean);
+  const n = mCols.length;
+  const get = label => {
+    const i = rows.findIndex(r => r[0] && r[0].toString().toLowerCase().includes(label.toLowerCase()));
+    return i===-1 ? Array(n).fill(0) : rows[i].slice(1, n+1).map(num);
   };
-
-  const labels = monthCols.map(m => {
-    const parts = m.match(/(\w+)\s+(\d{4})/);
-    if (!parts) return m;
-    const d = new Date(`${parts[1]} 1 ${parts[2]}`);
+  const labels = mCols.map(m=>{
+    const p = m.match(/(\w+)\s+(\d{4})/);
+    if (!p) return m;
+    const d = new Date(`${p[1]} 1 ${p[2]}`);
     return isNaN(d) ? m : d.toLocaleDateString('en-US',{month:'short',year:'2-digit'});
   });
-
-  document.getElementById('lastUpdated').textContent =
-    'Live · ' + new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
-
   return {
     labels,
-    revenue:    getRow('Total Revenue'),
-    cogs:       getRow('TOTAL COST OF SALES'),
-    grossProfit:getRow('GROSS PROFIT'),
-    grossMarg:  getRow('GROSS MARGIN'),
-    opex:       getRow('TOTAL OPERATING EXPENSES'),
-    opIncome:   getRow('OPERATING INCOME'),
-    netIncome:  getRow('Net Income'),
-    opMarg:     getRow('OPERATING MARGIN'),
+    revenue:   get('Total Revenue'),
+    cogs:      get('TOTAL COST OF SALES'),
+    grossMarg: get('GROSS MARGIN'),
+    opex:      get('TOTAL OPERATING EXPENSES'),
+    opProf:    get('OPERATING INCOME'),
+    opMarg:    get('OPERATING MARGIN'),
+    net:       get('Net Income'),
   };
 }
 
-// ── Refresh charts from live P&L data ─────────────────────────────────────────
-function refreshCharts(d) {
-  if (!d) return;
-  const update = (id, labels, seriesArr) => {
-    const c = Chart.getChart(id);
-    if (!c) return;
-    c.data.labels = labels;
-    seriesArr.forEach((data, i) => { if (c.data.datasets[i]) c.data.datasets[i].data = data; });
-    c.update();
-  };
-
-  update('execRevenueChart', d.labels, [d.revenue, d.opIncome]);
-  update('execMarginChart',  d.labels, [d.grossMarg, d.opMarg]);
-  update('finMarginChart',   d.labels, [d.grossMarg, d.opMarg]);
-  update('expMonthlyChart',  d.labels, [d.cogs.map(Math.abs), d.opex.map(Math.abs)]);
+/* Normalize a percent-style value: 0.548 → 54.8, 54.8 → 54.8 */
+function normalizePct(v) {
+  if (v == null || !isFinite(v)) return 0;
+  return Math.abs(v) <= 5 ? v * 100 : v;
 }
 
-// ── Main init ─────────────────────────────────────────────────────────────────
+function applyLiveFin(d, sheetName) {
+  // Guard: must have a labels row + revenue row
+  if (!d || !d.labels || !d.labels.length || !d.revenue) return false;
+  const n = d.labels.length;
+  // Cogs / opex from sheet are typically positive magnitudes; if negative, take abs
+  const cogs   = d.cogs.map(v => Math.abs(v||0));
+  const opex   = d.opex.map(v => Math.abs(v||0));
+  // Derive Gross Profit (live sheet may not expose it)
+  const grossProf = d.revenue.map((r,i) => (r||0) - cogs[i]);
+  // Op Profit: prefer sheet value, fallback grossProf - opex
+  const opProf = d.opProf.map((v,i) => v || (grossProf[i] - opex[i]));
+  // Margins: normalize percent-style values
+  const grossMarg = d.grossMarg.map((v,i) => v ? normalizePct(v) : (d.revenue[i] ? grossProf[i]/d.revenue[i]*100 : 0));
+  const opMarg    = d.opMarg.map((v,i)    => v ? normalizePct(v) : (d.revenue[i] ? opProf[i]/d.revenue[i]*100    : 0));
+  // Net: fall back to opProf if missing
+  const net = d.net.map((v,i) => v || opProf[i]);
+
+  // Find last actual: last index whose revenue is non-zero
+  let lastAct = -1;
+  for (let i = n-1; i >= 0; i--) {
+    if (d.revenue[i]) { lastAct = i; break; }
+  }
+  if (lastAct < 0) return false;
+  const fcstFrom = lastAct + 1;
+
+  fin = {
+    labels: d.labels,
+    revenue: d.revenue.map(v => v||0),
+    cogs, grossProf, grossMarg, opex, opProf, opMarg, net,
+    lastAct, fcstFrom,
+    source: sheetName ? `Finance Model · ${sheetName}` : 'Finance Model',
+  };
+  refreshFinancials();
+  return true;
+}
+
 async function initLiveData() {
   try {
-    setLoading(true, 'Connecting to Google Sheets…');
+    setLoading(true,'Connecting to Google Sheets…');
     const tabs = await fetchSheetMeta();
-    console.log('📊 Sheet tabs:', tabs);
     setStatus('live', 'Connected · live data', tabs);
-
-    // Auto-detect the P&L tab, fallback to first tab
-    const plTab = tabs.find(t => /p.?l|income|financ|summary/i.test(t)) || tabs[0];
-    console.log('📈 P&L tab detected:', plTab);
-
+    const plTab = tabs.find(t=>/p.?l|income|financ|summary|model/i.test(t)) || tabs[0];
     const data = await loadPL(plTab);
-    refreshCharts(data);
+    const ok = applyLiveFin(data, plTab);
+    if (ok) {
+      const ts = new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+      $('refreshTs').textContent = ts;
+      setStatus('live', `Live · ${plTab} · last refresh ${ts}`, tabs);
+    } else {
+      setStatus('warn', `Connected but no usable data in "${plTab}" — showing demo`, tabs);
+    }
     setLoading(false);
-  } catch (err) {
+  } catch(err) {
     setLoading(false);
-    setStatus('error', `Error: ${err.message} — check your key & sheet permissions`);
+    setStatus('error','Error: '+err.message+' — check Vercel env vars & sheet sharing');
     console.error('Sheets API:', err);
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   BOOT
+═══════════════════════════════════════════════════════════════════════ */
+initCharts();
+renderPL();
+renderFinKpis();
+renderFinMeta();
 initLiveData();
 </script>
 </body>
