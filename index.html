@@ -2182,6 +2182,22 @@ function num(v){
   return parseFloat(v.toString().replace(/[$,%\s]/g,'').replace(/\((.+)\)/,'-$1')) || 0;
 }
 
+/**
+ * Choose the most likely P&L tab from a sheet's tab list.
+ * Tiered so we prefer exact, well-known names before falling back to
+ * fuzzier matches. Important: must NOT match unrelated tabs like
+ * "People" (the old regex `/p.?l/` did — "pl" appears in "people").
+ */
+function findPLTab(tabs) {
+  if (!tabs || !tabs.length) return null;
+  const t1 = tabs.find(t => /^\s*finance\s*model\s*$/i.test(t));        if (t1) return t1;
+  const t2 = tabs.find(t => /^\s*(p\s*&\s*l|p\/l|pnl|profit\s*&?\s*loss|income\s*statement)\s*$/i.test(t)); if (t2) return t2;
+  const t3 = tabs.find(t => /finance\s*model/i.test(t));                if (t3) return t3;
+  const t4 = tabs.find(t => /\b(p\s*&\s*l|pnl|income\s*statement|profit.{0,3}loss)\b/i.test(t)); if (t4) return t4;
+  const t5 = tabs.find(t => /\bfinanc/i.test(t));                       if (t5) return t5;
+  return tabs[0];
+}
+
 async function loadPL(tab){
   setLoading(true, `Loading ${tab}…`);
   const rows = await sheetsGet(`${tab}!A1:AH300`);
@@ -2259,7 +2275,7 @@ async function initLiveData() {
     setLoading(true,'Connecting to Google Sheets…');
     const tabs = await fetchSheetMeta();
     setStatus('live', 'Connected · live data', tabs);
-    const plTab = tabs.find(t=>/p.?l|income|financ|summary|model/i.test(t)) || tabs[0];
+    const plTab = findPLTab(tabs);
     const data = await loadPL(plTab);
     const ok = applyLiveFin(data, plTab);
     if (ok) {
