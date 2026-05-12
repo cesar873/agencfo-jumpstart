@@ -58,6 +58,12 @@ export default async function handler(req, res) {
   // Diagnostic: GET /api/sheets?diag=1 — reports which env vars are visible
   // without leaking their values.
   if (diag) {
+    // List the *names* (never values) of any env var that looks related, so
+    // typos in Vercel's env var UI surface immediately.
+    const candidateKeys = Object.keys(process.env)
+      .filter(k => /GOOGLE|SHEET|SERVICE|ACCOUNT|EMAIL|GCP|SHEETS/i.test(k))
+      .sort();
+
     return res.status(200).json({
       env: {
         GOOGLE_SHEET_ID:               !!sheetId,
@@ -68,6 +74,7 @@ export default async function handler(req, res) {
         GOOGLE_SERVICE_ACCOUNT_KEY_length: key ? key.length : 0,
         GOOGLE_SERVICE_ACCOUNT_KEY_looksPem: key ? key.includes('BEGIN PRIVATE KEY') : false,
       },
+      registeredNames: candidateKeys,   // names only — safe to read
       vercel: {
         env:    process.env.VERCEL_ENV    || null,
         region: process.env.VERCEL_REGION || null,
