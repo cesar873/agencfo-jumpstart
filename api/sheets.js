@@ -50,9 +50,34 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const sheetId = process.env.GOOGLE_SHEET_ID;
-  if (!sheetId) return res.status(500).json({ error: 'GOOGLE_SHEET_ID not set in Vercel env vars.' });
+  const email   = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const key     = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
 
-  const { range, meta } = req.query;
+  const { range, meta, diag } = req.query;
+
+  // Diagnostic: GET /api/sheets?diag=1 — reports which env vars are visible
+  // without leaking their values.
+  if (diag) {
+    return res.status(200).json({
+      env: {
+        GOOGLE_SHEET_ID:               !!sheetId,
+        GOOGLE_SHEET_ID_length:        sheetId ? sheetId.length : 0,
+        GOOGLE_SERVICE_ACCOUNT_EMAIL:  !!email,
+        GOOGLE_SERVICE_ACCOUNT_EMAIL_endsWithIam: email ? email.endsWith('.iam.gserviceaccount.com') : false,
+        GOOGLE_SERVICE_ACCOUNT_KEY:    !!key,
+        GOOGLE_SERVICE_ACCOUNT_KEY_length: key ? key.length : 0,
+        GOOGLE_SERVICE_ACCOUNT_KEY_looksPem: key ? key.includes('BEGIN PRIVATE KEY') : false,
+      },
+      vercel: {
+        env:    process.env.VERCEL_ENV    || null,
+        region: process.env.VERCEL_REGION || null,
+        url:    process.env.VERCEL_URL    || null,
+      },
+      ts: new Date().toISOString(),
+    });
+  }
+
+  if (!sheetId) return res.status(500).json({ error: 'GOOGLE_SHEET_ID not set in Vercel env vars.' });
 
   try {
     const token = await getAccessToken();
