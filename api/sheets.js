@@ -87,7 +87,22 @@ export default async function handler(req, res) {
   const rawKey  = process.env.GOOGLE_SERVICE_ACCOUNT_KEY   || process.env.GOOGLE_SERVICE_KEY;
   const key     = normalizeKey(rawKey);
 
-  const { range, meta, diag } = req.query;
+  const { range, meta, diag, peek } = req.query;
+
+  // Convenience: /api/sheets?peek=TabName — returns the first 30 rows of a
+  // tab so we can quickly inspect the shape before writing a parser.
+  if (peek) {
+    if (!sheetId) return res.status(500).json({ error: 'GOOGLE_SHEET_ID not set in Vercel env vars.' });
+    try {
+      const token = await getAccessToken();
+      const url = `${SHEETS_BASE}/${sheetId}/values/${encodeURIComponent(peek + '!A1:Z30')}`;
+      const upstream = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await upstream.json();
+      return res.status(upstream.status).json(data);
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
 
   // Diagnostic: GET /api/sheets?diag=1 — reports which env vars are visible
   // without leaking their values.

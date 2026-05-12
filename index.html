@@ -2270,6 +2270,382 @@ function applyLiveFin(d, sheetName) {
   return true;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   OTHER TABS — best-effort live wiring
+   Each parser is forgiving (multiple shape guesses, returns null on failure).
+   Each apply* function falls back silently — demo data stays in place if
+   the live shape doesn't match.
+═══════════════════════════════════════════════════════════════════════ */
+
+function findHeaderRow(rows) {
+  for (let i = 0; i < Math.min(rows.length, 8); i++) {
+    const r = rows[i] || [];
+    const nonEmpty = r.filter(c => c != null && String(c).trim()).length;
+    if (nonEmpty >= 3) return i;
+  }
+  return -1;
+}
+function colFinder(headers) {
+  const lower = (headers||[]).map(h => String(h||'').trim().toLowerCase());
+  return (...patterns) => {
+    for (const p of patterns) {
+      const re = p instanceof RegExp ? p : new RegExp(p, 'i');
+      const idx = lower.findIndex(h => re.test(h));
+      if (idx >= 0) return idx;
+    }
+    return -1;
+  };
+}
+
+/* ── Client Profit parser ─────────────────────────────────────────── */
+function parseClientProfit(rows) {
+  if (!rows || rows.length < 2) return null;
+  const hIdx = findHeaderRow(rows);
+  if (hIdx < 0) return null;
+  const find = colFinder(rows[hIdx]);
+  const cName = find(/^client$|client.?name|^name$/, /client/);
+  const cRev  = find(/^revenue|^rev\b|revenue/);
+  const cPpl  = find(/people.?cost|labor.?cost|wages|payroll|^cost\b/);
+  const cRef  = find(/referral|ref.?fee/);
+  const cOth  = find(/other.?cost|misc/);
+  const cPrf  = find(/client.?profit|^profit$|net.?profit/);
+  const cMar  = find(/margin/);
+  const cSvc  = find(/service|^line\b/);
+  const cPod  = find(/^pod$|pod/);
+  if (cName < 0 || cRev < 0) return null;
+
+  const out = [];
+  for (let i = hIdx + 1; i < rows.length; i++) {
+    const r = rows[i] || [];
+    const name = String(r[cName] || '').trim();
+    if (!name || /^(total|grand|sub|—)/i.test(name)) continue;
+    const rev = num(r[cRev]); if (!rev) continue;
+    const ppl = cPpl >= 0 ? Math.abs(num(r[cPpl])) : 0;
+    const ref = cRef >= 0 ? Math.abs(num(r[cRef])) : 0;
+    const oth = cOth >= 0 ? Math.abs(num(r[cOth])) : 0;
+    const profit = cPrf >= 0 ? num(r[cPrf]) : (rev - ppl - ref - oth);
+    out.push({
+      name, rev, ppl, ref, oth, profit,
+      margin: cMar >= 0 ? normalizePct(num(r[cMar])) : (rev ? profit/rev*100 : 0),
+      svc: cSvc >= 0 ? (String(r[cSvc]||'').trim() || '—') : '—',
+      pod: cPod >= 0 ? (String(r[cPod]||'').trim() || '—') : '—',
+    });
+  }
+  return out.length ? out : null;
+}
+
+function applyLiveClients(parsed) {
+  if (!parsed || !parsed.length) return false;
+  const sorted = [...parsed].sort((a,b) => b.profit - a.profit);
+
+  const tbody = $('clientRows');
+  if (tbody) {
+    const maxRev = Math.max(...sorted.map(c => c.rev));
+    const maxPpl = Math.max(...sorted.map(c => c.ppl), 1);
+    const maxPft = Math.max(...sorted.map(c => Math.abs(c.profit)), 1);
+    const barCell = (val, max, color) => val === 0
+      ? `<td class="num"><span class="dim">—</span></td>`
+      : `<td class="num"><div class="cb"><span class="v">${fmtCompactCur(val)}</span><span class="bg"><i class="${color}" style="width:${Math.round(Math.abs(val)/max*100)}%"></i></span></div></td>`;
+    tbody.innerHTML = sorted.map(c => {
+      const m = c.margin;
+      const mCls = m >= 60 ? 'ok' : m >= 40 ? 'warn' : m > 0 ? 'bad' : 'muted';
+      return `<tr>
+        <td class="sticky-left truncate" title="${c.name}">${c.name}</td>
+        <td>${c.svc}</td><td>${c.pod}</td>
+        ${barCell(c.rev, maxRev, 'b-sky')}
+        ${barCell(c.ppl, maxPpl, 'b-rose')}
+        <td class="num">${c.ref === 0 ? '<span class="dim">—</span>' : fmtCompactCur(c.ref)}</td>
+        <td class="num">${c.oth === 0 ? '<span class="dim">—</span>' : fmtCompactCur(c.oth)}</td>
+        ${barCell(c.profit, maxPft, c.profit < 0 ? 'b-rose' : 'b-emerald')}
+        <td><span class="badge ${mCls}">${m.toFixed(1)}%</span></td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Rebuild Clients charts
+  Chart.getChart('clientProfitChart')?.destroy();
+  Chart.getChart('clientMarginChart')?.destroy();
+  hbar('clientProfitChart',
+    sorted.map(c => c.name),
+    sorted.map(c => c.profit),
+    '#1390eb', { thickness: 14 });
+  new Chart($('clientMarginChart'), {
+    type:'bar',
+    data:{ labels: sorted.map(c => c.name), datasets:[{
+      data: sorted.map(c => c.margin),
+      backgroundColor: sorted.map(c => c.margin < 0 ? 'rgba(248,113,113,0.85)' : 'rgba(19,144,235,0.85)'),
+      borderRadius: 3, barThickness: 14
+    }]},
+    plugins:[ChartDataLabels],
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      layout:{padding:{top:4,right:60,bottom:4,left:6}},
+      plugins:{ legend:{display:false}, tooltip:TOOLTIP,
+        datalabels:{anchor:'end',align:'right',offset:6,color:'rgba(255,255,255,.85)',font:{size:11,weight:'500'},formatter:v=>v.toFixed(1)+'%'} },
+      scales:{
+        x:{grid:{color:'rgba(120,120,120,.12)'},ticks:{font:{size:11},color:'rgba(255,255,255,.65)',callback:v=>v.toFixed(0)+'%'}},
+        y:{grid:{display:false},ticks:{font:{size:11},color:'rgba(255,255,255,.75)'}}
+      }
+    }
+  });
+
+  // Update Clients KPI strip
+  const totalProfit = sorted.reduce((a,c) => a + c.profit, 0);
+  const totalRev    = sorted.reduce((a,c) => a + c.rev, 0);
+  const avgMargin   = totalRev ? totalProfit / totalRev * 100 : 0;
+  const profitable  = sorted.filter(c => c.profit > 0).length;
+  const unprofit    = sorted.filter(c => c.profit <= 0).length;
+  const topShare    = totalRev ? sorted[0].rev / totalRev * 100 : 0;
+  const kpis = document.querySelectorAll('#tab-clients .kpi .kpi-value');
+  if (kpis.length >= 5) {
+    kpis[0].textContent = fmtCompactCur(totalProfit);
+    kpis[0].className   = 'kpi-value ' + (totalProfit>0?'success':'danger');
+    kpis[1].textContent = avgMargin.toFixed(1) + '%';
+    kpis[1].className   = 'kpi-value ' + (avgMargin>=50?'success':avgMargin>=30?'warning':'danger');
+    kpis[2].textContent = String(profitable);
+    kpis[2].className   = 'kpi-value success';
+    kpis[3].textContent = String(unprofit);
+    kpis[3].className   = 'kpi-value ' + (unprofit===0?'success':'danger');
+    kpis[4].textContent = topShare.toFixed(1) + '%';
+    kpis[4].className   = 'kpi-value ' + (topShare<=25?'success':topShare<=40?'warning':'danger');
+  }
+  // Update Total row
+  const totalRow = document.querySelector('#tab-clients tr.total');
+  if (totalRow) {
+    totalRow.innerHTML = `<td class="sticky-left">Total (${sorted.length})</td>
+      <td>—</td><td>—</td>
+      <td class="num">${fmtFullCur(totalRev)}</td>
+      <td class="num">${fmtFullCur(sorted.reduce((a,c)=>a+c.ppl,0))}</td>
+      <td class="num">${fmtFullCur(sorted.reduce((a,c)=>a+c.ref,0))}</td>
+      <td class="num">${fmtFullCur(sorted.reduce((a,c)=>a+c.oth,0))}</td>
+      <td class="num"><b>${fmtFullCur(totalProfit)}</b></td>
+      <td><span class="badge ${avgMargin>=50?'ok':avgMargin>=30?'warn':'bad'}">${avgMargin.toFixed(1)}%</span></td>`;
+  }
+  return true;
+}
+
+/* ── Team Profit parser ───────────────────────────────────────────── */
+function parseTeamProfit(rows) {
+  if (!rows || rows.length < 2) return null;
+  const hIdx = findHeaderRow(rows);
+  if (hIdx < 0) return null;
+  const find = colFinder(rows[hIdx]);
+  const cName  = find(/team.?member|^name|^person|employee/);
+  const cDept  = find(/department|dept|^team$/);
+  const cHours = find(/hours.?avail|hours.?available|available|^hours\b/);
+  const cRev   = find(/revenue.?covered|rev.?covered|revenue/);
+  const cUtil  = find(/utiliz|util\b/);
+  const cTgt   = find(/target/);
+  const cGap   = find(/gap/);
+  if (cName < 0) return null;
+
+  const out = [];
+  for (let i = hIdx + 1; i < rows.length; i++) {
+    const r = rows[i] || [];
+    const name = String(r[cName] || '').trim();
+    if (!name || /^(total|grand|sub|—)/i.test(name)) continue;
+    const rev = cRev >= 0 ? num(r[cRev]) : 0;
+    out.push({
+      name,
+      dept:   cDept  >= 0 ? (String(r[cDept]||'').trim() || '—') : '—',
+      hours:  cHours >= 0 ? num(r[cHours]) : 0,
+      rev,
+      util:   cUtil  >= 0 ? normalizePct(num(r[cUtil])) : 0,
+      target: cTgt   >= 0 ? normalizePct(num(r[cTgt])) : 80,
+      gap:    cGap   >= 0 ? num(r[cGap]) : 0,
+    });
+  }
+  return out.length ? out : null;
+}
+
+function applyLivePeople(parsed) {
+  if (!parsed || !parsed.length) return false;
+  const byRev = [...parsed].sort((a,b) => b.rev - a.rev);
+
+  // Table
+  const tbody = $('peopleRows');
+  if (tbody) {
+    const maxRev = Math.max(...byRev.map(p => p.rev), 1);
+    const maxGap = Math.max(...byRev.map(p => Math.abs(p.gap)), 1);
+    tbody.innerHTML = byRev.map(p => {
+      const tgtDelta = p.util - p.target;
+      const tgtCls = tgtDelta >= 0 ? 'ok' : tgtDelta >= -10 ? 'warn' : 'bad';
+      const gapCls = p.gap === 0 ? 'muted' : p.gap < 0 ? 'b-rose' : 'b-emerald';
+      const utilBg = p.util === 0 ? 'rgba(255,255,255,.15)' : p.util >= 75 ? '#34d399' : p.util >= 50 ? '#fcd34d' : '#fda4af';
+      return `<tr>
+        <td class="sticky-left truncate" title="${p.name}">${p.name}</td>
+        <td>${p.dept}</td>
+        <td class="num">${p.hours || '—'}</td>
+        <td class="num">${p.rev === 0 ? '<span class="dim">—</span>' : `<div class="cb"><span class="v">${fmtCompactCur(p.rev)}</span><span class="bg"><i class="b-sky" style="width:${Math.round(p.rev/maxRev*100)}%"></i></span></div>`}</td>
+        <td><div class="util-cell"><span class="val">${p.util}%</span><span class="bar"><i style="width:${p.util}%;background:${utilBg}"></i><span class="tick" style="left:${p.target}%"></span></span></div></td>
+        <td><span class="badge ${tgtCls}">${tgtDelta>=0?'+':''}${tgtDelta.toFixed(0)}pp</span></td>
+        <td class="num">${p.gap === 0 ? '<span class="dim">—</span>' : `<div class="cb"><span class="v">${(p.gap>0?'+':'')}${fmtCompactCur(p.gap)}</span><span class="bg"><i class="${gapCls}" style="width:${Math.round(Math.abs(p.gap)/maxGap*100)}%"></i></span></div>`}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Gap chart
+  const byGap = [...parsed].sort((a,b) => a.gap - b.gap);
+  Chart.getChart('peopleGapChart')?.destroy();
+  new Chart($('peopleGapChart'), {
+    type:'bar',
+    data:{ labels: byGap.map(p => p.name), datasets:[{
+      data: byGap.map(p => p.gap),
+      backgroundColor: byGap.map(p => p.gap < 0 ? 'rgba(248,113,113,0.85)' : p.gap > 0 ? 'rgba(52,211,153,0.85)' : 'rgba(255,255,255,.10)'),
+      borderRadius:3, barThickness:14
+    }]},
+    plugins:[ChartDataLabels],
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      layout:{padding:{top:4,right:60,bottom:4,left:6}},
+      plugins:{
+        legend:{display:false}, tooltip:TOOLTIP,
+        datalabels:{
+          align: ctx=>ctx.raw>=0?'right':'left',
+          anchor: ctx=>ctx.raw>=0?'end':'start',
+          offset:6, color:'rgba(255,255,255,.85)', font:{size:11,weight:'500'},
+          formatter: v=>v===0?'—':(v>0?'+':'')+fmtCompactCur(v)
+        }
+      },
+      scales:{
+        x:{grid:{color:'rgba(120,120,120,.12)'},ticks:{font:{size:11},color:'rgba(255,255,255,.65)',callback:v=>fmtCompactCur(v)}},
+        y:{grid:{display:false},ticks:{font:{size:11},color:'rgba(255,255,255,.75)'}}
+      }
+    }
+  });
+
+  // KPIs
+  const totalRev = parsed.reduce((a,p)=>a+p.rev,0);
+  const avgUtil  = parsed.reduce((a,p)=>a+p.util,0) / parsed.length;
+  const onTarget = parsed.filter(p => p.util >= p.target).length;
+  const totalGap = parsed.filter(p => p.gap < 0).reduce((a,p)=>a+p.gap,0);
+  const totalHrs = parsed.reduce((a,p)=>a+p.hours,0);
+  const kpis = document.querySelectorAll('#tab-people .kpi .kpi-value');
+  if (kpis.length >= 5) {
+    kpis[0].textContent = fmtCompactCur(totalRev);
+    kpis[1].textContent = avgUtil.toFixed(0) + '%';
+    kpis[1].className   = 'kpi-value ' + (avgUtil>=75?'success':avgUtil>=50?'warning':'danger');
+    kpis[2].textContent = `${onTarget} / ${parsed.length}`;
+    kpis[3].textContent = fmtCompactCur(totalGap);
+    kpis[3].className   = 'kpi-value ' + (totalGap===0?'success':'danger');
+    kpis[4].textContent = totalHrs.toLocaleString('en-US');
+  }
+
+  // Total row
+  const totalRow = document.querySelector('#tab-people tr.total');
+  if (totalRow) {
+    totalRow.innerHTML = `<td class="sticky-left">Total (${parsed.length})</td>
+      <td>—</td>
+      <td class="num">${totalHrs.toLocaleString('en-US')}</td>
+      <td class="num"><b>${fmtFullCur(totalRev)}</b></td>
+      <td><span class="badge ${avgUtil>=75?'ok':'warn'}">${avgUtil.toFixed(0)}%</span></td>
+      <td><span class="badge warn">${(avgUtil-(parsed.reduce((a,p)=>a+p.target,0)/parsed.length)).toFixed(0)}pp</span></td>
+      <td class="num"><b>${fmtCompactCur(totalGap)}</b></td>`;
+  }
+  return true;
+}
+
+/* ── Regenerate Financials WhatToDoNext from live `fin` ─────────── */
+function rebuildFinInsights() {
+  const list = document.querySelector('#tab-financials .wtdn-list');
+  if (!list) return;
+  const i = fin.lastAct;
+  if (i < 0) return;
+  const prev = i - 1 >= 0 ? i - 1 : null;
+  const fcst = fin.fcstFrom < fin.labels.length ? fin.fcstFrom : null;
+  const ins = [];
+
+  // 1. Profitability headline
+  const np = fin.net[i];
+  const nm = fin.revenue[i] ? np / fin.revenue[i] : 0;
+  if (np > 0 && nm >= 0.15) {
+    ins.push({ k:'win', html:`<b>Net profit ${fmtCompactCur(np)}</b> (${(nm*100).toFixed(1)}% net margin) — healthy. Keep the OpEx-vs-revenue spread where it is.` });
+  } else if (np > 0) {
+    ins.push({ k:'info', html:`<b>Profitable at ${fmtCompactCur(np)}</b>, but net margin only ${(nm*100).toFixed(1)}% — below 15% target. Look for OpEx that scales sublinearly.` });
+  } else {
+    ins.push({ k:'alert', html:`<b>Net loss of ${fmtCompactCur(Math.abs(np))}</b> in ${fin.labels[i]} — review largest cost categories immediately.` });
+  }
+
+  // 2. MoM margin direction
+  if (prev != null) {
+    const dMargin = fin.opMarg[i] - fin.opMarg[prev];
+    if (dMargin <= -3) ins.push({ k:'warn', html:`<b>Operating margin compressed ${dMargin.toFixed(1)}pp</b> vs ${fin.labels[prev]} — OpEx growing faster than revenue.` });
+    else if (dMargin >= 3) ins.push({ k:'win', html:`<b>Operating margin expanded +${dMargin.toFixed(1)}pp</b> vs ${fin.labels[prev]} — strong leverage on costs.` });
+    else {
+      const dRev = (fin.revenue[i] - fin.revenue[prev]) / Math.max(fin.revenue[prev],1) * 100;
+      if (dRev <= -5)     ins.push({ k:'warn', html:`<b>Revenue down ${dRev.toFixed(1)}%</b> vs ${fin.labels[prev]} — pull on pipeline.` });
+      else if (dRev >= 5) ins.push({ k:'win',  html:`<b>Revenue up +${dRev.toFixed(1)}%</b> vs ${fin.labels[prev]} — momentum continues.` });
+    }
+  }
+
+  // 3. Gross margin context
+  const gm = fin.grossMarg[i];
+  if (gm >= 50) ins.push({ k:'win', html:`<b>Gross margin at ${gm.toFixed(1)}%</b> — within the 50%+ target band.` });
+  else if (gm >= 30) ins.push({ k:'info', html:`<b>Gross margin at ${gm.toFixed(1)}%</b> — mid-range. Watch COGS scaling.` });
+  else ins.push({ k:'alert', html:`<b>Gross margin only ${gm.toFixed(1)}%</b> — COGS structure may need revisiting.` });
+
+  // 4. Forecast peek
+  if (fcst != null) {
+    const fcstRev = fin.revenue[fcst];
+    const dF = (fcstRev - fin.revenue[i]) / Math.max(fin.revenue[i],1) * 100;
+    if (dF >= 2)      ins.push({ k:'info', html:`<b>Forecast revenue +${dF.toFixed(1)}%</b> for ${fin.labels[fcst]} — ${fmtCompactCur(fcstRev)} expected.` });
+    else if (dF <= -2) ins.push({ k:'warn', html:`<b>Forecast revenue ${dF.toFixed(1)}%</b> for ${fin.labels[fcst]} — pipeline check.` });
+  }
+
+  // Sort alert→warn→win→info, cap 5
+  const order = { alert:0, warn:1, win:2, info:3 };
+  const icon  = { alert:'!', warn:'!', win:'✓', info:'i' };
+  ins.sort((a,b) => order[a.k] - order[b.k]);
+  list.innerHTML = ins.slice(0,5).map(it => `
+    <li class="ins ${it.k}"><div class="ins-circle">${icon[it.k]}</div><div class="ins-text">${it.html}</div></li>
+  `).join('');
+}
+
+/* ── Orchestrator: probe + wire all candidate tabs ────────────────── */
+async function loadOtherLive(tabs) {
+  const status = { Clients:'demo', People:'demo' };
+
+  // Client Profit → Clients tab
+  const cpTab = tabs.find(t => /^\s*client\s*profit\s*$/i.test(t)) || tabs.find(t => /client.?profit/i.test(t));
+  if (cpTab) {
+    try {
+      const rows = await sheetsGet(`${cpTab}!A1:Z200`);
+      const parsed = parseClientProfit(rows);
+      console.log(`📊 ${cpTab}: parsed ${parsed?parsed.length:0} clients`);
+      if (parsed && applyLiveClients(parsed)) {
+        status.Clients = 'live';
+        const sub = document.querySelector('#tab-clients .subline');
+        if (sub) sub.innerHTML = sub.innerHTML.replace(/— [^·]+$/, `— ${cpTab} (live)`);
+      }
+    } catch(e) { console.warn(`Client Profit (${cpTab}) failed:`, e.message); }
+  }
+
+  // Team Profit → People tab
+  const tpTab = tabs.find(t => /^\s*team\s*profit\s*$/i.test(t)) || tabs.find(t => /team.?profit/i.test(t));
+  if (tpTab) {
+    try {
+      const rows = await sheetsGet(`${tpTab}!A1:Z200`);
+      const parsed = parseTeamProfit(rows);
+      console.log(`📊 ${tpTab}: parsed ${parsed?parsed.length:0} people`);
+      if (parsed && applyLivePeople(parsed)) {
+        status.People = 'live';
+        const sub = document.querySelector('#tab-people .subline');
+        if (sub) sub.innerHTML = sub.innerHTML.replace(/— [^·]+$/, `— ${tpTab} (live)`);
+      }
+    } catch(e) { console.warn(`Team Profit (${tpTab}) failed:`, e.message); }
+  }
+
+  // Log discovery info for the tabs we haven't wired yet, so the user/dev
+  // can peek at them via /api/sheets?peek=TabName and iterate.
+  const interesting = ['Services','New Costs','Metrics','Profit Matrix','Receivables','Budget','Transactions','Transactions Database'];
+  interesting.forEach(name => {
+    const t = tabs.find(x => x.toLowerCase() === name.toLowerCase());
+    if (t) console.log(`💡 Found "${t}" — peek at /api/sheets?peek=${encodeURIComponent(t)} to inspect shape`);
+  });
+
+  return status;
+}
+
 async function initLiveData() {
   try {
     setLoading(true,'Connecting to Google Sheets…');
@@ -2278,10 +2654,20 @@ async function initLiveData() {
     const plTab = findPLTab(tabs);
     const data = await loadPL(plTab);
     const ok = applyLiveFin(data, plTab);
+    const ts = new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+    $('refreshTs').textContent = ts;
+
     if (ok) {
-      const ts = new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
-      $('refreshTs').textContent = ts;
-      setStatus('live', `Live · ${plTab} · last refresh ${ts}`, tabs);
+      // Regenerate Financials insights from live numbers
+      rebuildFinInsights();
+
+      // Probe + wire the other tabs (Clients, People, more in iterations)
+      const other = await loadOtherLive(tabs).catch(e => { console.warn(e); return {}; });
+
+      const live = ['Financials', ...Object.entries(other).filter(([,v]) => v==='live').map(([k]) => k)];
+      const demo = Object.entries(other).filter(([,v]) => v!=='live').map(([k]) => k);
+      const msg  = `Live · ${live.join(' · ')}${demo.length?` · Demo · ${demo.join(' · ')}`:''} · refresh ${ts}`;
+      setStatus('live', msg, tabs);
     } else {
       setStatus('warn', `Connected but no usable data in "${plTab}" — showing demo`, tabs);
     }
