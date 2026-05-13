@@ -2086,7 +2086,7 @@ function initCharts() {
   renderRevMomHead(LABELS, FCST_FROM);
   $('revRows').innerHTML = rowsHTML + `<tr class="total">
     <td class="sticky-left">Total revenue</td>
-    ${totalsByMonth.map((v,i)=>`<td class="num ${i>=FCST_FROM?'fcst':''}"><b>${fmtCompactCur(v)}</b></td>`).join('')}
+    ${totalsByMonth.map((v,i)=>`<td class="num ${i>=FCST_FROM?'fcst':''}"><b>${v===0?`<span class="dim">—</span>`:fmtCompactCur(v)}</b></td>`).join('')}
     <td class="num"><b>${fmtCompactCur(grandTotal)}</b></td>
     <td><span class="badge info">100%</span></td>
   </tr>`;
@@ -2456,11 +2456,49 @@ function openPeriodPicker(evt) {
         const m = b.dataset.m;
         $('periodVal').textContent = m;
         const idx = months.indexOf(m);
-        if (window._bvaState && idx >= 0) applyBudgetVsActual(window._bvaState.budget, window._bvaState.fin, idx);
+        if (idx >= 0) rerenderForMonth(idx);
         closeMonthPopover();
       }));
     }
   );
+}
+
+/* Re-run every relevant applier for a new "active month" without
+   rebuilding charts that depend on the forecast boundary. The trick:
+   fin.lastAct drives the "current month" reads inside the appliers;
+   fin.fcstFrom drives forecast styling. Temporarily mutate lastAct so
+   appliers pick up the new month, leave fcstFrom alone, then restore. */
+function rerenderForMonth(idx) {
+  const s = window._live;
+  if (!s || !s.fin) return;
+  if (idx == null || idx < 0 || idx >= s.fin.labels.length) return;
+  const savedLastAct = s.fin.lastAct;
+  try {
+    s.fin.lastAct = idx;
+    // Financials
+    try { renderFinKpis(); } catch(e) {}
+    try { rebuildFinInsights(); } catch(e) {}
+    // Revenue
+    if (s.fin.revenueLines && s.fin.revenueLines.length) {
+      try { applyFinSubRowsRevenue(s.fin); } catch(e) {}
+    } else {
+      try { applyLiveRevenueFromFin(); } catch(e) {}
+    }
+    if (s.agg && s.txns) try { applyTxnRevenue(s.agg, s.fin, s.txns); } catch(e) {}
+    // Re-run FM sub-rows AFTER txn (txn would otherwise stomp service-line widgets)
+    if (s.fin.revenueLines && s.fin.revenueLines.length) {
+      try { applyFinSubRowsRevenue(s.fin); } catch(e) {}
+    }
+    // Expenses
+    try { applyLiveExpensesFromFin(); } catch(e) {}
+    if (s.agg && s.txns) try { applyTxnExpenses(s.agg, s.fin, s.txns); } catch(e) {}
+    // Analytics
+    if (s.metrics) try { applyLiveAnalytics(s.metrics, s.fin); } catch(e) {}
+    // Budget vs Actual (uses explicit idx)
+    if (s.budget) try { applyBudgetVsActual(s.budget, s.fin, idx); } catch(e) {}
+  } finally {
+    s.fin.lastAct = savedLastAct;
+  }
 }
 
 function openRangePicker(evt) {
@@ -3674,7 +3712,7 @@ function applyLiveRevenueFromFin() {
     </tr>
     <tr class="total">
       <td class="sticky-left">Total revenue</td>
-      ${r.map((v,i)=>`<td class="num ${i>=fin.fcstFrom?'fcst':''}"><b>${fmtCompactCur(v)}</b></td>`).join('')}
+      ${r.map((v,i)=>`<td class="num ${i>=fin.fcstFrom?'fcst':''}"><b>${v===0?`<span class="dim">—</span>`:fmtCompactCur(v)}</b></td>`).join('')}
       <td class="num"><b>${fmtCompactCur(total)}</b></td>
       <td><span class="badge info">100%</span></td>
     </tr>`;
@@ -4318,7 +4356,7 @@ function applyTxnRevenue(agg, fin, allTxns) {
     const totalsByMonth = L.map((_,i) => accountTotals.reduce((sum,a) => sum + (a.vals[i]||0), 0));
     revRows.innerHTML = rowsHTML + `<tr class="total">
       <td class="sticky-left">Total revenue</td>
-      ${totalsByMonth.map((v,i)=>`<td class="num ${i>=fin.fcstFrom?'fcst':''}"><b>${fmtCompactCur(v)}</b></td>`).join('')}
+      ${totalsByMonth.map((v,i)=>`<td class="num ${i>=fin.fcstFrom?'fcst':''}"><b>${v===0?`<span class="dim">—</span>`:fmtCompactCur(v)}</b></td>`).join('')}
       <td class="num"><b>${fmtCompactCur(grandTotal)}</b></td>
       <td><span class="badge info">100%</span></td>
     </tr>`;
@@ -4460,7 +4498,7 @@ function applyTxnExpenses(agg, fin, allTxns) {
         <td class="sticky-left">Total</td>
         <td>—</td>
         <td class="num"><b>${fmtCompactCur(grand)}</b></td>
-        ${monthTotalsFiltered.map((v,i) => `<td class="num ${i>=fin.fcstFrom?'fcst':''}"><b>${fmtCompactCur(v)}</b></td>`).join('')}
+        ${monthTotalsFiltered.map((v,i) => `<td class="num ${i>=fin.fcstFrom?'fcst':''}"><b>${v===0?`<span class="dim">—</span>`:fmtCompactCur(v)}</b></td>`).join('')}
       </tr>`;
     }
     const count = $('vendorMatrixCount');
@@ -4684,7 +4722,7 @@ function applyFinSubRowsRevenue(fin) {
     const totalsByMonth = L.map((_,i) => lines.reduce((sum,l) => sum + (l.vals[i]||0), 0));
     revRows.innerHTML = rowsHTML + `<tr class="total">
       <td class="sticky-left">Total revenue</td>
-      ${totalsByMonth.map((v,i)=>`<td class="num ${i>=fin.fcstFrom?'fcst':''}"><b>${fmtCompactCur(v)}</b></td>`).join('')}
+      ${totalsByMonth.map((v,i)=>`<td class="num ${i>=fin.fcstFrom?'fcst':''}"><b>${v===0?`<span class="dim">—</span>`:fmtCompactCur(v)}</b></td>`).join('')}
       <td class="num"><b>${fmtCompactCur(grandTotal)}</b></td>
       <td><span class="badge info">100%</span></td>
     </tr>`;
@@ -5209,6 +5247,10 @@ function applyBudgetVsActual(budget, fin, monthIdx) {
 
 async function loadOtherLive(tabs) {
   const status = { Clients:'demo', People:'demo', Analytics:'demo' };
+  // Ensure the shared live-state container exists so the Period picker
+  // can re-render against the parsed datasets.
+  window._live = window._live || { fin: null, agg: null, txns: null, budget: null, metrics: null, clientParsed: null, peopleParsed: null };
+  window._live.fin = fin;
 
   // Metrics tab (transposed layout: metric=column, month=row) → Analytics tab
   const metricsTab = tabs.find(t => /^\s*metrics\s*$/i.test(t)) || tabs.find(t => /^\s*metric\b/i.test(t));
@@ -5217,6 +5259,7 @@ async function loadOtherLive(tabs) {
       const rows = await sheetsGet(`${metricsTab}!A1:Z300`);
       const parsed = parseMetricsTransposed(rows);
       if (parsed) {
+        window._live.metrics = parsed;
         console.log(`📊 ${metricsTab}: ${parsed.monthsParsed} months · ${parsed.metrics.length} metric columns`);
         console.log(`   metrics: ${parsed.metrics.map(m => `"${m.header}" (${m.kind})`).join(', ')}`);
         if (applyLiveAnalytics(parsed, fin)) status.Analytics = 'live';
@@ -5263,6 +5306,7 @@ async function loadOtherLive(tabs) {
     try {
       const budget = await loadBudgetRobust(budgetTab);
       if (budget && applyBudgetVsActual(budget, fin)) {
+        window._live.budget = budget;
         console.log(`📊 Budget vs Actual rendered from "${budgetTab}" · ${(budget.revenueLines||[]).length} rev / ${(budget.cogsLines||[]).length} cogs / ${(budget.opexLines||[]).length} opex line items`);
       } else {
         console.warn(`📊 Budget tab "${budgetTab}" loaded but couldn't be rendered. Hit /api/sheets?peek=${encodeURIComponent(budgetTab)} to inspect.`);
@@ -5312,6 +5356,8 @@ async function loadOtherLive(tabs) {
       console.log(`📊 ${txnTab}: parsed ${txns ? txns.length : 0} transactions`);
       if (txns && txns.length) {
         const agg = aggregateTxns(txns, fin.labels);
+        window._live.txns = txns;
+        window._live.agg = agg;
         console.log(`📊 Aggregated: ${Object.keys(agg.byAccount).length} accounts (${(agg.accountsByGroup.revenue||[]).length} rev / ${(agg.accountsByGroup.cogs||[]).length} cogs / ${(agg.accountsByGroup.opex||[]).length} opex / ${(agg.accountsByGroup.other||[]).length} other), ${Object.keys(agg.byVendor).length} vendors, ${Object.keys(agg.byClass).length} classes`);
         if (applyTxnRevenue(agg, fin, txns))   status.Revenue  = 'live (txns)';
         if (applyTxnExpenses(agg, fin, txns))  status.Expenses = 'live (txns)';
