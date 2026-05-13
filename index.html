@@ -2276,6 +2276,41 @@ async function loadPL(tab){
     const d = new Date(`${p[1]} 1 ${p[2]}`);
     return isNaN(d) ? m : d.toLocaleDateString('en-US',{month:'short',year:'2-digit'});
   });
+
+  // Locate subtotal row indexes so we can capture the sub-rows that
+  // make up Revenue / COGS / OpEx — those are the *real* service-line
+  // and category breakdowns, reconciled by the user.
+  const findRowIdx = pattern => rows.findIndex(r => r[0] && pattern.test(String(r[0]).trim()));
+  const revTotalIdx  = findRowIdx(/^total\s+revenue$/i);
+  const cogsTotalIdx = findRowIdx(/^total\s+cost\s+of\s+sales$/i) >= 0
+                       ? findRowIdx(/^total\s+cost\s+of\s+sales$/i)
+                       : findRowIdx(/^total\s+cogs$/i);
+  const opexTotalIdx = findRowIdx(/^total\s+operating\s+expenses?$/i) >= 0
+                       ? findRowIdx(/^total\s+operating\s+expenses?$/i)
+                       : findRowIdx(/^total\s+opex$/i);
+
+  const SKIP_RX = /^(total|sub.?total|grand|gross\s+(profit|margin)|operating\s+(profit|income|margin)|net\s+(profit|income|margin)|ebitda|ebit|cost\s+of\s+(sales|goods|services)|operating\s+expenses?|^revenue:?$|^income:?$)$/i;
+  const captureLines = (startIdx, endIdx) => {
+    const out = [];
+    if (startIdx == null || endIdx == null || startIdx < 0 || endIdx < 0 || endIdx <= startIdx) return out;
+    for (let i = startIdx + 1; i < endIdx; i++) {
+      const r = rows[i] || [];
+      const label = String(r[0] || '').trim();
+      if (!label) continue;
+      if (SKIP_RX.test(label)) continue;
+      if (/^[-=\s]+$/.test(label)) continue;
+      const vals = r.slice(1, n+1).map(num);
+      const sum = vals.reduce((a,b)=>a+Math.abs(b),0);
+      if (sum === 0) continue;
+      out.push({ name: label, vals });
+    }
+    return out;
+  };
+
+  const revenueLines = captureLines(hIdx,         revTotalIdx);
+  const cogsLines    = captureLines(revTotalIdx,  cogsTotalIdx);
+  const opexLines    = captureLines(cogsTotalIdx, opexTotalIdx);
+
   return {
     labels,
     revenue:   get('Total Revenue'),
@@ -2285,6 +2320,7 @@ async function loadPL(tab){
     opProf:    get('OPERATING INCOME'),
     opMarg:    get('OPERATING MARGIN'),
     net:       get('Net Income'),
+    revenueLines, cogsLines, opexLines,
   };
 }
 
@@ -2323,9 +2359,13 @@ function applyLiveFin(d, sheetName) {
     labels: d.labels,
     revenue: d.revenue.map(v => v||0),
     cogs, grossProf, grossMarg, opex, opProf, opMarg, net,
+    revenueLines: (d.revenueLines || []).map(l => ({...l, vals: l.vals.slice(0, n)})),
+    cogsLines:    (d.cogsLines    || []).map(l => ({...l, vals: l.vals.slice(0, n)})),
+    opexLines:    (d.opexLines    || []).map(l => ({...l, vals: l.vals.slice(0, n)})),
     lastAct, fcstFrom,
     source: sheetName ? `Finance Model · ${sheetName}` : 'Finance Model',
   };
+  console.log(`📊 Finance Model sub-rows: ${fin.revenueLines.length} revenue lines, ${fin.cogsLines.length} cogs lines, ${fin.opexLines.length} opex lines`);
   refreshFinancials();
   return true;
 }
@@ -3534,6 +3574,152 @@ function applyExpenseTransactions(agg, fin, allTxns) {
   return true;
 }
 
+/* ───── Revenue tab — service-line views from Finance Model sub-rows ──
+   The user's Finance Model has revenue already broken down by service
+   line (reconciled). Use those rows directly for the service-line
+   stacked chart, MoM matrix, Largest-Line KPI, Top-3 Concentration,
+   Active-Service-Lines count, and the By Service Line snapshot card.
+   Runs AFTER applyTxnRevenue so it overrides any transaction-derived
+   numbers that the classifier may have miscategorised. */
+function applyFinSubRowsRevenue(fin) {
+  const lines0 = fin && fin.revenueLines;
+  if (!lines0 || !lines0.length) return false;
+  const L = fin.labels;
+  const lastAct = fin.lastAct;
+
+  const lines = lines0.map(l => ({
+    name: l.name,
+    vals: l.vals.slice(0, L.length),
+    total: l.vals.slice(0, L.length).reduce((a,b)=>a+(b||0),0),
+    last:  l.vals[lastAct] || 0,
+  })).filter(l => l.total > 0)
+    .sort((a,b) => b.total - a.total);
+
+  if (!lines.length) return false;
+  const grandTotal    = lines.reduce((a,l)=>a+l.total,0);
+  const grandLastAct  = lines.reduce((a,l)=>a+l.last,0);
+
+  // KPIs
+  const kpis = document.querySelectorAll('#tab-revenue .kpi .kpi-value');
+  const ctxs = document.querySelectorAll('#tab-revenue .kpi .kpi-delta');
+  if (kpis.length >= 5) {
+    // KPI 2 — Active Service Lines
+    kpis[1].textContent = String(lines.length);
+    ctxs[1].innerHTML = `<span class="ctx">${lines.slice(0,4).map(l=>l.name).join(' · ')}${lines.length>4?' · …':''}</span>`;
+    // KPI 3 — Largest Line
+    const largest = lines[0];
+    const largestShare = grandLastAct ? largest.last / grandLastAct * 100 : 0;
+    kpis[2].textContent = largest.name.length > 22 ? largest.name.slice(0,21)+'…' : largest.name;
+    kpis[2].title = largest.name;
+    ctxs[2].innerHTML = `<span class="d up">${fmtCompactCur(largest.last)} · ${largestShare.toFixed(0)}% share</span>`;
+    // KPI 5 — Top-3 Concentration (share of last actual month)
+    const top3Last = lines.slice(0,3).reduce((a,l)=>a+l.last,0);
+    const top3Share = grandLastAct ? top3Last / grandLastAct * 100 : 0;
+    kpis[4].textContent = top3Share.toFixed(0) + '%';
+    kpis[4].className = 'kpi-value ' + (top3Share<=50?'success':top3Share<=70?'warning':'danger');
+    ctxs[4].innerHTML = `<span class="ctx">${lines.slice(0,3).map(l=>l.name).join(' + ')}</span>`;
+  }
+
+  // Stacked chart per service line — Finance Model values
+  const PALETTE_BLUE = ['#1390eb','#0284c7','#0ea5e9','#38bdf8','#7dd3fc','#bae6fd','#dbeafe','#e0f2fe'];
+  const series = lines.slice(0, 8).map((l,i) => ({
+    label: l.name,
+    data: l.vals,
+    backgroundColor: ctx => {
+      const c = PALETTE_BLUE[i % PALETTE_BLUE.length];
+      const op = ctx.dataIndex >= fin.fcstFrom ? 0.42 : 0.88;
+      const r=parseInt(c.slice(1,3),16), g=parseInt(c.slice(3,5),16), b=parseInt(c.slice(5,7),16);
+      return `rgba(${r},${g},${b},${op})`;
+    },
+    borderRadius: 0,
+    datalabels: { display: false },
+  }));
+  const monthlyTotals = L.map((_,i) => series.reduce((a,s)=>a+(s.data[i]||0),0));
+  series.push({
+    type:'line', label:'__total', data: monthlyTotals,
+    backgroundColor:'transparent', borderColor:'transparent', pointRadius:0, fill:false,
+    datalabels:{
+      align:'top', anchor:'end', offset:6,
+      color:'rgba(255,255,255,.92)',font:{size:11,weight:'700'},
+      formatter:(v,ctx)=>ctx.dataIndex>=fin.fcstFrom?'• '+fmtCompactCur(v):fmtCompactCur(v)
+    },
+  });
+  Chart.getChart('revStackedChart')?.destroy();
+  new Chart($('revStackedChart'), {
+    type:'bar',
+    data:{ labels:L, datasets:series },
+    plugins:[ChartDataLabels],
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      layout:{padding:{top:32,right:14,bottom:4,left:6}},
+      plugins:{
+        legend:{position:'top',align:'end',labels:{boxWidth:9,boxHeight:9,padding:12,font:{size:11},color:'rgba(255,255,255,.65)',filter:it=>it.text!=='__total'}},
+        tooltip:{...TOOLTIP, callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmtFullCur(ctx.raw)}`, filter:ctx=>ctx.dataset.label!=='__total'}},
+        forecastDivider:{ fromIndex: fin.fcstFrom }
+      },
+      scales:{ x:{...xAxis, stacked:true}, y:{...yCurAxis, stacked:true} }
+    }
+  });
+  const stackedHead = document.querySelector('#tab-revenue .shell .shell-head h2');
+  if (stackedHead) stackedHead.textContent = 'Revenue by service line';
+  const stackedSub  = document.querySelector('#tab-revenue .shell .shell-head .sub');
+  if (stackedSub) stackedSub.textContent = `Stacked monthly · ${lines.length} lines · biggest at the base · from Finance Model`;
+
+  // "By service line" snapshot card — first of the 3 cards
+  const cards = document.querySelectorAll('#tab-revenue .grid-3 .shell');
+  if (cards[0]) {
+    const h2 = cards[0].querySelector('h2'); if (h2) h2.textContent = 'By service line';
+    const sub = cards[0].querySelector('.sub'); if (sub) sub.textContent = `Snapshot · ${L[lastAct]}`;
+    const canvas = cards[0].querySelector('canvas');
+    if (canvas) {
+      Chart.getChart(canvas.id)?.destroy();
+      const snap = lines.filter(l => l.last > 0).slice(0, 8);
+      if (snap.length) {
+        hbar(canvas.id, snap.map(l=>l.name), snap.map(l=>l.last), '#1390eb', { thickness: 14 });
+      }
+    }
+  }
+
+  // Service-line MoM matrix
+  const revRows = $('revRows');
+  if (revRows) {
+    const maxCell = Math.max(1, ...lines.flatMap(l => l.vals));
+    const rowsHTML = lines.map(l => {
+      const cells = l.vals.map((v,i) => {
+        const pct = Math.round(v/maxCell*100);
+        const fcst = i >= fin.fcstFrom;
+        const op = (fcst?0.08:0.15) + (pct/100)*(fcst?0.22:0.40);
+        return `<td class="mcell ${fcst?'fcst':''} ${v===0?'zero':''}">
+          <div class="bg" style="background:rgba(34,211,238,0.55);opacity:${op.toFixed(2)}"></div>
+          <div class="v">${v===0?'—':fmtCompactCur(v)}</div>
+        </td>`;
+      }).join('');
+      const share = grandTotal ? l.total / grandTotal * 100 : 0;
+      const shareCls = share>=20?'ok':share>=10?'warn':'bad';
+      return `<tr>
+        <td class="sticky-left truncate" title="${l.name}">${l.name}</td>
+        ${cells}
+        <td class="num">${fmtCompactCur(l.total)}</td>
+        <td><span class="badge ${shareCls}">${share.toFixed(1)}%</span></td>
+      </tr>`;
+    }).join('');
+    const totalsByMonth = L.map((_,i) => lines.reduce((sum,l) => sum + (l.vals[i]||0), 0));
+    revRows.innerHTML = rowsHTML + `<tr class="total">
+      <td class="sticky-left">Total revenue</td>
+      ${totalsByMonth.map((v,i)=>`<td class="num ${i>=fin.fcstFrom?'fcst':''}"><b>${fmtCompactCur(v)}</b></td>`).join('')}
+      <td class="num"><b>${fmtCompactCur(grandTotal)}</b></td>
+      <td><span class="badge info">100%</span></td>
+    </tr>`;
+  }
+  const tot = $('revMomTotals');
+  if (tot) tot.textContent = `${lines.length} service lines · grand total ${fmtCompactCur(grandTotal)}`;
+
+  // Subline reflects Finance Model as source
+  const sub = document.querySelector('#tab-revenue .subline');
+  if (sub) sub.innerHTML = `${L[lastAct]} · live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Finance Model + Transactions`;
+  return true;
+}
+
 /* ───── Financials P&L — expandable sub-rows from Transactions ────── */
 function applyTxnPLDrilldown(agg, fin) {
   if (!agg) return false;
@@ -3656,6 +3842,13 @@ async function loadOtherLive(tabs) {
     }
   }
 
+  // First, light up Revenue service-line breakdown from Finance Model
+  // sub-rows. Reliable even if Transactions fails.
+  if (applyFinSubRowsRevenue(fin)) {
+    status.Revenue = 'live (FM)';
+    console.log(`📊 Revenue service-lines from Finance Model: ${fin.revenueLines.length} lines`);
+  }
+
   // Transactions Database — feeds Revenue / Expenses / P&L drilldown
   status.Revenue  = status.Revenue  || 'demo';
   status.Expenses = status.Expenses || 'demo';
@@ -3674,6 +3867,11 @@ async function loadOtherLive(tabs) {
         if (applyTxnExpenses(agg, fin, txns))  status.Expenses = 'live (txns)';
         if (applyTxnPLDrilldown(agg, fin))     console.log('📊 P&L drilldown rebuilt from Transactions');
         if (applyExpenseTransactions(agg, fin, txns)) console.log('📊 Expense Transactions ledger rendered');
+        // Override service-line views with Finance Model sub-rows (more reliable than the classifier)
+        if (applyFinSubRowsRevenue(fin)) {
+          console.log('📊 Revenue service-line views replaced by Finance Model sub-rows');
+          status.Revenue = 'live (FM + txns)';
+        }
       }
     } catch(e) {
       console.warn(`Transactions parse failed:`, e.message);
