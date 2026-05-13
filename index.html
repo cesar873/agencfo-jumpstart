@@ -2563,6 +2563,241 @@ function parseTeamProfit(rows) {
   return out.length ? out : null;
 }
 
+/* ── Metrics tab parser (TRANSPOSED — metric=column, month=row) ───── */
+function parseMetricsTransposed(rows) {
+  if (!rows || rows.length < 2) return null;
+  const hIdx = findHeaderRow(rows);
+  if (hIdx < 0) return null;
+  const headers = (rows[hIdx] || []).map(h => String(h||'').trim());
+  // Column 0 is the month label; columns 1+ are metric names.
+  if (headers.length < 2) return null;
+
+  // Build a column lookup by regex-matching the header names.
+  const findCol = (...patterns) => {
+    for (const p of patterns) {
+      const re = p instanceof RegExp ? p : new RegExp(p, 'i');
+      for (let c = 1; c < headers.length; c++) {
+        if (headers[c] && re.test(headers[c])) return c;
+      }
+    }
+    return -1;
+  };
+
+  const cLTV       = findCol(/^ltv\b|lifetime.?value|ltgp/);
+  const cCAC       = findCol(/^cac\b|customer.?acquisition|acquisition.?cost/);
+  const cMRR       = findCol(/^mrr\b|monthly.?recurring/);
+  const cARR       = findCol(/^arr\b|annual.?recurring/);
+  const cMRRChurn  = findCol(/mrr.?churn|revenue.?churn|gross.?revenue.?churn/);
+  const cCltChurn  = findCol(/(client|customer).?churn|logo.?churn/);
+  const cNRR       = findCol(/^nrr\b|net.?revenue.?retention/);
+  const cSigned    = findCol(/^signed$|new.?clients?|^new$|won/);
+  const cLost      = findCol(/^lost$|churned.?clients?|^lost.?clients?/);
+  const cActive    = findCol(/^active.?clients?$|total.?clients?|client.?count|^total$|^count$/);
+  const cRatio     = findCol(/ltv.?\/?.?cac|ltv.?to.?cac|cac.?ratio/);
+  const cAvgInv    = findCol(/avg.?invoice|average.?invoice|arpu|^arpa$|avg.?revenue/);
+
+  const byMonth = {};
+  for (let i = hIdx + 1; i < rows.length; i++) {
+    const r = rows[i] || [];
+    const ml = r[0];
+    if (ml == null || String(ml).trim() === '') continue;
+    const d = parseDateLoose(ml);
+    if (!d) continue;
+    const monthIso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    byMonth[monthIso] = {
+      ltv:      cLTV      >= 0 ? num(r[cLTV])      : 0,
+      cac:      cCAC      >= 0 ? num(r[cCAC])      : 0,
+      mrr:      cMRR      >= 0 ? num(r[cMRR])      : 0,
+      arr:      cARR      >= 0 ? num(r[cARR])      : 0,
+      mrrChurn: cMRRChurn >= 0 ? normalizePct(num(r[cMRRChurn])) : 0,
+      cltChurn: cCltChurn >= 0 ? normalizePct(num(r[cCltChurn])) : 0,
+      nrr:      cNRR      >= 0 ? normalizePct(num(r[cNRR]))      : 0,
+      signed:   cSigned   >= 0 ? num(r[cSigned])   : 0,
+      lost:     cLost     >= 0 ? num(r[cLost])     : 0,
+      active:   cActive   >= 0 ? num(r[cActive])   : 0,
+      ratio:    cRatio    >= 0 ? num(r[cRatio])    : 0,
+      avgInv:   cAvgInv   >= 0 ? num(r[cAvgInv])   : 0,
+    };
+  }
+  if (!Object.keys(byMonth).length) return null;
+  return {
+    byMonth,
+    detected: {
+      ltv: cLTV>=0?headers[cLTV]:null, cac: cCAC>=0?headers[cCAC]:null,
+      mrr: cMRR>=0?headers[cMRR]:null,
+      mrrChurn: cMRRChurn>=0?headers[cMRRChurn]:null,
+      cltChurn: cCltChurn>=0?headers[cCltChurn]:null,
+      signed: cSigned>=0?headers[cSigned]:null, lost: cLost>=0?headers[cLost]:null,
+      active: cActive>=0?headers[cActive]:null, ratio: cRatio>=0?headers[cRatio]:null,
+    },
+  };
+}
+
+/* Align a metrics-by-month object to the dashboard's fin.labels axis. */
+function alignToLabels(metricsByMonth, fin, key) {
+  return fin.labels.map(label => {
+    const iso = labelToIso(label);
+    const m = iso ? metricsByMonth[iso] : null;
+    return m && isFinite(m[key]) ? m[key] : 0;
+  });
+}
+
+function applyLiveAnalytics(metrics, fin) {
+  if (!metrics || !metrics.byMonth) return false;
+  const L = fin.labels;
+  const lastAct = fin.lastAct;
+
+  const ltv      = alignToLabels(metrics.byMonth, fin, 'ltv');
+  const cac      = alignToLabels(metrics.byMonth, fin, 'cac');
+  const ratio    = alignToLabels(metrics.byMonth, fin, 'ratio')
+                   .map((r,i)=> r || (cac[i] ? ltv[i]/cac[i] : 0));
+  const mrr      = alignToLabels(metrics.byMonth, fin, 'mrr');
+  const mrrChurn = alignToLabels(metrics.byMonth, fin, 'mrrChurn');
+  const cltChurn = alignToLabels(metrics.byMonth, fin, 'cltChurn');
+  const signed   = alignToLabels(metrics.byMonth, fin, 'signed');
+  const lost     = alignToLabels(metrics.byMonth, fin, 'lost');
+  const active   = alignToLabels(metrics.byMonth, fin, 'active');
+
+  // If everything is zero, parse failed semantically — bail.
+  const anyData = [...ltv, ...cac, ...mrr, ...signed, ...lost].some(v => v !== 0);
+  if (!anyData) return false;
+
+  // KPIs
+  const kpis = document.querySelectorAll('#tab-analytics .kpi .kpi-value');
+  const ctxs = document.querySelectorAll('#tab-analytics .kpi .kpi-delta');
+  if (kpis.length >= 5) {
+    const prev = lastAct - 1 >= 0 ? lastAct - 1 : null;
+    const setDelta = (el, pct, ctx, kind='%') => {
+      if (pct == null || !isFinite(pct)) { el.innerHTML = `<span class="ctx">${ctx||''}</span>`; return; }
+      const up = pct >= 0.05, down = pct <= -0.05;
+      const sign = pct>=0?'+':'';
+      el.innerHTML = `<span class="d ${up?'up':down?'down':'flat'}">${up?'▲':down?'▼':'▬'} ${sign}${pct.toFixed(1)}${kind}</span><span class="ctx">${ctx||''}</span>`;
+    };
+
+    // LTV
+    kpis[0].textContent = ltv[lastAct] ? fmtCompactCur(ltv[lastAct]) : '—';
+    if (prev != null && ltv[prev]) {
+      setDelta(ctxs[0], (ltv[lastAct]-ltv[prev])/ltv[prev]*100, `vs ${L[prev]}`);
+    } else ctxs[0].innerHTML = `<span class="ctx">${metrics.detected.ltv||'LTV'} from Metrics tab</span>`;
+
+    // CAC
+    kpis[1].textContent = cac[lastAct] ? fmtCompactCur(cac[lastAct]) : '—';
+    if (prev != null && cac[prev]) {
+      setDelta(ctxs[1], (cac[lastAct]-cac[prev])/cac[prev]*100, `vs ${L[prev]}`);
+    } else ctxs[1].innerHTML = `<span class="ctx">${metrics.detected.cac||'CAC'} from Metrics tab</span>`;
+
+    // LTV/CAC
+    const r = ratio[lastAct] || (cac[lastAct] ? ltv[lastAct]/cac[lastAct] : 0);
+    kpis[2].textContent = r ? r.toFixed(1) + 'x' : '—';
+    kpis[2].className = 'kpi-value ' + (r>=3?'success':r>=1?'warning':r>0?'danger':'');
+    ctxs[2].innerHTML = `<span class="ctx">${r>=3?'healthy (≥3x)':r>=1?'mid-band':r>0?'below 1x':''}</span>`;
+
+    // MRR or Revenue
+    const mrrVal = mrr[lastAct] || fin.revenue[lastAct];
+    kpis[3].textContent = mrrVal ? fmtCompactCur(mrrVal) : '—';
+    const mrrLabel = mrr[lastAct] ? 'MRR' : 'Revenue';
+    if (prev != null) {
+      const prevVal = mrr[prev] || fin.revenue[prev];
+      if (prevVal) setDelta(ctxs[3], (mrrVal-prevVal)/prevVal*100, `vs ${L[prev]}`);
+    }
+
+    // Client Churn
+    const churn = cltChurn[lastAct];
+    kpis[4].textContent = churn != null ? churn.toFixed(1)+'%' : '—';
+    kpis[4].className = 'kpi-value ' + (churn<=2?'success':churn<=5?'warning':'danger');
+    ctxs[4].innerHTML = `<span class="ctx">${churn<=0?'best month':churn<=2?'healthy':churn<=5?'monitor':'review retention'}</span>`;
+  }
+
+  // LTV vs CAC vs Ratio chart
+  Chart.getChart('ltvCacChart')?.destroy();
+  new Chart($('ltvCacChart'), {
+    type:'line',
+    data:{ labels:L, datasets:[
+      { label:'LTV', data:ltv, yAxisID:'l', borderColor:'#1390eb', backgroundColor:'rgba(19,144,235,0.08)', fill:true, tension:.35, pointRadius:3, borderWidth:2,
+        segment:{borderDash:ctx=>ctx.p0DataIndex>=lastAct?[4,4]:undefined} },
+      { label:'CAC', data:cac, yAxisID:'l', borderColor:'#ef4444', backgroundColor:'transparent', fill:false, tension:.35, pointRadius:3, borderWidth:2,
+        segment:{borderDash:ctx=>ctx.p0DataIndex>=lastAct?[4,4]:undefined} },
+      { label:'LTV/CAC', data:ratio, yAxisID:'r', borderColor:'#22c55e', backgroundColor:'transparent', fill:false, tension:.35, pointRadius:3, borderWidth:2,
+        segment:{borderDash:ctx=>ctx.p0DataIndex>=lastAct?[4,4]:undefined} },
+    ]},
+    plugins:[ChartDataLabels],
+    options:{
+      responsive:true,maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      layout:{padding:{top:32,right:14,bottom:4,left:6}},
+      plugins:{
+        legend:{position:'top',align:'end',labels:{boxWidth:9,boxHeight:9,padding:12,font:{size:11},color:'rgba(255,255,255,.65)'}},
+        tooltip:{...TOOLTIP, callbacks:{ label:ctx=>{
+          if (ctx.dataset.label==='LTV/CAC') return ` ${ctx.dataset.label}: ${ctx.raw.toFixed(2)}x`;
+          return ` ${ctx.dataset.label}: ${fmtFullCur(ctx.raw)}`;
+        }}},
+        datalabels:{
+          align:'top',anchor:'end',offset:ctx=>6+ctx.datasetIndex*14,
+          color:ctx=>ctx.dataset.borderColor,
+          font:{size:10,weight:'600'},
+          formatter:(v,ctx)=>ctx.dataset.label==='LTV/CAC'?v.toFixed(1)+'x':fmtCompactCur(v),
+          display:ctx=>ctx.dataIndex===lastAct
+        },
+        forecastDivider:{ fromIndex: fin.fcstFrom }
+      },
+      scales:{
+        x:xAxis,
+        l:{position:'left', ...yCurAxis},
+        r:{position:'right', grid:{display:false}, ticks:{font:{size:11},color:'rgba(255,255,255,.65)',callback:v=>v.toFixed(1)+'x'}, min:0, suggestedMax:5}
+      }
+    }
+  });
+
+  // Churn chart
+  Chart.getChart('churnChart')?.destroy();
+  line('churnChart', L, [
+    { label:'MRR Churn', data:mrrChurn, borderColor:'#ef4444', backgroundColor:'transparent', fill:false, tension:.35, pointRadius:3, borderWidth:2,
+      segment:{borderDash:ctx=>ctx.p0DataIndex>=lastAct?[4,4]:undefined}},
+    { label:'Client Churn', data:cltChurn, borderColor:'#f59e0b', backgroundColor:'transparent', fill:false, tension:.35, pointRadius:3, borderWidth:2,
+      segment:{borderDash:ctx=>ctx.p0DataIndex>=lastAct?[4,4]:undefined}},
+  ], { yPct:true, yMin:0, fcstFrom: fin.fcstFrom, dlFmt:v=>v.toFixed(1)+'%' });
+
+  // Signed / Lost / Active
+  Chart.getChart('signedLostChart')?.destroy();
+  new Chart($('signedLostChart'), {
+    type:'bar',
+    data:{ labels:L, datasets:[
+      { label:'Signed', yAxisID:'b', data:signed,
+        backgroundColor: ctx=>ctx.dataIndex>=fin.fcstFrom?'rgba(34,197,94,0.42)':'rgba(34,197,94,0.88)',
+        borderRadius:[3,3,0,0], barThickness:18,
+        datalabels:{align:'top',anchor:'end',offset:4,color:'#86efac',font:{size:11,weight:'700'},formatter:v=>v||''}},
+      { label:'Lost', yAxisID:'b', data:lost.map(v=>-v),
+        backgroundColor: ctx=>ctx.dataIndex>=fin.fcstFrom?'rgba(239,68,68,0.42)':'rgba(239,68,68,0.88)',
+        borderRadius:[3,3,0,0], barThickness:18,
+        datalabels:{align:'bottom',anchor:'start',offset:4,color:'#fda4af',font:{size:10,weight:'600'},formatter:v=>v===0?'':-v}},
+      { type:'line', label:'Total active', yAxisID:'t', data:active,
+        borderColor:'#1390eb', backgroundColor:'transparent', fill:false, tension:.35, pointRadius:3, borderWidth:2,
+        segment:{borderDash:ctx=>ctx.p0DataIndex>=lastAct?[4,4]:undefined},
+        datalabels:{align:'top',anchor:'end',offset:12,color:'#7dd3fc',font:{size:11,weight:'700'},formatter:v=>v||''}},
+    ]},
+    plugins:[ChartDataLabels],
+    options:{
+      responsive:true,maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      layout:{padding:{top:30,right:14,bottom:4,left:6}},
+      plugins:{
+        legend:{position:'top',align:'end',labels:{boxWidth:9,boxHeight:9,padding:12,font:{size:11},color:'rgba(255,255,255,.65)'}},
+        tooltip:{...TOOLTIP, callbacks:{ label: ctx => ` ${ctx.dataset.label}: ${Math.abs(ctx.raw)}`}},
+        forecastDivider:{ fromIndex: fin.fcstFrom }
+      },
+      scales:{
+        x: xAxis,
+        b: {position:'left', grid:{color:'rgba(120,120,120,.12)'}, ticks:{font:{size:11},color:'rgba(255,255,255,.65)',callback:v=>v}, suggestedMin:-Math.max(3, ...lost.map(v=>v||0)), suggestedMax:Math.max(3, ...signed.map(v=>v||0))},
+        t: {position:'right', grid:{display:false}, ticks:{font:{size:11},color:'rgba(255,255,255,.65)'}, beginAtZero:true, suggestedMax:Math.max(...active.map(v=>v||0), 5)+5}
+      }
+    }
+  });
+
+  // Subline
+  const sub = document.querySelector('#tab-analytics .subline');
+  if (sub) sub.innerHTML = `${L[lastAct]} · live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Metrics`;
+
+  return true;
+}
+
 function applyLivePeople(parsed) {
   if (!parsed || !parsed.length) return false;
   const byRev = [...parsed].sort((a,b) => b.rev - a.rev);
@@ -3802,7 +4037,19 @@ function applyTxnPLDrilldown(agg, fin) {
 
 /* ── Orchestrator: probe + wire all candidate tabs ────────────────── */
 async function loadOtherLive(tabs) {
-  const status = { Clients:'demo', People:'demo' };
+  const status = { Clients:'demo', People:'demo', Analytics:'demo' };
+
+  // Metrics tab (transposed layout: metric=column, month=row) → Analytics tab
+  const metricsTab = tabs.find(t => /^\s*metrics\s*$/i.test(t)) || tabs.find(t => /^\s*metric\b/i.test(t));
+  if (metricsTab) {
+    try {
+      const rows = await sheetsGet(`${metricsTab}!A1:Z300`);
+      const parsed = parseMetricsTransposed(rows);
+      console.log(`📊 ${metricsTab}: ${parsed ? Object.keys(parsed.byMonth).length : 0} months parsed`,
+                  parsed ? `· detected metrics: ${Object.entries(parsed.detected).filter(([,v])=>v).map(([k,v])=>k+'→"'+v+'"').join(', ')}` : '');
+      if (parsed && applyLiveAnalytics(parsed, fin)) status.Analytics = 'live';
+    } catch(e) { console.warn(`Metrics parse failed:`, e.message); }
+  }
 
   // Client Profit → Clients tab
   const cpTab = tabs.find(t => /^\s*client\s*profit\s*$/i.test(t)) || tabs.find(t => /client.?profit/i.test(t));
@@ -3919,9 +4166,9 @@ async function initLiveData() {
         Financials: 'live',
         Revenue:    revOK ? 'live (aggregate)' : 'demo',
         Expenses:   expOK ? 'live (aggregate)' : 'demo',
-        Clients:    other.Clients || 'demo',
-        People:     other.People  || 'demo',
-        Analytics:  'demo',
+        Clients:    other.Clients   || 'demo',
+        People:     other.People    || 'demo',
+        Analytics:  other.Analytics || 'demo',
       };
       const live = Object.entries(status).filter(([,v]) => v.startsWith('live')).map(([k]) => k);
       const demo = Object.entries(status).filter(([,v]) => v === 'demo').map(([k]) => k);
