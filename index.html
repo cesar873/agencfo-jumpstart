@@ -449,6 +449,36 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
 @keyframes spin{to{transform:rotate(360deg);}}
 #loadingMsg{font-size:12px;color:var(--muted);}
 
+/* ── DIAGNOSTIC STRIP (parser reports) ──────────────────────────────── */
+.diag-strip{
+  border:1px solid var(--card-border);
+  background:rgba(255,255,255,0.03);
+  border-radius:12px;
+  padding:12px 16px;
+  margin-bottom:20px;
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+}
+.diag-head{
+  display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+  margin-bottom:6px;
+}
+.diag-meta{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;}
+.diag-body{
+  display:flex;flex-wrap:wrap;gap:6px;
+  font-size:11px;
+}
+.diag-tag{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:3px 8px;border-radius:6px;
+  font-weight:500;
+  border:1px solid var(--card-border);
+}
+.diag-tag.match{background:rgba(34,197,94,0.10);color:#86efac;border-color:rgba(34,197,94,0.30);}
+.diag-tag.miss {background:rgba(245,158,11,0.10);color:#fcd34d;border-color:rgba(245,158,11,0.30);}
+.diag-tag .k{color:var(--muted);font-size:10px;margin-right:2px;text-transform:uppercase;letter-spacing:.06em;}
+.diag-tag .v{font-weight:600;}
+
 /* ── FILTER CONTROLS ────────────────────────────────────────────────── */
 .filter-select,
 .filter-search{
@@ -966,6 +996,14 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
     <p class="eyebrow">Unit economics</p>
     <h1>Analytics</h1>
     <p class="subline">April 2026 · live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Metrics</p>
+  </div>
+
+  <div id="metricsDiag" class="diag-strip" style="display:none">
+    <div class="diag-head">
+      <span class="sub-eyebrow">Metrics tab · parser report</span>
+      <span class="diag-meta" id="diagMeta">—</span>
+    </div>
+    <div class="diag-body" id="diagBody"></div>
   </div>
 
   <div class="wtdn">
@@ -2572,29 +2610,58 @@ function parseMetricsTransposed(rows) {
   // Column 0 is the month label; columns 1+ are metric names.
   if (headers.length < 2) return null;
 
-  // Build a column lookup by regex-matching the header names.
-  const findCol = (...patterns) => {
-    for (const p of patterns) {
-      const re = p instanceof RegExp ? p : new RegExp(p, 'i');
-      for (let c = 1; c < headers.length; c++) {
-        if (headers[c] && re.test(headers[c])) return c;
-      }
-    }
-    return -1;
-  };
+  // Knowledge base of canonical metrics with regex variants. Order matters:
+  // first matching regex wins. We keep this generous so renames from the
+  // user don't silently break parsing.
+  const SPEC = [
+    { key:'ltv',         re:/^ltv\b|lifetime.?(gross.?profit|value)|ltgp/ },
+    { key:'cac',         re:/^cac\b|customer.?acquisition|acquisition.?cost/ },
+    { key:'ratio',       re:/ltv.?[\/\\:].?cac|ltv.?to.?cac|cac.?ratio|^ratio$/ },
+    { key:'paybackMo',   re:/payback|cac.?payback/ },
+    { key:'mrr',         re:/^mrr\b|monthly.?recurring/ },
+    { key:'newMrr',      re:/new.?mrr|^new.?mrr$/ },
+    { key:'expansionMrr',re:/expansion.?mrr/ },
+    { key:'contractMrr', re:/contraction.?mrr|churn.?mrr/ },
+    { key:'arr',         re:/^arr\b|annual.?recurring/ },
+    { key:'arrGrowth',   re:/arr.?growth/ },
+    { key:'mrrChurn',    re:/mrr.?churn|revenue.?churn|gross.?revenue.?churn|gross.?dollar.?churn/ },
+    { key:'cltChurn',    re:/(client|customer|logo).?churn/ },
+    { key:'nrr',         re:/^nrr\b|net.?revenue.?retention|net.?dollar.?retention|^ndr\b/ },
+    { key:'grr',         re:/^grr\b|gross.?revenue.?retention/ },
+    { key:'signed',      re:/^signed$|new.?(clients?|customers?|logos?)|^new$|won|closed.?won/ },
+    { key:'lost',        re:/^lost$|churned.?(clients?|customers?)|^lost.?(clients?|customers?)|^churn(?!.?(rate|%))/ },
+    { key:'active',      re:/active.?(clients?|customers?|accounts?)|total.?(clients?|customers?|accounts?)|^active$|client.?count|^total$|^count$|book.?of.?business/ },
+    { key:'avgInv',      re:/avg.?invoice|average.?invoice|arpu|^arpa$|avg.?revenue.?(per|\/)|asp/ },
+    { key:'gm',          re:/^gross.?margin$|^gm\b/ },
+    { key:'om',          re:/^operating.?margin$|^op.?margin$|^om\b/ },
+    { key:'burn',        re:/burn.?rate|^burn$|cash.?burn/ },
+    { key:'runway',      re:/runway/ },
+  ];
 
-  const cLTV       = findCol(/^ltv\b|lifetime.?value|ltgp/);
-  const cCAC       = findCol(/^cac\b|customer.?acquisition|acquisition.?cost/);
-  const cMRR       = findCol(/^mrr\b|monthly.?recurring/);
-  const cARR       = findCol(/^arr\b|annual.?recurring/);
-  const cMRRChurn  = findCol(/mrr.?churn|revenue.?churn|gross.?revenue.?churn/);
-  const cCltChurn  = findCol(/(client|customer).?churn|logo.?churn/);
-  const cNRR       = findCol(/^nrr\b|net.?revenue.?retention/);
-  const cSigned    = findCol(/^signed$|new.?clients?|^new$|won/);
-  const cLost      = findCol(/^lost$|churned.?clients?|^lost.?clients?/);
-  const cActive    = findCol(/^active.?clients?$|total.?clients?|client.?count|^total$|^count$/);
-  const cRatio     = findCol(/ltv.?\/?.?cac|ltv.?to.?cac|cac.?ratio/);
-  const cAvgInv    = findCol(/avg.?invoice|average.?invoice|arpu|^arpa$|avg.?revenue/);
+  // First, map each column 1..N to a canonical key if it matches; else null.
+  const colToKey = headers.map((h,c) => {
+    if (c === 0 || !h) return null;
+    for (const s of SPEC) if (s.re.test(h)) return s.key;
+    return null;
+  });
+
+  // Track which spec keys got mapped + which sheet columns are unmatched.
+  const matched = {};   // {key: {col, header}}
+  const unmatched = []; // [{col, header}] — non-empty headers in cols 1..N that didn't match any spec
+  for (let c = 1; c < headers.length; c++) {
+    const h = headers[c];
+    if (!h) continue;
+    const k = colToKey[c];
+    if (k) { if (!matched[k]) matched[k] = { col:c, header:h }; }
+    else   { unmatched.push({ col:c, header:h }); }
+  }
+
+  // Helper for picking one column by key. Falls back to -1 when missing.
+  const colFor = key => matched[key] ? matched[key].col : -1;
+
+  const KEYS = ['ltv','cac','ratio','paybackMo','mrr','newMrr','expansionMrr','contractMrr','arr','arrGrowth',
+    'mrrChurn','cltChurn','nrr','grr','signed','lost','active','avgInv','gm','om','burn','runway'];
+  const PCT_KEYS = new Set(['mrrChurn','cltChurn','nrr','grr','arrGrowth','gm','om']);
 
   const byMonth = {};
   for (let i = hIdx + 1; i < rows.length; i++) {
@@ -2604,32 +2671,26 @@ function parseMetricsTransposed(rows) {
     const d = parseDateLoose(ml);
     if (!d) continue;
     const monthIso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    byMonth[monthIso] = {
-      ltv:      cLTV      >= 0 ? num(r[cLTV])      : 0,
-      cac:      cCAC      >= 0 ? num(r[cCAC])      : 0,
-      mrr:      cMRR      >= 0 ? num(r[cMRR])      : 0,
-      arr:      cARR      >= 0 ? num(r[cARR])      : 0,
-      mrrChurn: cMRRChurn >= 0 ? normalizePct(num(r[cMRRChurn])) : 0,
-      cltChurn: cCltChurn >= 0 ? normalizePct(num(r[cCltChurn])) : 0,
-      nrr:      cNRR      >= 0 ? normalizePct(num(r[cNRR]))      : 0,
-      signed:   cSigned   >= 0 ? num(r[cSigned])   : 0,
-      lost:     cLost     >= 0 ? num(r[cLost])     : 0,
-      active:   cActive   >= 0 ? num(r[cActive])   : 0,
-      ratio:    cRatio    >= 0 ? num(r[cRatio])    : 0,
-      avgInv:   cAvgInv   >= 0 ? num(r[cAvgInv])   : 0,
-    };
+    const rec = {};
+    for (const k of KEYS) {
+      const c = colFor(k);
+      const raw = c >= 0 ? num(r[c]) : 0;
+      rec[k] = PCT_KEYS.has(k) ? normalizePct(raw) : raw;
+    }
+    byMonth[monthIso] = rec;
   }
   if (!Object.keys(byMonth).length) return null;
+
+  // detected: spec-key -> column-header mapping (for the diag strip + console).
+  const detected = {};
+  for (const [k,v] of Object.entries(matched)) detected[k] = v.header;
+
   return {
     byMonth,
-    detected: {
-      ltv: cLTV>=0?headers[cLTV]:null, cac: cCAC>=0?headers[cCAC]:null,
-      mrr: cMRR>=0?headers[cMRR]:null,
-      mrrChurn: cMRRChurn>=0?headers[cMRRChurn]:null,
-      cltChurn: cCltChurn>=0?headers[cCltChurn]:null,
-      signed: cSigned>=0?headers[cSigned]:null, lost: cLost>=0?headers[cLost]:null,
-      active: cActive>=0?headers[cActive]:null, ratio: cRatio>=0?headers[cRatio]:null,
-    },
+    headers,             // full row of headers from the sheet
+    detected,            // {canonical key: actual sheet header}
+    unmatched,           // [{col, header}] sheet headers we couldn't classify
+    monthsParsed: Object.keys(byMonth).length,
   };
 }
 
@@ -2640,6 +2701,46 @@ function alignToLabels(metricsByMonth, fin, key) {
     const m = iso ? metricsByMonth[iso] : null;
     return m && isFinite(m[key]) ? m[key] : 0;
   });
+}
+
+function renderMetricsDiag(metrics, fin) {
+  const strip = $('metricsDiag');
+  const meta  = $('diagMeta');
+  const body  = $('diagBody');
+  if (!strip || !meta || !body) return;
+  strip.style.display = 'block';
+
+  // KPI key → display label (for the "matched" pills)
+  const LABEL = {
+    ltv:'LTV', cac:'CAC', ratio:'LTV/CAC', paybackMo:'Payback (mo)',
+    mrr:'MRR', newMrr:'New MRR', expansionMrr:'Expansion MRR', contractMrr:'Contraction MRR',
+    arr:'ARR', arrGrowth:'ARR Growth',
+    mrrChurn:'MRR Churn', cltChurn:'Client Churn',
+    nrr:'NRR', grr:'GRR',
+    signed:'Signed', lost:'Lost', active:'Active',
+    avgInv:'Avg Invoice / ARPU', gm:'Gross Margin', om:'Op Margin',
+    burn:'Burn', runway:'Runway',
+  };
+
+  const matchedKeys   = Object.keys(metrics.detected);
+  const unmatched     = metrics.unmatched || [];
+  const monthsParsed  = metrics.monthsParsed || 0;
+  const headersCount  = (metrics.headers || []).filter((h,i) => i>0 && h).length;
+
+  meta.textContent = `${monthsParsed} months · ${matchedKeys.length} of ${headersCount} metric columns matched`;
+
+  const tags = [];
+  // Matched pills
+  matchedKeys.forEach(k => {
+    const h = metrics.detected[k];
+    const label = LABEL[k] || k;
+    tags.push(`<span class="diag-tag match"><span class="k">✓ ${label}</span><span class="v">${h}</span></span>`);
+  });
+  // Unmatched pills (sheet headers we didn't recognise)
+  unmatched.forEach(u => {
+    tags.push(`<span class="diag-tag miss" title="Column ${u.col+1} — not mapped to any known metric"><span class="k">? unmapped</span><span class="v">${u.header}</span></span>`);
+  });
+  body.innerHTML = tags.join('') || '<span class="muted">No metric columns detected.</span>';
 }
 
 function applyLiveAnalytics(metrics, fin) {
@@ -2657,6 +2758,9 @@ function applyLiveAnalytics(metrics, fin) {
   const signed   = alignToLabels(metrics.byMonth, fin, 'signed');
   const lost     = alignToLabels(metrics.byMonth, fin, 'lost');
   const active   = alignToLabels(metrics.byMonth, fin, 'active');
+
+  // Render diag strip so the user can verify parsing without DevTools.
+  renderMetricsDiag(metrics, fin);
 
   // If everything is zero, parse failed semantically — bail.
   const anyData = [...ltv, ...cac, ...mrr, ...signed, ...lost].some(v => v !== 0);
@@ -4045,9 +4149,17 @@ async function loadOtherLive(tabs) {
     try {
       const rows = await sheetsGet(`${metricsTab}!A1:Z300`);
       const parsed = parseMetricsTransposed(rows);
-      console.log(`📊 ${metricsTab}: ${parsed ? Object.keys(parsed.byMonth).length : 0} months parsed`,
-                  parsed ? `· detected metrics: ${Object.entries(parsed.detected).filter(([,v])=>v).map(([k,v])=>k+'→"'+v+'"').join(', ')}` : '');
-      if (parsed && applyLiveAnalytics(parsed, fin)) status.Analytics = 'live';
+      if (parsed) {
+        console.log(`📊 ${metricsTab}: ${parsed.monthsParsed} months parsed`);
+        console.log(`   detected metrics: ${Object.entries(parsed.detected).map(([k,v])=>`${k}→"${v}"`).join(', ') || '(none matched — check header names)'}`);
+        if (parsed.unmatched && parsed.unmatched.length) {
+          console.log(`   unmatched columns: ${parsed.unmatched.map(u=>`"${u.header}"`).join(', ')}`);
+        }
+        if (applyLiveAnalytics(parsed, fin)) status.Analytics = 'live';
+        else { renderMetricsDiag(parsed, fin); status.Analytics = 'parsed (no values)'; }
+      } else {
+        console.warn(`📊 ${metricsTab}: parser returned null — check that column A has dates and row 1 has metric headers`);
+      }
     } catch(e) { console.warn(`Metrics parse failed:`, e.message); }
   }
 
