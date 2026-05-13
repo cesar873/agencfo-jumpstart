@@ -2289,7 +2289,11 @@ async function loadPL(tab){
                        ? findRowIdx(/^total\s+operating\s+expenses?$/i)
                        : findRowIdx(/^total\s+opex$/i);
 
-  const SKIP_RX = /^(total|sub.?total|grand|gross\s+(profit|margin)|operating\s+(profit|income|margin)|net\s+(profit|income|margin)|ebitda|ebit|cost\s+of\s+(sales|goods|services)|operating\s+expenses?|^revenue:?$|^income:?$)$/i;
+  // Skip any row whose label STARTS WITH "Total"/"Subtotal"/"Grand" — these are
+  // category sub-totals that double-count their leaf rows underneath.
+  const SKIP_SUBTOTAL_RX = /^\s*(total|sub.?total|grand)\b/i;
+  // Skip computed lines from other sections of the P&L (Gross Profit, margins, etc.).
+  const SKIP_COMPUTED_RX = /^\s*(gross\s+(profit|margin)|operating\s+(profit|income|margin)|net\s+(profit|income|margin)|ebitda|ebit|cost\s+of\s+(sales|goods|services)|operating\s+expenses?|revenue|income)\s*:?\s*$/i;
   const captureLines = (startIdx, endIdx) => {
     const out = [];
     if (startIdx == null || endIdx == null || startIdx < 0 || endIdx < 0 || endIdx <= startIdx) return out;
@@ -2297,7 +2301,8 @@ async function loadPL(tab){
       const r = rows[i] || [];
       const label = String(r[0] || '').trim();
       if (!label) continue;
-      if (SKIP_RX.test(label)) continue;
+      if (SKIP_SUBTOTAL_RX.test(label)) continue;   // skip "Total Paid", "Total Projects", "Subtotal X", etc.
+      if (SKIP_COMPUTED_RX.test(label)) continue;   // skip "Gross Profit", "Revenue" header, etc.
       if (/^[-=\s]+$/.test(label)) continue;
       const vals = r.slice(1, n+1).map(num);
       const sum = vals.reduce((a,b)=>a+Math.abs(b),0);
