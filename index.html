@@ -4665,16 +4665,138 @@ function applyTxnPLDrilldown(agg, fin) {
 }
 
 /* ── Orchestrator: probe + wire all candidate tabs ────────────────── */
+/* ───── Long-format Budget parser ─────────────────────────────────────
+   Detects a Budget tab shaped one row per (Month × Category × Group)
+   with columns: Month | Category | Group | Budget | Actual [| Var…].
+   Pivots into the same shape loadPL produces, AND attaches budget
+   actuals so we don't have to match against the Finance Model.
+*/
+function parseBudgetLongFormat(rows) {
+  if (!rows || rows.length < 2) return null;
+  // Find header row: must contain at least Month + (Budget or Actual)
+  let hIdx = -1;
+  for (let i = 0; i < Math.min(rows.length, 8); i++) {
+    const r = (rows[i] || []).map(c => String(c||'').trim().toLowerCase());
+    if (r.includes('month') && (r.includes('budget') || r.includes('actual'))) { hIdx = i; break; }
+  }
+  if (hIdx < 0) return null;
+  const h = rows[hIdx].map(c => String(c||'').trim().toLowerCase());
+  const cMonth  = h.indexOf('month');
+  const cCat    = h.findIndex(x => x === 'category' || x === 'line' || x === 'item' || x === 'account');
+  const cGroup  = h.findIndex(x => x === 'group' || x === 'section' || x === 'type');
+  const cBudget = h.findIndex(x => x === 'budget' || x === 'plan' || x === 'planned');
+  const cActual = h.findIndex(x => x === 'actual' || x === 'actuals' || x === 'real');
+  if (cMonth < 0 || cCat < 0 || (cBudget < 0 && cActual < 0)) return null;
+
+  const SKIP_RX = /^\s*(total|sub.?total|grand)\b/i;
+  const groupMap = (g) => {
+    const lg = String(g||'').toLowerCase();
+    if (/\brevenue\b|\bincome\b|\bsales\b/.test(lg)) return 'revenue';
+    if (/cogs|cost\s+of\s+(sales|goods|services)/.test(lg)) return 'cogs';
+    if (/opex|operating|^expense/.test(lg)) return 'opex';
+    return null; // skip Metrics / blanks
+  };
+
+  // First pass: collect months + ordered lines per group.
+  const monthIsoSet = new Set();
+  const monthOrder = [];   // preserve sheet order
+  const seenIso = new Set();
+  // For each (group, category), store {budgetByIso, actualByIso, firstOrder}.
+  const linesByGroup = { revenue: new Map(), cogs: new Map(), opex: new Map() };
+  let orderCounter = 0;
+
+  for (let i = hIdx + 1; i < rows.length; i++) {
+    const r = rows[i] || [];
+    const monthStr = String(r[cMonth] || '').trim();
+    const cat = String(r[cCat] || '').trim();
+    if (!monthStr || !cat) continue;
+    if (SKIP_RX.test(cat)) continue;
+    const grpRaw = cGroup >= 0 ? String(r[cGroup] || '').trim() : '';
+    const grp = groupMap(grpRaw);
+    if (!grp) continue;
+    const d = parseDateLoose(monthStr);
+    if (!d) continue;
+    const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    if (!seenIso.has(iso)) { seenIso.add(iso); monthOrder.push(iso); }
+    monthIsoSet.add(iso);
+
+    const budgetVal = cBudget >= 0 ? num(r[cBudget]) : 0;
+    const actualVal = cActual >= 0 ? num(r[cActual]) : 0;
+
+    const map = linesByGroup[grp];
+    let ent = map.get(cat);
+    if (!ent) { ent = { name: cat, budget: {}, actual: {}, order: orderCounter++ }; map.set(cat, ent); }
+    ent.budget[iso] = (ent.budget[iso] || 0) + budgetVal;
+    ent.actual[iso] = (ent.actual[iso] || 0) + actualVal;
+  }
+
+  // Sort months chronologically.
+  const months = [...monthIsoSet].sort();
+  if (!months.length) return null;
+  const labels = months.map(iso => {
+    const [y, m] = iso.split('-').map(Number);
+    return new Date(y, m-1, 1).toLocaleDateString('en-US', {month:'short', year:'2-digit'});
+  });
+
+  const toLines = (map) => [...map.values()]
+    .sort((a,b) => a.order - b.order)
+    .map(ent => ({
+      name: ent.name,
+      vals:        months.map(iso => ent.budget[iso] || 0),
+      actualVals:  months.map(iso => ent.actual[iso] || 0),
+    }))
+    .filter(l => l.vals.some(v => v !== 0) || l.actualVals.some(v => v !== 0));
+
+  const revenueLines = toLines(linesByGroup.revenue);
+  const cogsLines    = toLines(linesByGroup.cogs);
+  const opexLines    = toLines(linesByGroup.opex);
+
+  const sumB = lines => months.map((_, i) => lines.reduce((a, l) => a + (l.vals[i]       || 0), 0));
+  const sumA = lines => months.map((_, i) => lines.reduce((a, l) => a + (l.actualVals[i] || 0), 0));
+
+  const revenue   = sumB(revenueLines);
+  const cogs      = sumB(cogsLines);
+  const opex      = sumB(opexLines);
+  const grossProf = revenue.map((r,i) => r - cogs[i]);
+  const opProf    = revenue.map((r,i) => r - cogs[i] - opex[i]);
+
+  console.log(`📊 Budget long-format parsed: ${months.length} months · ${revenueLines.length} rev / ${cogsLines.length} cogs / ${opexLines.length} opex line items`);
+  console.log(`   months: ${labels.join(', ')}`);
+
+  return {
+    labels,
+    revenue, cogs, opex, grossProf,
+    grossMarg: revenue.map((r,i)=> r ? grossProf[i]/r*100 : 0),
+    opProf,
+    opMarg:   revenue.map((r,i)=> r ? opProf[i]/r*100 : 0),
+    net: opProf,
+    revenueLines, cogsLines, opexLines,
+    // budget tab carries its own actuals — use them directly for line-level comparison
+    actuals: {
+      revenue: sumA(revenueLines),
+      cogs:    sumA(cogsLines),
+      opex:    sumA(opexLines),
+      revenueLines: revenueLines.map(l => ({ name: l.name, vals: l.actualVals })),
+      cogsLines:    cogsLines.map(l => ({ name: l.name, vals: l.actualVals })),
+      opexLines:    opexLines.map(l => ({ name: l.name, vals: l.actualVals })),
+    },
+  };
+}
+
 /* ───── Budget loader (resilient to either layout) ───────────────────
-   Tries loadPL first (matches Finance Model's "Total Revenue" /
-   "TOTAL COST OF SALES" / "TOTAL OPERATING EXPENSES" subtotal rows).
-   If that yields no rev/cogs/opex sub-rows, falls back to a permissive
-   parser that walks the sheet, tracks the current section from
-   in-line headers like "Revenue" / "Cost of Sales" / "Operating
-   Expenses", and bins every line item with monthly data into one of
-   the three groups (using CoA + keyword classification as a tiebreaker
-   when no section header has appeared yet).                          */
+   Order of attempts:
+     1) Long-format (Month | Category | Group | Budget | Actual) — that's
+        the user's actual schema.
+     2) Strict loadPL (Finance-Model-style wide pivot with
+        Total Revenue / TOTAL COST OF SALES / TOTAL OPERATING EXPENSES).
+     3) Permissive wide parse with in-line section headers.
+*/
 async function loadBudgetRobust(tabName) {
+  // 1) Long format first.
+  let rawRows;
+  try { rawRows = await sheetsGet(`${tabName}!A1:Z2000`); } catch(e) { console.warn('Budget fetch threw:', e.message); return null; }
+  const longFormat = parseBudgetLongFormat(rawRows);
+  if (longFormat) return longFormat;
   // Try the strict path first.
   let primary = null;
   try { primary = await loadPL(tabName); } catch(e) { console.warn('Budget loadPL threw:', e.message); }
@@ -4811,14 +4933,16 @@ function applyBudgetVsActual(budget, fin, monthIdx) {
     return arr[budgetIsoIdx[iso]] || 0;
   };
 
-  // Section totals
-  const revA  = fin.revenue[idx] || 0;
+  // Section totals. If the Budget tab carries its own actuals (long-format),
+  // prefer them so the totals reconcile with the displayed line items.
+  const ha = !!budget.actuals;
+  const revA  = ha ? budgetAt(budget.actuals.revenue, idx) : (fin.revenue[idx] || 0);
   const revB  = budgetAt(budget.revenue, idx);
-  const cogsA = fin.cogs[idx]    || 0;
+  const cogsA = ha ? budgetAt(budget.actuals.cogs, idx)    : (fin.cogs[idx]    || 0);
   const cogsB = budgetAt(budget.cogs, idx);
-  const opexA = fin.opex[idx]    || 0;
+  const opexA = ha ? budgetAt(budget.actuals.opex, idx)    : (fin.opex[idx]    || 0);
   const opexB = budgetAt(budget.opex, idx);
-  const netA  = fin.net[idx]     || 0;
+  const netA  = ha ? (revA - cogsA - opexA)                : (fin.net[idx]     || 0);
   const netB  = (budget.net && budget.net.length) ? budgetAt(budget.net, idx) : (revB - cogsB - opexB);
 
   // Sign-aware variance:
@@ -4856,26 +4980,48 @@ function applyBudgetVsActual(budget, fin, monthIdx) {
   setKpi('bvaOpex', 'bvaOpexD', 'bvaOpexCtx', 'bvaOpexBar', opexA, opexB, 'expense');
   setKpi('bvaNet',  'bvaNetD',  'bvaNetCtx',  'bvaNetBar',  netA,  netB,  'revenue');
 
-  // Build line-item rows for each section.
-  const matchLines = (actualLines, budgetLines) => {
-    const map = new Map();
-    (actualLines || []).forEach(l => {
-      const k = l.name.trim().toLowerCase();
-      map.set(k, { name: l.name, actual: l.vals, budget: null });
+  // Build line rows. For each line, resolve scalar budget+actual for the
+  // selected month. Use the budget tab's own actuals when present (the
+  // long-format case); otherwise match by name against the Finance Model.
+  const buildLines = (budgetLines, fmLines, budgetActualLines) => {
+    const out = (budgetLines || []).map(bl => {
+      // Project budget value onto fin month idx via ISO alignment.
+      const b = budgetAt(bl.vals, idx);
+      let a = 0;
+      if (budgetActualLines) {
+        const m = budgetActualLines.find(x => x.name.trim().toLowerCase() === bl.name.trim().toLowerCase());
+        if (m) a = budgetAt(m.vals, idx);
+      } else {
+        const m = (fmLines || []).find(x => x.name.trim().toLowerCase() === bl.name.trim().toLowerCase());
+        if (m) a = m.vals[idx] || 0;
+      }
+      return { name: bl.name, budget: b, actual: a };
     });
-    (budgetLines || []).forEach(l => {
-      const k = l.name.trim().toLowerCase();
-      const ent = map.get(k);
-      if (ent) ent.budget = l.vals;
-      else map.set(k, { name: l.name, actual: null, budget: l.vals });
-    });
-    return [...map.values()];
+    // Also surface FM-only lines (lines that exist in the Finance Model but
+    // not in the Budget tab), so people can spot un-budgeted spend.
+    if (!budgetActualLines && fmLines) {
+      const have = new Set(out.map(l => l.name.trim().toLowerCase()));
+      fmLines.forEach(fml => {
+        const k = fml.name.trim().toLowerCase();
+        if (!have.has(k)) out.push({ name: fml.name, budget: 0, actual: fml.vals[idx] || 0 });
+      });
+    }
+    return out;
   };
 
   const sections = [
-    { label: 'Revenue',           kind:'revenue', lines: matchLines(fin.revenueLines, budget.revenueLines), totalA: revA,  totalB: revB,  totalLabel:'Total Revenue' },
-    { label: 'Cost of Sales',     kind:'expense', lines: matchLines(fin.cogsLines,    budget.cogsLines),    totalA: cogsA, totalB: cogsB, totalLabel:'Total Cost of Sales' },
-    { label: 'Operating Expenses',kind:'expense', lines: matchLines(fin.opexLines,    budget.opexLines),    totalA: opexA, totalB: opexB, totalLabel:'Total Operating Expenses' },
+    { label: 'Revenue',
+      kind:'revenue',
+      lines: buildLines(budget.revenueLines, fin.revenueLines, ha ? budget.actuals.revenueLines : null),
+      totalA: revA, totalB: revB, totalLabel:'Total Revenue' },
+    { label: 'Cost of Sales',
+      kind:'expense',
+      lines: buildLines(budget.cogsLines, fin.cogsLines, ha ? budget.actuals.cogsLines : null),
+      totalA: cogsA, totalB: cogsB, totalLabel:'Total Cost of Sales' },
+    { label: 'Operating Expenses',
+      kind:'expense',
+      lines: buildLines(budget.opexLines, fin.opexLines, ha ? budget.actuals.opexLines : null),
+      totalA: opexA, totalB: opexB, totalLabel:'Total Operating Expenses' },
   ];
 
   const renderProgress = (actual, budget, kind) => {
@@ -4898,8 +5044,8 @@ function applyBudgetVsActual(budget, fin, monthIdx) {
   const rowsHTML = sections.map(sec => {
     const sectionRow = `<tr class="bva-section-row"><td class="sticky-left">${sec.label}</td><td colspan="5"></td></tr>`;
     const lineRows = sec.lines.map(l => {
-      const a = (l.actual ? (l.actual[idx] || 0) : 0);
-      const b = (l.budget ? (l.budget[idx] || 0) : 0);
+      const a = l.actual || 0;
+      const b = l.budget || 0;
       if (a === 0 && b === 0) return ''; // skip rows with no data this month
       const v = renderVariance(a, b, sec.kind);
       return `<tr class="bva-row">
