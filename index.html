@@ -449,7 +449,81 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
 @keyframes spin{to{transform:rotate(360deg);}}
 #loadingMsg{font-size:12px;color:var(--muted);}
 
+/* ── FILTER POPOVERS (month grid pickers) ──────────────────────────── */
+.chip{ cursor:pointer; user-select:none; }
+.month-pop-backdrop{
+  position:fixed; inset:0; z-index:55;
+  background:rgba(0,0,0,0.30);
+  -webkit-backdrop-filter:blur(2px);
+  backdrop-filter:blur(2px);
+}
+.month-popover{
+  position:absolute; z-index:60;
+  background:#0b1f33;
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:12px;
+  padding:14px;
+  box-shadow:0 12px 38px rgba(0,0,0,0.55);
+  min-width:240px;
+}
+.month-pop-title{
+  font-size:10px; font-weight:600;
+  text-transform:uppercase; letter-spacing:.12em;
+  color:var(--muted);
+  margin-bottom:8px;
+}
+.month-pop-grid{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:4px;
+}
+.month-pop-grid.cols-2{ grid-template-columns:repeat(2,1fr); }
+.month-pop-btn{
+  background:rgba(255,255,255,0.04);
+  border:1px solid var(--card-border);
+  border-radius:6px;
+  color:var(--text);
+  font-family:'DM Sans',sans-serif;
+  font-size:12px;
+  padding:7px 4px;
+  cursor:pointer;
+  transition:background .12s, border-color .12s;
+}
+.month-pop-btn:hover{ background:rgba(255,255,255,0.10); border-color:rgba(255,255,255,.16); }
+.month-pop-btn.selected{
+  background:rgba(19,144,235,0.22);
+  border-color:var(--blue);
+  color:#bae6fd;
+  font-weight:600;
+}
+.month-pop-row{ display:flex; gap:14px; }
+.month-pop-col{ flex:1; min-width:200px; }
+.month-pop-actions{
+  margin-top:12px; display:flex; gap:8px; justify-content:flex-end;
+  padding-top:10px; border-top:1px solid rgba(255,255,255,.06);
+}
+.month-pop-actions button{
+  background:rgba(255,255,255,.04);
+  border:1px solid var(--card-border);
+  color:var(--text);
+  border-radius:6px;
+  font-family:'DM Sans',sans-serif;
+  font-size:12px;
+  padding:7px 14px;
+  cursor:pointer;
+}
+.month-pop-actions button.primary{
+  background:rgba(19,144,235,0.22);
+  border-color:var(--blue);
+  color:#bae6fd;
+  font-weight:600;
+}
+
 /* ── BUDGET vs ACTUAL ───────────────────────────────────────────────── */
+.bva-parse-info{
+  margin-top:4px;
+  font-size:11px;
+  color:var(--muted);
+}
+.bva-parse-info.warn{ color:var(--amber); }
 .bva-kpi{ position:relative; overflow:hidden; padding-top:18px; }
 .bva-bar{
   position:absolute; left:0; right:0; top:0;
@@ -646,13 +720,13 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   <div class="filter-row">
     <span class="filter-label">Filters</span>
 
-    <div class="chip" id="periodChip" onclick="cyclePeriod()" title="Click to cycle through months">
+    <div class="chip" id="periodChip" onclick="openPeriodPicker(event)" title="Click to pick a month">
       <span class="ce">Period</span>
       <span class="cv" id="periodVal">Apr 2026</span>
       <span class="ca">▾</span>
     </div>
 
-    <div class="chip" id="rangeChip" title="Range bound to the global window">
+    <div class="chip" id="rangeChip" onclick="openRangePicker(event)" title="Click to pick a date range">
       <span class="ce">Range</span>
       <span class="cv" id="rangeVal">Oct '25 → Apr '26</span>
       <span class="ca">▾</span>
@@ -779,6 +853,7 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
       <div style="padding:20px 22px 0 22px">
         <h2 style="font-size:18px;font-weight:700">Budget vs Actual · <span id="bvaMonth">—</span></h2>
         <div class="sub" id="bvaSubline">Single-month comparison · ordered Revenue → COGS → Expenses · click the Period chip above to switch months</div>
+        <div class="bva-parse-info" id="bvaParseInfo"></div>
       </div>
       <section class="section tight" style="padding:0 22px 0 22px;margin-top:18px">
         <div class="kpi-strip" style="grid-template-columns:repeat(4,minmax(0,1fr))">
@@ -2321,26 +2396,110 @@ function showTab(btn) {
   setTimeout(()=>{ for (const id in Chart.instances) Chart.instances[id].resize(); }, 30);
 }
 
-function cyclePeriod() {
-  // Cycle through the actual fin.labels (live months), if available.
-  const labels = (typeof fin !== 'undefined' && fin && fin.labels && fin.labels.length)
-    ? fin.labels : ["Mar 2026","Feb 2026","Jan 2026","Dec 2025","Nov 2025","Oct 2025","Apr 2026"];
-  // Cycle from current to next (newest-first feel).
-  const cur = $('periodVal').textContent.trim();
-  let idx = labels.indexOf(cur);
-  if (idx < 0) {
-    // Normalize candidate labels: "Mar '26" vs "Mar 2026" — try a relaxed match.
-    idx = labels.findIndex(l => l.replace(/['"\s]/g,'').toLowerCase() === cur.replace(/['"\s]/g,'').toLowerCase());
-  }
-  const nextIdx = (idx + 1) % labels.length;
-  const nextLbl = labels[nextIdx];
-  $('periodVal').textContent = nextLbl;
-
-  // Re-render Budget vs Actual to the newly-selected month if data is loaded.
-  if (window._bvaState) {
-    applyBudgetVsActual(window._bvaState.budget, window._bvaState.fin, nextIdx);
-  }
+/* ─── Month-grid popover pickers ──────────────────────────────────── */
+let _activePopover = null;
+let _activeBackdrop = null;
+function closeMonthPopover() {
+  if (_activePopover) { _activePopover.remove(); _activePopover = null; }
+  if (_activeBackdrop) { _activeBackdrop.remove(); _activeBackdrop = null; }
 }
+function _mountPopover(triggerEl, html, init) {
+  closeMonthPopover();
+  const backdrop = document.createElement('div');
+  backdrop.className = 'month-pop-backdrop';
+  backdrop.addEventListener('click', closeMonthPopover);
+  document.body.appendChild(backdrop);
+  _activeBackdrop = backdrop;
+
+  const pop = document.createElement('div');
+  pop.className = 'month-popover';
+  pop.innerHTML = html;
+  document.body.appendChild(pop);
+  _activePopover = pop;
+
+  // Position below the trigger.
+  const r = triggerEl.getBoundingClientRect();
+  pop.style.top  = (r.bottom + window.scrollY + 6) + 'px';
+  // Clamp left so it doesn't overflow viewport.
+  const popWidth = pop.offsetWidth;
+  const maxLeft = window.innerWidth - popWidth - 12;
+  pop.style.left = Math.max(12, Math.min(r.left + window.scrollX, maxLeft + window.scrollX)) + 'px';
+  pop.addEventListener('click', e => e.stopPropagation());
+
+  if (init) init(pop);
+}
+function _liveMonths() {
+  return (typeof fin !== 'undefined' && fin && fin.labels && fin.labels.length)
+    ? fin.labels
+    : ["Mar 2026","Feb 2026","Jan 2026","Dec 2025","Nov 2025","Oct 2025","Apr 2026"];
+}
+
+function openPeriodPicker(evt) {
+  if (evt) evt.stopPropagation();
+  const months = _liveMonths();
+  const current = $('periodVal').textContent.trim();
+  const grid = months.map(m => `<button class="month-pop-btn ${m===current?'selected':''}" data-m="${m}">${m}</button>`).join('');
+  _mountPopover($('periodChip'),
+    `<div class="month-pop-title">Period</div>
+     <div class="month-pop-grid">${grid}</div>`,
+    pop => {
+      pop.querySelectorAll('.month-pop-btn').forEach(b => b.addEventListener('click', () => {
+        const m = b.dataset.m;
+        $('periodVal').textContent = m;
+        const idx = months.indexOf(m);
+        if (window._bvaState && idx >= 0) applyBudgetVsActual(window._bvaState.budget, window._bvaState.fin, idx);
+        closeMonthPopover();
+      }));
+    }
+  );
+}
+
+function openRangePicker(evt) {
+  if (evt) evt.stopPropagation();
+  const months = _liveMonths();
+  const cur = $('rangeVal').textContent.trim();
+  const arrowIdx = cur.indexOf('→');
+  let selFrom = arrowIdx >= 0 ? cur.slice(0, arrowIdx).trim() : months[0];
+  let selTo   = arrowIdx >= 0 ? cur.slice(arrowIdx + 1).trim() : months[months.length - 1];
+  // Normalize against actual labels (tolerate "Mar '26" vs "Mar 26" vs "Mar 2026").
+  const norm = s => String(s).replace(/['"\s]/g,'').toLowerCase();
+  const match = (s) => months.find(m => norm(m) === norm(s)) || s;
+  selFrom = match(selFrom); selTo = match(selTo);
+  const renderGrid = (sel, side) => months.map(m =>
+    `<button class="month-pop-btn ${m===sel?'selected':''}" data-side="${side}" data-m="${m}">${m}</button>`
+  ).join('');
+  const html = (selFromVal, selToVal) => `
+    <div class="month-pop-row">
+      <div class="month-pop-col">
+        <div class="month-pop-title">From · <span style="color:var(--text)">${selFromVal}</span></div>
+        <div class="month-pop-grid">${renderGrid(selFromVal, 'from')}</div>
+      </div>
+      <div class="month-pop-col">
+        <div class="month-pop-title">To · <span style="color:var(--text)">${selToVal}</span></div>
+        <div class="month-pop-grid">${renderGrid(selToVal, 'to')}</div>
+      </div>
+    </div>
+    <div class="month-pop-actions">
+      <button onclick="closeMonthPopover()">Cancel</button>
+      <button class="primary" id="rangeApply">Apply</button>
+    </div>`;
+  _mountPopover($('rangeChip'), html(selFrom, selTo), pop => {
+    pop.style.minWidth = '560px';
+    const wire = () => {
+      pop.querySelectorAll('.month-pop-btn').forEach(b => b.addEventListener('click', () => {
+        if (b.dataset.side === 'from') selFrom = b.dataset.m; else selTo = b.dataset.m;
+        pop.innerHTML = html(selFrom, selTo);
+        wire();
+      }));
+      pop.querySelector('#rangeApply').addEventListener('click', () => {
+        $('rangeVal').textContent = `${selFrom} → ${selTo}`;
+        closeMonthPopover();
+      });
+    };
+    wire();
+  });
+}
+window.addEventListener('resize', closeMonthPopover);
 
 function setStatus(state, msg, tabs=[]) {
   $('apiDot').className = 'dot '+state;
@@ -4527,42 +4686,82 @@ async function loadBudgetRobust(tabName) {
 
   // Permissive fallback.
   const rows = await sheetsGet(`${tabName}!A1:AH300`);
-  const hIdx = rows.findIndex(r => r.some(c => /jan.+20|feb.+20|mar.+20|apr.+20|may.+20|jun.+20|jul.+20|aug.+20|sep.+20|oct.+20|nov.+20|dec.+20/i.test(String(c))));
-  if (hIdx < 0) { console.warn(`📊 Budget permissive: no month header row found`); return null; }
+  // Robust month-header detection: any row in the first 20 that has >=3 cells
+  // that either contain a month-name token (jan/feb/.../december) OR parse
+  // as a date via parseDateLoose. Covers M/D/YYYY, ISO, full-month names,
+  // Excel-serial dates, "Jan 25", "January 2025", etc.
+  const isMonthCell = v => {
+    if (v == null) return false;
+    const s = String(v).trim();
+    if (!s) return false;
+    if (/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)/i.test(s)) return true;
+    return !!parseDateLoose(s);
+  };
+  let hIdx = -1;
+  for (let i = 0; i < Math.min(rows.length, 20); i++) {
+    const r = rows[i] || [];
+    let monthLike = 0;
+    for (let c = 1; c < r.length; c++) if (isMonthCell(r[c])) monthLike++;
+    if (monthLike >= 3) { hIdx = i; break; }
+  }
+  if (hIdx < 0) {
+    console.warn(`📊 Budget permissive: no month header row found in first 20 rows of "${tabName}"`);
+    return null;
+  }
   const hdrs = rows[hIdx];
-  const mCols = hdrs.slice(1).map(h => String(h).trim()).filter(Boolean);
-  const n = mCols.length;
-  const labels = mCols.map(m => {
-    const p = m.match(/(\w+)\s+(\d{4})/);
-    if (!p) return m;
-    const d = new Date(`${p[1]} 1 ${p[2]}`);
-    return isNaN(d) ? m : d.toLocaleDateString('en-US',{month:'short',year:'2-digit'});
-  });
+  // Build labels for each month column (only keep cols that look month-y).
+  const monthCols = [];  // [{col, label}]
+  for (let c = 1; c < hdrs.length; c++) {
+    if (!isMonthCell(hdrs[c])) continue;
+    const s = String(hdrs[c]).trim();
+    const d = parseDateLoose(s);
+    let label;
+    if (d && !isNaN(d)) label = d.toLocaleDateString('en-US',{month:'short',year:'2-digit'});
+    else {
+      const p = s.match(/(\w+)\s*'?\s*(\d{2,4})/);
+      if (p) {
+        const dd = new Date(`${p[1]} 1 ${(+p[2] < 100 ? 2000 + +p[2] : p[2])}`);
+        label = isNaN(dd) ? s : dd.toLocaleDateString('en-US',{month:'short',year:'2-digit'});
+      } else label = s;
+    }
+    monthCols.push({ col: c, label });
+  }
+  if (!monthCols.length) {
+    console.warn(`📊 Budget permissive: detected header row but no month-like columns in it`);
+    return null;
+  }
+  const labels = monthCols.map(m => m.label);
+  const colIdxs = monthCols.map(m => m.col);
 
-  const HDR_REV  = /^\s*(revenue|income|sales|total\s+revenue|total\s+income)\s*:?\s*$/i;
-  const HDR_COGS = /^\s*(cost\s+of\s+sales|cogs|cost\s+of\s+goods|cost\s+of\s+services|total\s+cogs|total\s+cost\s+of\s+sales)\s*:?\s*$/i;
-  const HDR_OPEX = /^\s*(operating\s+expenses?|opex|expenses?|operating\s+costs?|total\s+operating\s+expenses?|total\s+opex)\s*:?\s*$/i;
+  // Header-row regexes now match substrings (not anchored) so labels like
+  // "Revenue Breakdown" / "REVENUE DETAIL" / "COGS Detail" still trigger.
+  const HDR_REV  = /(^|\s)(revenue|income|sales)(\s+(detail|breakdown|by|--))?(\s*:?\s*$|\s*$)/i;
+  const HDR_COGS = /cost\s+of\s+(sales|goods|services)|^\s*cogs(\s|:|$)/i;
+  const HDR_OPEX = /operating\s+(expenses?|costs?)|^\s*opex(\s|:|$)|^\s*expenses?(\s|:|$)/i;
   const SKIP_COMPUTED = /^\s*(total|sub.?total|grand|gross\s+(profit|margin)|operating\s+(profit|income|margin)|net\s+(profit|income|margin)|ebitda|ebit)\b/i;
 
+  const valsFor = (r) => colIdxs.map(c => num(r[c]));
   const revenueLines = [], cogsLines = [], opexLines = [];
   let section = null;
   for (let i = hIdx + 1; i < rows.length; i++) {
     const r = rows[i] || [];
     const label = String(r[0] || '').trim();
     if (!label) continue;
-    if (HDR_REV.test(label))  { section = 'revenue'; continue; }
-    if (HDR_COGS.test(label)) { section = 'cogs';    continue; }
-    if (HDR_OPEX.test(label)) { section = 'opex';    continue; }
+    // Section detection: row must be a header (no/very few numeric values).
+    const probeVals = valsFor(r);
+    const probeSum = probeVals.reduce((a,b)=>a+Math.abs(b),0);
+    if (probeSum === 0) {
+      if (HDR_REV.test(label))  { section = 'revenue'; continue; }
+      if (HDR_COGS.test(label)) { section = 'cogs';    continue; }
+      if (HDR_OPEX.test(label)) { section = 'opex';    continue; }
+      continue;  // empty-value labelled row — likely section header we don't recognise
+    }
     if (SKIP_COMPUTED.test(label)) continue;
-    const vals = r.slice(1, n+1).map(num);
-    const sum = vals.reduce((a,b)=>a+Math.abs(b),0);
-    if (sum === 0) continue;
-    const line = { name: label, vals };
+    const line = { name: label, vals: probeVals };
     if (section === 'revenue')   revenueLines.push(line);
     else if (section === 'cogs') cogsLines.push(line);
     else if (section === 'opex') opexLines.push(line);
     else {
-      // No section seen yet — classify via account-name heuristic.
       const grp = classifyAccount(label);
       if (grp === 'revenue')   revenueLines.push(line);
       else if (grp === 'cogs') cogsLines.push(line);
@@ -4576,6 +4775,11 @@ async function loadBudgetRobust(tabName) {
   const grossProf = revenue.map((r,i) => r - cogs[i]);
   const opProf    = revenue.map((r,i) => r - cogs[i] - opex[i]);
   console.log(`📊 Budget permissive parse: ${revenueLines.length} rev / ${cogsLines.length} cogs / ${opexLines.length} opex lines · ${labels.length} months`);
+  if (revenueLines.length || cogsLines.length || opexLines.length) {
+    console.log(`   sample rev rows: ${revenueLines.slice(0,3).map(l=>`"${l.name}"`).join(', ')}`);
+    console.log(`   sample cogs rows: ${cogsLines.slice(0,3).map(l=>`"${l.name}"`).join(', ')}`);
+    console.log(`   sample opex rows: ${opexLines.slice(0,3).map(l=>`"${l.name}"`).join(', ')}`);
+  }
   return {
     labels,
     revenue, cogs, grossProf,
@@ -4728,6 +4932,20 @@ function applyBudgetVsActual(budget, fin, monthIdx) {
   const totalLines = sections.reduce((a,s)=>a + s.lines.length, 0);
   const hintEl = $('bvaTotalsHint');
   if (hintEl) hintEl.textContent = `${totalLines} line items across ${sections.length} sections`;
+
+  // Visible parse-info hint
+  const info = $('bvaParseInfo');
+  if (info) {
+    const totalLines = sections.reduce((a,s)=>a + s.lines.length, 0);
+    const monthsCount = (budget.labels || []).length;
+    if (totalLines === 0) {
+      info.className = 'bva-parse-info warn';
+      info.textContent = `Budget tab parsed (${monthsCount} months) but no line items were detected. Check that column A has labels and your sections (Revenue / Cost of Sales / Operating Expenses) are reachable.`;
+    } else {
+      info.className = 'bva-parse-info';
+      info.textContent = `Budget parsed: ${monthsCount} months · ${(budget.revenueLines||[]).length} revenue · ${(budget.cogsLines||[]).length} cogs · ${(budget.opexLines||[]).length} opex line items`;
+    }
+  }
 
   // Keep reference so the Period chip can re-render.
   window._bvaState = { budget, fin };
