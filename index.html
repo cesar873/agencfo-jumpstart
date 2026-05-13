@@ -2841,22 +2841,57 @@ function applyLiveClients(parsed) {
       }
     }
   });
-  new Chart($('clientMarginChart'), {
+  // Margin-by-client — top 15 by absolute margin so unprofitable
+  // clients still surface in the chart, sorted from highest to lowest
+  // margin so the red bars cluster at the bottom.
+  const marginSorted = [...sorted].sort((a,b) => b.margin - a.margin);
+  const marginPlotted = marginSorted.length > 15
+    ? marginSorted.slice(0, 10).concat(marginSorted.slice(-5))
+    : marginSorted;
+  const marginCanvas = $('clientMarginChart');
+  const marginWrap = marginCanvas ? marginCanvas.parentElement : null;
+  if (marginWrap && marginWrap.classList.contains('chart-wrap')) {
+    marginWrap.style.height = Math.max(280, marginPlotted.length * 32 + 30) + 'px';
+  }
+  new Chart(marginCanvas, {
     type:'bar',
-    data:{ labels: sorted.map(c => c.name), datasets:[{
-      data: sorted.map(c => c.margin),
-      backgroundColor: sorted.map(c => c.margin < 0 ? 'rgba(248,113,113,0.85)' : 'rgba(19,144,235,0.85)'),
-      borderRadius: 3, barThickness: 14
-    }]},
+    data:{
+      labels: marginPlotted.map(c => c.name),
+      datasets:[{
+        data: marginPlotted.map(c => c.margin),
+        backgroundColor: marginPlotted.map(c => c.margin < 0 ? 'rgba(248,113,113,0.85)' : 'rgba(19,144,235,0.85)'),
+        borderRadius: 3,
+        barThickness: 18,
+      }]
+    },
     plugins:[ChartDataLabels],
     options:{
-      indexAxis:'y', responsive:true, maintainAspectRatio:false,
-      layout:{padding:{top:4,right:60,bottom:4,left:6}},
-      plugins:{ legend:{display:false}, tooltip:TOOLTIP,
-        datalabels:{anchor:'end',align:'right',offset:6,color:'rgba(255,255,255,.85)',font:{size:11,weight:'500'},formatter:v=>v.toFixed(1)+'%'} },
+      indexAxis:'y',
+      responsive:true, maintainAspectRatio:false,
+      layout:{padding:{top:6,right:90,bottom:6,left:6}},
+      plugins:{
+        legend:{display:false},
+        tooltip:{...TOOLTIP, callbacks:{ label: ctx => ` ${ctx.label}: ${ctx.raw.toFixed(1)}%` }},
+        datalabels:{
+          anchor:'end', align:'right', offset:6,
+          color:'rgba(255,255,255,.92)',
+          font:{size:12, weight:'600'},
+          formatter:v=>v.toFixed(1)+'%'
+        }
+      },
       scales:{
-        x:{grid:{color:'rgba(120,120,120,.12)'},ticks:{font:{size:11},color:'rgba(255,255,255,.65)',callback:v=>v.toFixed(0)+'%'}},
-        y:{grid:{display:false},ticks:{font:{size:11},color:'rgba(255,255,255,.75)'}}
+        x:{ grid:{color:'rgba(120,120,120,.10)',drawBorder:false},
+            ticks:{font:{size:11},color:'rgba(255,255,255,.55)',callback:v=>v.toFixed(0)+'%'} },
+        y:{ grid:{display:false},
+            ticks:{
+              font:{size:12, weight:'500'},
+              color:'rgba(255,255,255,.9)',
+              autoSkip:false,
+              callback: function(value){
+                const lbl = this.getLabelForValue(value);
+                return lbl && lbl.length > 28 ? lbl.slice(0,27) + '…' : lbl;
+              }
+            } }
       }
     }
   });
