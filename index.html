@@ -632,7 +632,6 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
     </div>
     <div class="tabs" id="tabs">
       <button class="tab-btn active" data-tab="financials" onclick="showTab(this)">Financials</button>
-      <button class="tab-btn" data-tab="budget"     onclick="showTab(this)">Budget</button>
       <button class="tab-btn" data-tab="revenue"    onclick="showTab(this)">Revenue</button>
       <button class="tab-btn" data-tab="expenses"   onclick="showTab(this)">Expenses</button>
       <button class="tab-btn" data-tab="analytics"  onclick="showTab(this)">Analytics</button>
@@ -774,76 +773,62 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
     </div>
   </section>
 
-  <p class="page-footer">Live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Finance Model · cached 5 minutes</p>
-</div></div>
-
-
-<!-- ═══════════════════════════════════════════════════════════════════
-     TAB · BUDGET vs ACTUAL
-═══════════════════════════════════════════════════════════════════ -->
-<div class="tab-panel" id="tab-budget"><div class="page">
-
-  <div class="page-hero">
-    <p class="eyebrow">Plan vs reality</p>
-    <h1>Budget vs Actual</h1>
-    <p class="subline" id="bvaSubline">— · single-month comparison · ordered Revenue → COGS → Expenses</p>
-  </div>
-
-  <section class="section tight">
-    <div class="kpi-strip" style="grid-template-columns:repeat(4,minmax(0,1fr))">
-      <div class="kpi bva-kpi">
-        <div class="bva-bar"><i id="bvaRevBar" style="width:0%"></i></div>
-        <div class="kpi-label">Revenue</div>
-        <div class="kpi-value" id="bvaRev">—</div>
-        <div class="kpi-delta"><span class="d" id="bvaRevD">—</span><span class="ctx" id="bvaRevCtx">—</span></div>
-      </div>
-      <div class="kpi bva-kpi">
-        <div class="bva-bar"><i id="bvaCogsBar" style="width:0%"></i></div>
-        <div class="kpi-label">Cost of Sales</div>
-        <div class="kpi-value" id="bvaCogs">—</div>
-        <div class="kpi-delta"><span class="d" id="bvaCogsD">—</span><span class="ctx" id="bvaCogsCtx">—</span></div>
-      </div>
-      <div class="kpi bva-kpi">
-        <div class="bva-bar"><i id="bvaOpexBar" style="width:0%"></i></div>
-        <div class="kpi-label">Operating Expenses</div>
-        <div class="kpi-value" id="bvaOpex">—</div>
-        <div class="kpi-delta"><span class="d" id="bvaOpexD">—</span><span class="ctx" id="bvaOpexCtx">—</span></div>
-      </div>
-      <div class="kpi bva-kpi">
-        <div class="bva-bar"><i id="bvaNetBar" style="width:0%;background:var(--blue)"></i></div>
-        <div class="kpi-label">Net Income</div>
-        <div class="kpi-value" id="bvaNet" style="color:var(--blue)">—</div>
-        <div class="kpi-delta"><span class="d" id="bvaNetD">—</span><span class="ctx" id="bvaNetCtx">—</span></div>
-      </div>
-    </div>
-  </section>
-
+  <!-- Budget vs Actual — inside the Financials tab -->
   <section class="section">
-    <div class="table-shell">
-      <div class="table-toolbar">
-        <div>
-          <h2>Budget vs Actual · <span id="bvaMonth">—</span></h2>
-          <div class="sub">Single-month comparison · ordered Revenue → COGS → Expenses · click the Period chip above to switch months</div>
-        </div>
-        <div class="right" id="bvaTotalsHint">— line items</div>
+    <div class="shell" style="padding:0;overflow:hidden">
+      <div style="padding:20px 22px 0 22px">
+        <h2 style="font-size:18px;font-weight:700">Budget vs Actual · <span id="bvaMonth">—</span></h2>
+        <div class="sub" id="bvaSubline">Single-month comparison · ordered Revenue → COGS → Expenses · click the Period chip above to switch months</div>
       </div>
-      <div class="table-scroll" style="max-height:none">
-        <table id="bvaTable">
-          <thead><tr>
-            <th class="sticky-left">Category</th>
-            <th class="num">Budget</th>
-            <th class="num">Actual</th>
-            <th class="num">Variance $</th>
-            <th class="num">Variance %</th>
-            <th style="width:200px">Progress</th>
-          </tr></thead>
-          <tbody id="bvaRows"></tbody>
-        </table>
+      <section class="section tight" style="padding:0 22px 0 22px;margin-top:18px">
+        <div class="kpi-strip" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+          <div class="kpi bva-kpi">
+            <div class="bva-bar"><i id="bvaRevBar" style="width:0%"></i></div>
+            <div class="kpi-label">Revenue</div>
+            <div class="kpi-value" id="bvaRev">—</div>
+            <div class="kpi-delta"><span class="d" id="bvaRevD">—</span><span class="ctx" id="bvaRevCtx">—</span></div>
+          </div>
+          <div class="kpi bva-kpi">
+            <div class="bva-bar"><i id="bvaCogsBar" style="width:0%"></i></div>
+            <div class="kpi-label">Cost of Sales</div>
+            <div class="kpi-value" id="bvaCogs">—</div>
+            <div class="kpi-delta"><span class="d" id="bvaCogsD">—</span><span class="ctx" id="bvaCogsCtx">—</span></div>
+          </div>
+          <div class="kpi bva-kpi">
+            <div class="bva-bar"><i id="bvaOpexBar" style="width:0%"></i></div>
+            <div class="kpi-label">Operating Expenses</div>
+            <div class="kpi-value" id="bvaOpex">—</div>
+            <div class="kpi-delta"><span class="d" id="bvaOpexD">—</span><span class="ctx" id="bvaOpexCtx">—</span></div>
+          </div>
+          <div class="kpi bva-kpi">
+            <div class="bva-bar"><i id="bvaNetBar" style="width:0%;background:var(--blue)"></i></div>
+            <div class="kpi-label">Net Income</div>
+            <div class="kpi-value" id="bvaNet" style="color:var(--blue)">—</div>
+            <div class="kpi-delta"><span class="d" id="bvaNetD">—</span><span class="ctx" id="bvaNetCtx">—</span></div>
+          </div>
+        </div>
+      </section>
+      <div style="padding:20px 0 0 0">
+        <div class="table-scroll" style="max-height:none">
+          <table id="bvaTable">
+            <thead><tr>
+              <th class="sticky-left" style="padding-left:22px">Category</th>
+              <th class="num">Budget</th>
+              <th class="num">Actual</th>
+              <th class="num">Variance $</th>
+              <th class="num">Variance %</th>
+              <th style="width:200px;padding-right:22px">Progress</th>
+            </tr></thead>
+            <tbody id="bvaRows">
+              <tr><td colspan="6" style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Loading Budget tab…</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </section>
 
-  <p class="page-footer">Live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Budget + Finance Model · cached 5 minutes</p>
+  <p class="page-footer">Live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Finance Model + Budget · cached 5 minutes</p>
 </div></div>
 
 
@@ -4521,6 +4506,87 @@ function applyTxnPLDrilldown(agg, fin) {
 }
 
 /* ── Orchestrator: probe + wire all candidate tabs ────────────────── */
+/* ───── Budget loader (resilient to either layout) ───────────────────
+   Tries loadPL first (matches Finance Model's "Total Revenue" /
+   "TOTAL COST OF SALES" / "TOTAL OPERATING EXPENSES" subtotal rows).
+   If that yields no rev/cogs/opex sub-rows, falls back to a permissive
+   parser that walks the sheet, tracks the current section from
+   in-line headers like "Revenue" / "Cost of Sales" / "Operating
+   Expenses", and bins every line item with monthly data into one of
+   the three groups (using CoA + keyword classification as a tiebreaker
+   when no section header has appeared yet).                          */
+async function loadBudgetRobust(tabName) {
+  // Try the strict path first.
+  let primary = null;
+  try { primary = await loadPL(tabName); } catch(e) { console.warn('Budget loadPL threw:', e.message); }
+  const hasLines = primary && ((primary.revenueLines||[]).length + (primary.cogsLines||[]).length + (primary.opexLines||[]).length) > 0;
+  if (hasLines) {
+    console.log(`📊 Budget parsed via loadPL: ${primary.revenueLines.length} rev / ${primary.cogsLines.length} cogs / ${primary.opexLines.length} opex lines`);
+    return primary;
+  }
+
+  // Permissive fallback.
+  const rows = await sheetsGet(`${tabName}!A1:AH300`);
+  const hIdx = rows.findIndex(r => r.some(c => /jan.+20|feb.+20|mar.+20|apr.+20|may.+20|jun.+20|jul.+20|aug.+20|sep.+20|oct.+20|nov.+20|dec.+20/i.test(String(c))));
+  if (hIdx < 0) { console.warn(`📊 Budget permissive: no month header row found`); return null; }
+  const hdrs = rows[hIdx];
+  const mCols = hdrs.slice(1).map(h => String(h).trim()).filter(Boolean);
+  const n = mCols.length;
+  const labels = mCols.map(m => {
+    const p = m.match(/(\w+)\s+(\d{4})/);
+    if (!p) return m;
+    const d = new Date(`${p[1]} 1 ${p[2]}`);
+    return isNaN(d) ? m : d.toLocaleDateString('en-US',{month:'short',year:'2-digit'});
+  });
+
+  const HDR_REV  = /^\s*(revenue|income|sales|total\s+revenue|total\s+income)\s*:?\s*$/i;
+  const HDR_COGS = /^\s*(cost\s+of\s+sales|cogs|cost\s+of\s+goods|cost\s+of\s+services|total\s+cogs|total\s+cost\s+of\s+sales)\s*:?\s*$/i;
+  const HDR_OPEX = /^\s*(operating\s+expenses?|opex|expenses?|operating\s+costs?|total\s+operating\s+expenses?|total\s+opex)\s*:?\s*$/i;
+  const SKIP_COMPUTED = /^\s*(total|sub.?total|grand|gross\s+(profit|margin)|operating\s+(profit|income|margin)|net\s+(profit|income|margin)|ebitda|ebit)\b/i;
+
+  const revenueLines = [], cogsLines = [], opexLines = [];
+  let section = null;
+  for (let i = hIdx + 1; i < rows.length; i++) {
+    const r = rows[i] || [];
+    const label = String(r[0] || '').trim();
+    if (!label) continue;
+    if (HDR_REV.test(label))  { section = 'revenue'; continue; }
+    if (HDR_COGS.test(label)) { section = 'cogs';    continue; }
+    if (HDR_OPEX.test(label)) { section = 'opex';    continue; }
+    if (SKIP_COMPUTED.test(label)) continue;
+    const vals = r.slice(1, n+1).map(num);
+    const sum = vals.reduce((a,b)=>a+Math.abs(b),0);
+    if (sum === 0) continue;
+    const line = { name: label, vals };
+    if (section === 'revenue')   revenueLines.push(line);
+    else if (section === 'cogs') cogsLines.push(line);
+    else if (section === 'opex') opexLines.push(line);
+    else {
+      // No section seen yet — classify via account-name heuristic.
+      const grp = classifyAccount(label);
+      if (grp === 'revenue')   revenueLines.push(line);
+      else if (grp === 'cogs') cogsLines.push(line);
+      else                     opexLines.push(line);
+    }
+  }
+  const sumLines = lines => labels.map((_, i) => lines.reduce((a, l) => a + (l.vals[i] || 0), 0));
+  const revenue   = sumLines(revenueLines);
+  const cogs      = sumLines(cogsLines);
+  const opex      = sumLines(opexLines);
+  const grossProf = revenue.map((r,i) => r - cogs[i]);
+  const opProf    = revenue.map((r,i) => r - cogs[i] - opex[i]);
+  console.log(`📊 Budget permissive parse: ${revenueLines.length} rev / ${cogsLines.length} cogs / ${opexLines.length} opex lines · ${labels.length} months`);
+  return {
+    labels,
+    revenue, cogs, grossProf,
+    grossMarg: revenue.map((r,i)=> r ? grossProf[i]/r*100 : 0),
+    opex, opProf,
+    opMarg:   revenue.map((r,i)=> r ? opProf[i]/r*100 : 0),
+    net: opProf,
+    revenueLines, cogsLines, opexLines,
+  };
+}
+
 /* ───── Budget vs Actual — uses loadPL on the Budget tab ─────────── */
 function applyBudgetVsActual(budget, fin, monthIdx) {
   if (!budget || !budget.labels || !budget.revenue) return false;
@@ -4715,18 +4781,26 @@ async function loadOtherLive(tabs) {
     } catch(e) { console.warn(`Team Profit (${tpTab}) failed:`, e.message); }
   }
 
-  // Budget tab → Budget vs Actual view
+  // Budget tab → Budget vs Actual view (rendered inside the Financials tab)
   const budgetTab = tabs.find(t => /^\s*budget\s*$/i.test(t)) || tabs.find(t => /budget/i.test(t));
   if (budgetTab) {
     try {
-      const budget = await loadPL(budgetTab);
+      const budget = await loadBudgetRobust(budgetTab);
       if (budget && applyBudgetVsActual(budget, fin)) {
-        console.log(`📊 Budget vs Actual rendered from "${budgetTab}" · ${(budget.revenueLines||[]).length} rev lines, ${(budget.cogsLines||[]).length} cogs lines, ${(budget.opexLines||[]).length} opex lines`);
-        status.Budget = 'live';
+        console.log(`📊 Budget vs Actual rendered from "${budgetTab}" · ${(budget.revenueLines||[]).length} rev / ${(budget.cogsLines||[]).length} cogs / ${(budget.opexLines||[]).length} opex line items`);
       } else {
-        console.warn(`📊 Budget tab "${budgetTab}" parsed but no usable totals`);
+        console.warn(`📊 Budget tab "${budgetTab}" loaded but couldn't be rendered. Hit /api/sheets?peek=${encodeURIComponent(budgetTab)} to inspect.`);
+        const empty = $('bvaRows');
+        if (empty) empty.innerHTML = `<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--amber);font-size:13px">Budget tab found but no usable line items detected. Check that column A has labels and the months row matches the Finance Model.</td></tr>`;
       }
-    } catch(e) { console.warn(`Budget parse failed:`, e.message); }
+    } catch(e) {
+      console.warn(`Budget parse failed:`, e.message);
+      const empty = $('bvaRows');
+      if (empty) empty.innerHTML = `<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--red);font-size:13px">Budget tab error: ${e.message}</td></tr>`;
+    }
+  } else {
+    const empty = $('bvaRows');
+    if (empty) empty.innerHTML = `<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--muted);font-size:13px">No "Budget" tab found in the sheet.</td></tr>`;
   }
 
   // CoA — load before Transactions so classifier uses it
