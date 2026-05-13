@@ -449,6 +449,52 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
 @keyframes spin{to{transform:rotate(360deg);}}
 #loadingMsg{font-size:12px;color:var(--muted);}
 
+/* ── BUDGET vs ACTUAL ───────────────────────────────────────────────── */
+.bva-kpi{ position:relative; overflow:hidden; padding-top:18px; }
+.bva-bar{
+  position:absolute; left:0; right:0; top:0;
+  height:3px; background:rgba(255,255,255,0.06);
+}
+.bva-bar > i{
+  display:block; height:100%;
+  background:var(--green);
+  transition: width .25s ease-out;
+}
+.bva-section-row td{
+  color:var(--blue);
+  font-size:11px; font-weight:700;
+  text-transform:uppercase; letter-spacing:.08em;
+  padding:18px 12px 8px;
+  border-top:1px solid rgba(255,255,255,0.06);
+  background:transparent !important;
+}
+.bva-section-row:first-child td{border-top:none;}
+.bva-row td{
+  padding:8px 12px;
+  font-size:13px;
+}
+.bva-row td.cat{ padding-left:24px; color:rgba(255,255,255,.88); }
+.bva-subtotal td{
+  font-weight:700;
+  background:rgba(255,255,255,0.02);
+  border-top:1px solid rgba(255,255,255,0.06);
+}
+.bva-subtotal td.cat{ padding-left:12px; color:var(--text); }
+.bva-var.up   { color:#86efac; }
+.bva-var.down { color:#fda4af; }
+.bva-var.flat { color:rgba(255,255,255,.55); }
+.bva-progress{
+  position:relative; height:8px;
+  background:rgba(255,255,255,0.06);
+  border-radius:4px; overflow:hidden;
+}
+.bva-progress > i{
+  display:block; height:100%; border-radius:4px;
+  background:var(--green);
+  transition: width .25s ease-out;
+}
+.bva-progress.unfav > i{ background:var(--red); }
+
 /* ── DIAGNOSTIC STRIP (parser reports) ──────────────────────────────── */
 .diag-strip{
   border:1px solid var(--card-border);
@@ -586,6 +632,7 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
     </div>
     <div class="tabs" id="tabs">
       <button class="tab-btn active" data-tab="financials" onclick="showTab(this)">Financials</button>
+      <button class="tab-btn" data-tab="budget"     onclick="showTab(this)">Budget</button>
       <button class="tab-btn" data-tab="revenue"    onclick="showTab(this)">Revenue</button>
       <button class="tab-btn" data-tab="expenses"   onclick="showTab(this)">Expenses</button>
       <button class="tab-btn" data-tab="analytics"  onclick="showTab(this)">Analytics</button>
@@ -728,6 +775,75 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   </section>
 
   <p class="page-footer">Live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Finance Model · cached 5 minutes</p>
+</div></div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     TAB · BUDGET vs ACTUAL
+═══════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-budget"><div class="page">
+
+  <div class="page-hero">
+    <p class="eyebrow">Plan vs reality</p>
+    <h1>Budget vs Actual</h1>
+    <p class="subline" id="bvaSubline">— · single-month comparison · ordered Revenue → COGS → Expenses</p>
+  </div>
+
+  <section class="section tight">
+    <div class="kpi-strip" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+      <div class="kpi bva-kpi">
+        <div class="bva-bar"><i id="bvaRevBar" style="width:0%"></i></div>
+        <div class="kpi-label">Revenue</div>
+        <div class="kpi-value" id="bvaRev">—</div>
+        <div class="kpi-delta"><span class="d" id="bvaRevD">—</span><span class="ctx" id="bvaRevCtx">—</span></div>
+      </div>
+      <div class="kpi bva-kpi">
+        <div class="bva-bar"><i id="bvaCogsBar" style="width:0%"></i></div>
+        <div class="kpi-label">Cost of Sales</div>
+        <div class="kpi-value" id="bvaCogs">—</div>
+        <div class="kpi-delta"><span class="d" id="bvaCogsD">—</span><span class="ctx" id="bvaCogsCtx">—</span></div>
+      </div>
+      <div class="kpi bva-kpi">
+        <div class="bva-bar"><i id="bvaOpexBar" style="width:0%"></i></div>
+        <div class="kpi-label">Operating Expenses</div>
+        <div class="kpi-value" id="bvaOpex">—</div>
+        <div class="kpi-delta"><span class="d" id="bvaOpexD">—</span><span class="ctx" id="bvaOpexCtx">—</span></div>
+      </div>
+      <div class="kpi bva-kpi">
+        <div class="bva-bar"><i id="bvaNetBar" style="width:0%;background:var(--blue)"></i></div>
+        <div class="kpi-label">Net Income</div>
+        <div class="kpi-value" id="bvaNet" style="color:var(--blue)">—</div>
+        <div class="kpi-delta"><span class="d" id="bvaNetD">—</span><span class="ctx" id="bvaNetCtx">—</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="table-shell">
+      <div class="table-toolbar">
+        <div>
+          <h2>Budget vs Actual · <span id="bvaMonth">—</span></h2>
+          <div class="sub">Single-month comparison · ordered Revenue → COGS → Expenses · click the Period chip above to switch months</div>
+        </div>
+        <div class="right" id="bvaTotalsHint">— line items</div>
+      </div>
+      <div class="table-scroll" style="max-height:none">
+        <table id="bvaTable">
+          <thead><tr>
+            <th class="sticky-left">Category</th>
+            <th class="num">Budget</th>
+            <th class="num">Actual</th>
+            <th class="num">Variance $</th>
+            <th class="num">Variance %</th>
+            <th style="width:200px">Progress</th>
+          </tr></thead>
+          <tbody id="bvaRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <p class="page-footer">Live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Budget + Finance Model · cached 5 minutes</p>
 </div></div>
 
 
@@ -2221,10 +2337,24 @@ function showTab(btn) {
 }
 
 function cyclePeriod() {
-  const months = ["Mar 2026","Feb 2026","Jan 2026","Dec 2025","Nov 2025","Oct 2025","Apr 2026"];
-  const cur = $('periodVal').textContent;
-  const next = months[(months.indexOf(cur)+1) % months.length];
-  $('periodVal').textContent = next;
+  // Cycle through the actual fin.labels (live months), if available.
+  const labels = (typeof fin !== 'undefined' && fin && fin.labels && fin.labels.length)
+    ? fin.labels : ["Mar 2026","Feb 2026","Jan 2026","Dec 2025","Nov 2025","Oct 2025","Apr 2026"];
+  // Cycle from current to next (newest-first feel).
+  const cur = $('periodVal').textContent.trim();
+  let idx = labels.indexOf(cur);
+  if (idx < 0) {
+    // Normalize candidate labels: "Mar '26" vs "Mar 2026" — try a relaxed match.
+    idx = labels.findIndex(l => l.replace(/['"\s]/g,'').toLowerCase() === cur.replace(/['"\s]/g,'').toLowerCase());
+  }
+  const nextIdx = (idx + 1) % labels.length;
+  const nextLbl = labels[nextIdx];
+  $('periodVal').textContent = nextLbl;
+
+  // Re-render Budget vs Actual to the newly-selected month if data is loaded.
+  if (window._bvaState) {
+    applyBudgetVsActual(window._bvaState.budget, window._bvaState.fin, nextIdx);
+  }
 }
 
 function setStatus(state, msg, tabs=[]) {
@@ -4391,6 +4521,150 @@ function applyTxnPLDrilldown(agg, fin) {
 }
 
 /* ── Orchestrator: probe + wire all candidate tabs ────────────────── */
+/* ───── Budget vs Actual — uses loadPL on the Budget tab ─────────── */
+function applyBudgetVsActual(budget, fin, monthIdx) {
+  if (!budget || !budget.labels || !budget.revenue) return false;
+  const L = fin.labels;
+  const idx = (monthIdx != null && monthIdx >= 0 && monthIdx < L.length) ? monthIdx : fin.lastAct;
+  const monthLbl = L[idx] || '';
+
+  // Align budget arrays to fin.labels via ISO month matching.
+  const budgetIsoIdx = {};
+  (budget.labels || []).forEach((lbl, i) => {
+    const iso = labelToIso(lbl);
+    if (iso) budgetIsoIdx[iso] = i;
+  });
+  const finIso = L.map(labelToIso);
+  const budgetAt = (arr, finIdx) => {
+    const iso = finIso[finIdx];
+    if (!iso || !(iso in budgetIsoIdx)) return 0;
+    return arr[budgetIsoIdx[iso]] || 0;
+  };
+
+  // Section totals
+  const revA  = fin.revenue[idx] || 0;
+  const revB  = budgetAt(budget.revenue, idx);
+  const cogsA = fin.cogs[idx]    || 0;
+  const cogsB = budgetAt(budget.cogs, idx);
+  const opexA = fin.opex[idx]    || 0;
+  const opexB = budgetAt(budget.opex, idx);
+  const netA  = fin.net[idx]     || 0;
+  const netB  = (budget.net && budget.net.length) ? budgetAt(budget.net, idx) : (revB - cogsB - opexB);
+
+  // Sign-aware variance:
+  //   Revenue / Net: favorable when actual >= budget (over plan = good)
+  //   Expense (cogs / opex): favorable when actual <= budget (under spend = good)
+  const fav = (a, b, kind) => {
+    if (kind === 'expense') return a <= b;
+    return a >= b;
+  };
+  const progressPct = (a, b) => {
+    if (!b) return a > 0 ? 100 : 0;
+    return Math.min(100, Math.max(0, (a / b) * 100));
+  };
+
+  const setKpi = (valueId, deltaId, ctxId, barId, actual, budgetVal, kind) => {
+    const valEl = $(valueId), dEl = $(deltaId), cEl = $(ctxId), barEl = $(barId);
+    if (valEl) valEl.textContent = fmtFullCur(actual).replace(/^\$/, '$');
+    const diff = actual - budgetVal;
+    const pct = budgetVal ? (diff / Math.abs(budgetVal)) * 100 : 0;
+    const fa = fav(actual, budgetVal, kind);
+    if (dEl) {
+      const arrow = pct >= 0.05 ? '↑' : pct <= -0.05 ? '↓' : '↔';
+      const sign = pct >= 0 ? '+' : '';
+      dEl.className = 'd ' + (fa ? 'up' : 'down');
+      dEl.textContent = `${arrow} ${sign}${pct.toFixed(1)}%`;
+    }
+    if (cEl) cEl.textContent = `vs budget ${fmtFullCur(budgetVal)}`;
+    if (barEl) {
+      barEl.style.width = progressPct(actual, budgetVal) + '%';
+      barEl.style.background = fa ? 'var(--green)' : 'var(--red)';
+    }
+  };
+  setKpi('bvaRev',  'bvaRevD',  'bvaRevCtx',  'bvaRevBar',  revA,  revB,  'revenue');
+  setKpi('bvaCogs', 'bvaCogsD', 'bvaCogsCtx', 'bvaCogsBar', cogsA, cogsB, 'expense');
+  setKpi('bvaOpex', 'bvaOpexD', 'bvaOpexCtx', 'bvaOpexBar', opexA, opexB, 'expense');
+  setKpi('bvaNet',  'bvaNetD',  'bvaNetCtx',  'bvaNetBar',  netA,  netB,  'revenue');
+
+  // Build line-item rows for each section.
+  const matchLines = (actualLines, budgetLines) => {
+    const map = new Map();
+    (actualLines || []).forEach(l => {
+      const k = l.name.trim().toLowerCase();
+      map.set(k, { name: l.name, actual: l.vals, budget: null });
+    });
+    (budgetLines || []).forEach(l => {
+      const k = l.name.trim().toLowerCase();
+      const ent = map.get(k);
+      if (ent) ent.budget = l.vals;
+      else map.set(k, { name: l.name, actual: null, budget: l.vals });
+    });
+    return [...map.values()];
+  };
+
+  const sections = [
+    { label: 'Revenue',           kind:'revenue', lines: matchLines(fin.revenueLines, budget.revenueLines), totalA: revA,  totalB: revB,  totalLabel:'Total Revenue' },
+    { label: 'Cost of Sales',     kind:'expense', lines: matchLines(fin.cogsLines,    budget.cogsLines),    totalA: cogsA, totalB: cogsB, totalLabel:'Total Cost of Sales' },
+    { label: 'Operating Expenses',kind:'expense', lines: matchLines(fin.opexLines,    budget.opexLines),    totalA: opexA, totalB: opexB, totalLabel:'Total Operating Expenses' },
+  ];
+
+  const renderProgress = (actual, budget, kind) => {
+    const fa = fav(actual, budget, kind);
+    const w = progressPct(actual, budget);
+    return `<div class="bva-progress ${fa?'':'unfav'}"><i style="width:${w.toFixed(1)}%"></i></div>`;
+  };
+  const renderVariance = (actual, budget, kind) => {
+    const diff = actual - budget;
+    const pct = budget ? (diff / Math.abs(budget)) * 100 : (actual ? 100 : 0);
+    const fa = fav(actual, budget, kind);
+    const cls = diff === 0 ? 'flat' : (fa ? 'up' : 'down');
+    const sign = diff >= 0 ? '+' : '';
+    return {
+      money: `<td class="num bva-var ${cls}">${sign}${fmtFullCur(Math.abs(diff)).replace(/^-/,'')}${diff<0?' '+'':''}</td>`,
+      pct:   `<td class="num bva-var ${cls}">${sign}${pct.toFixed(1)}%</td>`,
+    };
+  };
+
+  const rowsHTML = sections.map(sec => {
+    const sectionRow = `<tr class="bva-section-row"><td class="sticky-left">${sec.label}</td><td colspan="5"></td></tr>`;
+    const lineRows = sec.lines.map(l => {
+      const a = (l.actual ? (l.actual[idx] || 0) : 0);
+      const b = (l.budget ? (l.budget[idx] || 0) : 0);
+      if (a === 0 && b === 0) return ''; // skip rows with no data this month
+      const v = renderVariance(a, b, sec.kind);
+      return `<tr class="bva-row">
+        <td class="sticky-left cat" title="${l.name}">${l.name}</td>
+        <td class="num">${b ? fmtFullCur(b) : '<span class="dim">—</span>'}</td>
+        <td class="num"><b>${a ? fmtFullCur(a) : '<span class="dim">—</span>'}</b></td>
+        ${v.money}
+        ${v.pct}
+        <td>${renderProgress(a, b, sec.kind)}</td>
+      </tr>`;
+    }).filter(Boolean).join('');
+    const tot = renderVariance(sec.totalA, sec.totalB, sec.kind);
+    const totRow = `<tr class="bva-subtotal">
+      <td class="sticky-left cat"><b>${sec.totalLabel}</b></td>
+      <td class="num"><b>${fmtFullCur(sec.totalB)}</b></td>
+      <td class="num"><b>${fmtFullCur(sec.totalA)}</b></td>
+      ${tot.money}
+      ${tot.pct}
+      <td>${renderProgress(sec.totalA, sec.totalB, sec.kind)}</td>
+    </tr>`;
+    return sectionRow + lineRows + totRow;
+  }).join('');
+
+  $('bvaRows').innerHTML = rowsHTML;
+  $('bvaMonth').textContent = monthLbl;
+  const subl = $('bvaSubline');
+  if (subl) subl.textContent = `${monthLbl} · single-month comparison · ordered Revenue → COGS → Expenses`;
+  const totalLines = sections.reduce((a,s)=>a + s.lines.length, 0);
+  $('bvaTotalsHint').textContent = `${totalLines} line items across ${sections.length} sections`;
+
+  // Keep reference so the Period chip can re-render.
+  window._bvaState = { budget, fin };
+  return true;
+}
+
 async function loadOtherLive(tabs) {
   const status = { Clients:'demo', People:'demo', Analytics:'demo' };
 
@@ -4439,6 +4713,20 @@ async function loadOtherLive(tabs) {
         if (sub) sub.innerHTML = sub.innerHTML.replace(/— [^·]+$/, `— ${tpTab} (live)`);
       }
     } catch(e) { console.warn(`Team Profit (${tpTab}) failed:`, e.message); }
+  }
+
+  // Budget tab → Budget vs Actual view
+  const budgetTab = tabs.find(t => /^\s*budget\s*$/i.test(t)) || tabs.find(t => /budget/i.test(t));
+  if (budgetTab) {
+    try {
+      const budget = await loadPL(budgetTab);
+      if (budget && applyBudgetVsActual(budget, fin)) {
+        console.log(`📊 Budget vs Actual rendered from "${budgetTab}" · ${(budget.revenueLines||[]).length} rev lines, ${(budget.cogsLines||[]).length} cogs lines, ${(budget.opexLines||[]).length} opex lines`);
+        status.Budget = 'live';
+      } else {
+        console.warn(`📊 Budget tab "${budgetTab}" parsed but no usable totals`);
+      }
+    } catch(e) { console.warn(`Budget parse failed:`, e.message); }
   }
 
   // CoA — load before Transactions so classifier uses it
