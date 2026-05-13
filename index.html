@@ -1006,18 +1006,12 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   <section class="section">
     <div class="table-shell">
       <div class="table-toolbar">
-        <div><h2>Revenue by service line — monthly</h2><div class="sub">All service lines · Oct '25 to Apr '26 · italic for forecast</div></div>
-        <div class="right" id="revMomTotals">5 lines · grand total $701K</div>
+        <div><h2>Revenue by service line — monthly</h2><div class="sub" id="revMomSub">All service lines · italic for forecast</div></div>
+        <div class="right" id="revMomTotals">— line items</div>
       </div>
       <div class="table-scroll">
         <table>
-          <thead><tr>
-            <th class="sticky-left">Service Line</th>
-            <th class="num">Oct '25</th><th class="num">Nov '25</th><th class="num">Dec '25</th>
-            <th class="num">Jan '26</th><th class="num">Feb '26</th><th class="num">Mar '26</th>
-            <th class="num fcst">Apr '26</th>
-            <th class="num">Total</th><th class="num">Share</th>
-          </tr></thead>
+          <thead id="revHead"></thead>
           <tbody id="revRows"></tbody>
         </table>
       </div>
@@ -1790,6 +1784,20 @@ function hbar(id, labels, data, color='#1390eb', opts={}) {
   });
 }
 
+/* Shared helper: rebuild the Revenue MoM thead so it always has the
+   same column count as the data rows. */
+function renderRevMomHead(labels, fcstFrom) {
+  const head = $('revHead');
+  if (!head) return;
+  head.innerHTML = `<tr>
+    <th class="sticky-left">Service Line</th>
+    ${labels.map((m, i) => `<th class="num ${i >= fcstFrom ? 'fcst' : ''}">${m}</th>`).join('')}
+    <th class="num">Total</th><th>Share</th>
+  </tr>`;
+  const sub = $('revMomSub');
+  if (sub && labels.length) sub.textContent = `All service lines · ${labels[0]} to ${labels[labels.length-1]} · italic for forecast`;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    FINANCIALS — live-data renderers (read from `fin`)
 ═══════════════════════════════════════════════════════════════════════ */
@@ -2075,6 +2083,7 @@ function initCharts() {
   }).join('');
   const totalsByMonth = LABELS.map((_,i)=>SERVICE_LINES.reduce((a,s)=>a+D[s.key][i],0));
   const grandTotal = totalsByMonth.reduce((a,b)=>a+b,0);
+  renderRevMomHead(LABELS, FCST_FROM);
   $('revRows').innerHTML = rowsHTML + `<tr class="total">
     <td class="sticky-left">Total revenue</td>
     ${totalsByMonth.map((v,i)=>`<td class="num ${i>=FCST_FROM?'fcst':''}"><b>${fmtCompactCur(v)}</b></td>`).join('')}
@@ -3646,6 +3655,7 @@ function applyLiveRevenueFromFin() {
   // Revenue MoM table — single row + total
   const revRows = $('revRows');
   if (revRows) {
+    renderRevMomHead(L, fin.fcstFrom);
     const maxCell = Math.max(...r, 1);
     const cells = r.map((v,i) => {
       const pct = Math.round(v/maxCell*100);
@@ -4284,6 +4294,7 @@ function applyTxnRevenue(agg, fin, allTxns) {
   // MoM matrix: service line × month
   const revRows = $('revRows');
   if (revRows && accountTotals.length) {
+    renderRevMomHead(L, fin.fcstFrom);
     const maxCell = Math.max(1, ...accountTotals.flatMap(a => a.vals.slice(0, L.length)));
     const rowsHTML = accountTotals.map(a => {
       const cells = a.vals.slice(0, L.length).map((v,i) => {
@@ -4649,6 +4660,7 @@ function applyFinSubRowsRevenue(fin) {
   // Service-line MoM matrix
   const revRows = $('revRows');
   if (revRows) {
+    renderRevMomHead(L, fin.fcstFrom);
     const maxCell = Math.max(1, ...lines.flatMap(l => l.vals));
     const rowsHTML = lines.map(l => {
       const cells = l.vals.map((v,i) => {
