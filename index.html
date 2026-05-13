@@ -4130,11 +4130,18 @@ function applyTxnRevenue(agg, fin, allTxns) {
   const revAccountMap = {};
   revAccounts.forEach(a => revAccountMap[a] = agg.byAccount[a]);
   updateBreakdownCard(0, 'By service line', revAccountMap, '#1390eb');
-  // Customers = vendors with revenue (best-effort: vendors whose dominant category is a revenue account)
+  // Customers = aggregate ONLY revenue-classified transactions per vendor.
+  // (Previously we were keying off agg.byVendor — that includes all
+  //  categories, so a vendor with one revenue transaction and lots of
+  //  expense transactions could show up with their total activity.)
   const revCustomerMap = {};
-  Object.keys(agg.byVendor).forEach(v => {
-    const cat = agg.vendorCategory[v];
-    if (cat && agg.accountToGroup[cat] === 'revenue') revCustomerMap[v] = agg.byVendor[v];
+  (allTxns || []).forEach(t => {
+    if (t.group !== 'revenue') return;
+    if (!t.vendor || t.vendor === '(unknown)') return;
+    const monthIdx = agg.monthIsoList.indexOf(t.monthIso);
+    if (monthIdx < 0) return;
+    if (!revCustomerMap[t.vendor]) revCustomerMap[t.vendor] = new Array(L.length).fill(0);
+    revCustomerMap[t.vendor][monthIdx] += Math.abs(t.amount);
   });
   updateBreakdownCard(1, 'By customer', revCustomerMap, '#22c55e');
   // Class
