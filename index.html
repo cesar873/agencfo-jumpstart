@@ -449,6 +449,43 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
 @keyframes spin{to{transform:rotate(360deg);}}
 #loadingMsg{font-size:12px;color:var(--muted);}
 
+/* ── FILTER CONTROLS ────────────────────────────────────────────────── */
+.filter-select,
+.filter-search{
+  background:rgba(255,255,255,0.05);
+  border:1px solid var(--card-border);
+  border-radius:8px;
+  color:var(--text);
+  font-family:'DM Sans',sans-serif;
+  font-size:12px;
+  padding:6px 10px;
+  outline:none;
+  transition:border-color .12s;
+}
+.filter-select:hover,
+.filter-search:hover,
+.filter-select:focus,
+.filter-search:focus{ border-color:rgba(255,255,255,0.20); }
+.filter-search{ min-width:200px; }
+.filter-select{ min-width:170px; cursor:pointer; }
+.filter-select option{ background:#0b1f33; color:var(--text); }
+
+/* Transaction category pill (small uppercase tag) */
+.cat-pill{
+  display:inline-block;
+  background:rgba(255,255,255,0.06);
+  border:1px solid var(--card-border);
+  color:rgba(255,255,255,.8);
+  padding:2px 8px;
+  border-radius:6px;
+  font-size:10px;
+  font-weight:600;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+.amount-red{ color:#fb7185; font-weight:600; }
+
 /* ── UTILITIES ──────────────────────────────────────────────────────── */
 .row-flex{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .muted{color:var(--muted);}
@@ -873,27 +910,50 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   <section class="section">
     <div class="table-shell">
       <div class="table-toolbar">
-        <div><h2>Vendor MoM expense</h2><div class="sub">Sorted by total descending · italic for forecast</div></div>
-        <div class="right">11 vendors · grand total $522K</div>
+        <div><h2>Spend by vendor × category × month</h2><div class="sub">One row per vendor × category · scroll horizontally for full history · totals locked</div></div>
+        <div class="row-flex" style="gap:10px">
+          <span class="sub-eyebrow">Category</span>
+          <select id="vendorCatFilter" class="filter-select"><option value="">All Categories</option></select>
+          <input id="vendorSearch" type="search" placeholder="Search vendor…" class="filter-search">
+        </div>
+        <div class="right" id="vendorMatrixCount">— vendors · range total —</div>
       </div>
       <div class="table-scroll">
-        <table>
-          <thead><tr>
-            <th class="sticky-left">Vendor</th>
-            <th>Category</th>
-            <th>Type</th>
-            <th class="num">Oct '25</th><th class="num">Nov '25</th><th class="num">Dec '25</th>
-            <th class="num">Jan '26</th><th class="num">Feb '26</th><th class="num">Mar '26</th>
-            <th class="num fcst">Apr '26</th>
-            <th class="num">Total</th>
-          </tr></thead>
+        <table id="vendorMatrixTable">
+          <thead id="vendorMatrixHead"></thead>
           <tbody id="vendorRows"></tbody>
+          <tfoot id="vendorMatrixFoot"></tfoot>
         </table>
       </div>
     </div>
   </section>
 
-  <p class="page-footer">Live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Costs + Finance Model · cached 5 minutes</p>
+  <section class="section">
+    <div class="table-shell">
+      <div class="table-toolbar">
+        <div><h2>Expense Transactions</h2><div class="sub" id="expTxnSub">Full ledger</div></div>
+        <div class="row-flex" style="gap:10px">
+          <span class="sub-eyebrow">Category</span>
+          <select id="expTxnCatFilter" class="filter-select"><option value="">All Categories</option></select>
+          <input id="expTxnSearch" type="search" placeholder="Search vendor…" class="filter-search">
+        </div>
+        <div class="right" id="expTxnCount">— transactions</div>
+      </div>
+      <div class="table-scroll" style="max-height:520px">
+        <table>
+          <thead><tr>
+            <th class="sticky-left">Date</th>
+            <th>Vendor / Name</th>
+            <th>Category</th>
+            <th class="num">Amount</th>
+          </tr></thead>
+          <tbody id="expTxnRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <p class="page-footer">Live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Transactions Database · cached 5 minutes</p>
 </div></div>
 
 
@@ -2889,15 +2949,56 @@ function labelToIso(label) {
 }
 
 // Classify an account name into one of revenue / cogs / opex / other.
-// QBO-style account names usually carry enough signal; this is a best-effort
-// classifier that the user can refine later by exposing a CoA mapping.
+// First-choice signal: a CoA tab. Fall back to keyword-matching on the
+// account/type strings.
+let coaMap = null;   // populated from parseCoA() in loadOtherLive
+
+function parseCoA(rows) {
+  if (!rows || rows.length < 2) return null;
+  const hIdx = findHeaderRow(rows);
+  if (hIdx < 0) return null;
+  const find = colFinder(rows[hIdx]);
+  // Account name column (sometimes "Account", "Name", "Account Name", "Full Name")
+  const cName = find(/^account$|^account.?name$|^name$|^full.?name$|^title$/);
+  // Account type column (Income / Expense / Cost of Goods Sold / Other Income / etc.)
+  const cType = find(/account.?type|^type$|^classification$|^category.?type$/);
+  // Optional secondary "detail type" or parent
+  const cDetail = find(/detail.?type|^subtype$|^parent$|sub.?account/);
+  if (cName < 0 || cType < 0) return null;
+  const map = {};
+  for (let i = hIdx + 1; i < rows.length; i++) {
+    const r = rows[i] || [];
+    const name = String(r[cName]||'').trim();
+    if (!name) continue;
+    const type   = String(r[cType]||'').trim();
+    const detail = cDetail >= 0 ? String(r[cDetail]||'').trim() : '';
+    map[name.toLowerCase()] = { type, detail };
+  }
+  return Object.keys(map).length ? map : null;
+}
+
+function classifyFromCoA(account) {
+  if (!coaMap || !account) return null;
+  const e = coaMap[String(account).toLowerCase()];
+  if (!e) return null;
+  const s = (e.type + ' ' + e.detail).toLowerCase();
+  if (/income|revenue|sales/.test(s) && !/other income/.test(s)) return 'revenue';
+  if (/cost of (goods|sales|services)|cogs/.test(s)) return 'cogs';
+  if (/^expense$|operating.?expense|other.?expense|^expense\b/.test(s)) return 'opex';
+  if (/other.?income/.test(s)) return 'other';
+  return null;
+}
+
 function classifyAccount(name, type) {
+  // Prefer CoA if available
+  const fromCoA = classifyFromCoA(name);
+  if (fromCoA) return fromCoA;
+  // Keyword fallback
   const s = (String(name) + ' ' + String(type||'')).toLowerCase();
-  if (/^(sales|service|fee|revenue|income|consulting fees)|revenue|income|sales|client billings|service revenue/.test(s)) return 'revenue';
-  if (/cogs|cost of (sales|goods|services)|direct labor|media buyer|account manager|contractor|graphic designer|video editor|freelancer/.test(s)) return 'cogs';
+  if (/revenue|income|sales|mrr|arr|service.?revenue|client.?billing|recurring|subscription.?income|consulting.?fees|project.?revenue/.test(s)) return 'revenue';
+  if (/cogs|cost of (sales|goods|services)|direct labor|media buyer|account manager|contractor|graphic designer|video editor|freelancer|cost.?of.?service/.test(s)) return 'cogs';
   if (/tax|interest|other income|other expense|depreciation|amortization/.test(s)) return 'other';
-  if (/expense|operating|rent|software|payroll|wages|salary|advertising|marketing|insurance|utilities|travel|meals|professional|legal|accounting|office|supplies|stripe|coaching|consulting|referral|virtual assistant|saas/.test(s)) return 'opex';
-  // Default fall-through: if amount sign hints, caller can flip; else assume opex
+  if (/expense|operating|rent|software|payroll|wages|salary|advertising|marketing|insurance|utilities|travel|meals|professional|legal|accounting|office|supplies|stripe|coaching|consulting|referral|virtual assistant|saas|subscription/.test(s)) return 'opex';
   return 'opex';
 }
 
@@ -3011,7 +3112,7 @@ function aggregateTxns(txns, monthLabels) {
 }
 
 /* ───── Revenue tab — service-line breakdown from Transactions ─────── */
-function applyTxnRevenue(agg, fin) {
+function applyTxnRevenue(agg, fin, allTxns) {
   if (!agg || !agg.accountsByGroup) return false;
   const revAccounts = (agg.accountsByGroup.revenue || []).filter(a => {
     const arr = agg.byAccount[a];
@@ -3140,30 +3241,37 @@ function applyTxnRevenue(agg, fin) {
     }
   }
 
-  // Top growers/decliners — by service line, MoM (last actual vs prior)
+  // Top growers/decliners — BY CLIENT (vendor with revenue), MoM
   if (lastAct >= 1) {
     const prev = lastAct - 1;
-    const swings = accountTotals
-      .filter(a => a.vals[prev] || a.vals[lastAct])
-      .map(a => ({
-        name: a.name,
-        cur: a.vals[lastAct] || 0,
-        prev: a.vals[prev] || 0,
-        dlt: (a.vals[lastAct] || 0) - (a.vals[prev] || 0),
-        pct: a.vals[prev] ? ((a.vals[lastAct] - a.vals[prev]) / a.vals[prev]) * 100 : 100,
-      }));
-    const grow = [...swings].sort((a,b)=>b.dlt-a.dlt).slice(0,5);
-    const decl = [...swings].sort((a,b)=>a.dlt-b.dlt).slice(0,5);
+    // Build per-client monthly arrays from revenue-classified transactions
+    const clientMonthly = {};
+    (allTxns || []).forEach(t => {
+      if (t.group !== 'revenue') return;
+      const monthIdx = agg.monthIsoList.indexOf(t.monthIso);
+      if (monthIdx < 0) return;
+      const client = (t.vendor && t.vendor !== '(unknown)') ? t.vendor : '(unknown client)';
+      if (!clientMonthly[client]) clientMonthly[client] = new Array(L.length).fill(0);
+      clientMonthly[client][monthIdx] += Math.abs(t.amount);
+    });
+    const swings = Object.entries(clientMonthly).map(([name, vals]) => ({
+      name,
+      cur:  vals[lastAct] || 0,
+      prev: vals[prev]    || 0,
+      dlt:  (vals[lastAct] || 0) - (vals[prev] || 0),
+      pct:  vals[prev] ? ((vals[lastAct] - vals[prev]) / vals[prev]) * 100 : (vals[lastAct] > 0 ? 100 : 0),
+    })).filter(s => s.cur > 0 || s.prev > 0);
+    const grow = [...swings].sort((a,b)=>b.dlt-a.dlt).slice(0,6);
+    const decl = [...swings].sort((a,b)=>a.dlt-b.dlt).slice(0,6).filter(s => s.dlt < 0);
     const renderMover = m => `
       <div class="mover-row">
-        <div><div class="name">${m.name}</div><div class="meta">${fmtFullCur(m.prev)} → ${fmtFullCur(m.cur)}</div></div>
+        <div><div class="name" title="${m.name}">${m.name.length>34?m.name.slice(0,33)+'…':m.name}</div><div class="meta">${fmtFullCur(m.prev)} → ${fmtFullCur(m.cur)}</div></div>
         <div class="delta ${m.dlt>=0?'up':'down'}">${m.dlt>=0?'+':''}${fmtCompactCur(m.dlt)} <span class="meta">${m.pct>=0?'+':''}${m.pct.toFixed(0)}%</span></div>
       </div>`;
-    if ($('topGrowers'))   $('topGrowers').innerHTML   = grow.map(renderMover).join('');
-    if ($('topDecliners')) $('topDecliners').innerHTML = decl.map(renderMover).join('');
-    // Update mover card subtitles
+    if ($('topGrowers'))   $('topGrowers').innerHTML   = grow.length ? grow.map(renderMover).join('') : '<div class="mover-row"><div class="meta">No revenue movements detected.</div></div>';
+    if ($('topDecliners')) $('topDecliners').innerHTML = decl.length ? decl.map(renderMover).join('') : '<div class="mover-row"><div class="meta">No declines this period.</div></div>';
     document.querySelectorAll('#tab-revenue .grid-2 .shell .sub').forEach(s => {
-      s.textContent = `Comparing ${L[lastAct]} vs ${L[prev]} · by service line`;
+      s.textContent = `Comparing ${L[lastAct]} vs ${L[prev]} · by client`;
     });
   }
 
@@ -3208,23 +3316,30 @@ function applyTxnRevenue(agg, fin) {
 }
 
 /* ───── Expenses tab — vendor × category × month matrix ────────────── */
-function applyTxnExpenses(agg, fin) {
+function applyTxnExpenses(agg, fin, allTxns) {
   if (!agg) return false;
   const L = fin.labels;
   const lastAct = fin.lastAct;
 
-  // Expense vendors = vendors whose dominant account is in cogs/opex/other
-  const vendorRows = [];
-  Object.keys(agg.byVendor).forEach(v => {
-    const cat = agg.vendorCategory[v];
-    const grp = agg.accountToGroup[cat];
-    if (!cat || grp === 'revenue') return;
-    const vals = agg.byVendor[v].slice(0, L.length);
-    const total = vals.reduce((x,y)=>x+y,0);
-    if (total <= 0) return;
-    vendorRows.push({ name:v, category:cat, type: grp === 'cogs' ? 'COGS' : 'OpEx', vals, total });
+  // One row per (vendor, category) — matches the reference dashboard.
+  // Aggregate by vendor+account using the transactions list directly.
+  const pairs = {};
+  (allTxns || []).forEach(t => {
+    if (t.group === 'revenue') return;
+    const idx = agg.monthIsoList.indexOf(t.monthIso);
+    if (idx < 0) return;
+    const v = (t.vendor && t.vendor !== '(unknown)') ? t.vendor : '(unknown)';
+    const c = t.account || '(uncategorized)';
+    const key = v + '||' + c;
+    if (!pairs[key]) pairs[key] = { name:v, category:c, group:t.group, vals: new Array(L.length).fill(0) };
+    pairs[key].vals[idx] += Math.abs(t.amount);
   });
-  vendorRows.sort((a,b) => b.total - a.total);
+  const vendorRows = Object.values(pairs).map(r => ({
+    ...r,
+    type: r.group === 'cogs' ? 'COGS' : r.group === 'opex' ? 'OpEx' : 'Other',
+    total: r.vals.reduce((a,b)=>a+b,0),
+  })).filter(r => r.total > 0)
+    .sort((a,b) => b.total - a.total);
 
   if (!vendorRows.length) return false;
 
@@ -3278,11 +3393,33 @@ function applyTxnExpenses(agg, fin) {
     const sub = typeCards[0].querySelector('.sub'); if (sub) sub.textContent = `COGS · OpEx · Other · ${L[lastAct]}`;
   }
 
-  // Vendor × Category × Month matrix
-  const vrows = $('vendorRows');
-  if (vrows) {
-    const maxCell = Math.max(1, ...vendorRows.flatMap(r => r.vals));
-    vrows.innerHTML = vendorRows.slice(0, 60).map(v => {
+  // Vendor × Category × Month matrix — with filters + sticky totals
+  const head = $('vendorMatrixHead');
+  const body = $('vendorRows');
+  const foot = $('vendorMatrixFoot');
+  if (head) {
+    head.innerHTML = `<tr>
+      <th class="sticky-left">Vendor</th>
+      <th>Category</th>
+      <th class="num">Total (range)</th>
+      ${L.map((m,i)=>`<th class="num ${i>=fin.fcstFrom?'fcst':''}">${m}</th>`).join('')}
+    </tr>`;
+  }
+  const grandExp = vendorRows.reduce((a,r)=>a+r.total,0);
+  const monthTotalsAll = L.map((_,i) => vendorRows.reduce((a,r)=>a+r.vals[i],0));
+
+  // Populate category dropdown
+  const catSel = $('vendorCatFilter');
+  if (catSel) {
+    const cats = [...new Set(vendorRows.map(r => r.category))].sort();
+    catSel.innerHTML = '<option value="">All Categories</option>' +
+      cats.map(c => `<option value="${c.replace(/"/g,'&quot;')}">${c}</option>`).join('');
+  }
+
+  const renderMatrix = (filtered) => {
+    if (!body) return;
+    const maxCell = Math.max(1, ...filtered.flatMap(r => r.vals));
+    body.innerHTML = filtered.map(v => {
       const cells = v.vals.map((x,i) => {
         const pct = Math.round(x/maxCell*100);
         const fcst = i >= fin.fcstFrom;
@@ -3292,25 +3429,108 @@ function applyTxnExpenses(agg, fin) {
           <div class="v">${x===0?'—':fmtCompactCur(x)}</div>
         </td>`;
       }).join('');
-      const typePill = v.type === 'COGS' ? 'pill danger' : 'pill warn';
       return `<tr>
         <td class="sticky-left truncate" title="${v.name}">${v.name}</td>
         <td>${v.category}</td>
-        <td><span class="${typePill}">${v.type}</span></td>
-        ${cells}
         <td class="num"><b>${fmtCompactCur(v.total)}</b></td>
+        ${cells}
       </tr>`;
     }).join('');
-  }
+    if (foot) {
+      const monthTotalsFiltered = L.map((_,i) => filtered.reduce((a,r)=>a+r.vals[i],0));
+      const grand = filtered.reduce((a,r)=>a+r.total,0);
+      foot.innerHTML = `<tr class="total">
+        <td class="sticky-left">Total</td>
+        <td>—</td>
+        <td class="num"><b>${fmtCompactCur(grand)}</b></td>
+        ${monthTotalsFiltered.map((v,i) => `<td class="num ${i>=fin.fcstFrom?'fcst':''}"><b>${fmtCompactCur(v)}</b></td>`).join('')}
+      </tr>`;
+    }
+    const count = $('vendorMatrixCount');
+    if (count) {
+      const distinct = new Set(filtered.map(r => r.name)).size;
+      count.textContent = `${distinct.toLocaleString()} vendors · range total ${fmtCompactCur(filtered.reduce((a,r)=>a+r.total,0))}`;
+    }
+  };
+  renderMatrix(vendorRows);
 
-  // Update toolbar count
-  const grandExp = vendorRows.reduce((a,r)=>a+r.total,0);
-  const right = document.querySelector('#tab-expenses .table-toolbar .right');
-  if (right) right.textContent = `${vendorRows.length} vendors · grand total ${fmtCompactCur(grandExp)}`;
+  // Wire filters
+  const applyFilters = () => {
+    const cat = catSel ? catSel.value : '';
+    const q = ($('vendorSearch')?.value || '').toLowerCase().trim();
+    let f = vendorRows;
+    if (cat) f = f.filter(r => r.category === cat);
+    if (q)   f = f.filter(r => r.name.toLowerCase().includes(q) || r.category.toLowerCase().includes(q));
+    renderMatrix(f);
+  };
+  if (catSel) { catSel.onchange = applyFilters; }
+  const search = $('vendorSearch');
+  if (search)  { search.oninput = applyFilters; }
 
   // Subline
   const sub = document.querySelector('#tab-expenses .subline');
   if (sub) sub.innerHTML = `${L[lastAct]} · live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Transactions Database`;
+  return true;
+}
+
+/* ───── Expense Transactions — full ledger panel ────────────────────── */
+function applyExpenseTransactions(agg, fin, allTxns) {
+  if (!allTxns || !allTxns.length) return false;
+  const expenses = allTxns
+    .filter(t => t.group !== 'revenue')
+    .slice()
+    .sort((a,b) => a.date - b.date);
+  if (!expenses.length) return false;
+
+  // Date range for subtitle
+  const firstD = expenses[0].date;
+  const lastD = expenses[expenses.length-1].date;
+  const fmtMY = d => d.toLocaleDateString('en-US',{month:'short',year:'numeric'});
+  const subEl = $('expTxnSub');
+  if (subEl) subEl.textContent = `Full ledger — ${fmtMY(firstD)} to ${fmtMY(lastD)}`;
+
+  // Populate category dropdown
+  const catSel = $('expTxnCatFilter');
+  if (catSel) {
+    const cats = [...new Set(expenses.map(t => t.account))].sort();
+    catSel.innerHTML = '<option value="">All Categories</option>' +
+      cats.map(c => `<option value="${c.replace(/"/g,'&quot;')}">${c}</option>`).join('');
+  }
+
+  const rowsEl = $('expTxnRows');
+  const countEl = $('expTxnCount');
+  const MAX = 1000; // render cap to keep DOM responsive — show count of full result
+  const renderTxns = (list) => {
+    if (!rowsEl) return;
+    const slice = list.slice(0, MAX);
+    rowsEl.innerHTML = slice.map(t => {
+      const d = t.date.toLocaleDateString('en-US', {month:'short', day:'2-digit', year:'numeric'});
+      return `<tr>
+        <td class="sticky-left">${d}</td>
+        <td>${t.vendor}</td>
+        <td><span class="cat-pill">${t.account}</span></td>
+        <td class="num amount-red">${fmtCompactCur(Math.abs(t.amount))}</td>
+      </tr>`;
+    }).join('');
+    if (countEl) {
+      countEl.textContent = `${list.length.toLocaleString()} transactions${list.length > MAX ? ` · showing first ${MAX}` : ''}`;
+    }
+  };
+  renderTxns(expenses);
+
+  // Wire filters
+  const filterTxns = () => {
+    const cat = catSel ? catSel.value : '';
+    const q = ($('expTxnSearch')?.value || '').toLowerCase().trim();
+    let f = expenses;
+    if (cat) f = f.filter(t => t.account === cat);
+    if (q)   f = f.filter(t => t.vendor.toLowerCase().includes(q) || t.account.toLowerCase().includes(q));
+    renderTxns(f);
+  };
+  if (catSel) catSel.onchange = filterTxns;
+  const search = $('expTxnSearch');
+  if (search) search.oninput = filterTxns;
+
   return true;
 }
 
@@ -3423,6 +3643,19 @@ async function loadOtherLive(tabs) {
     } catch(e) { console.warn(`Team Profit (${tpTab}) failed:`, e.message); }
   }
 
+  // CoA — load before Transactions so classifier uses it
+  const coaTab = tabs.find(t => /^\s*coa\s*$/i.test(t))
+              || tabs.find(t => /chart.?of.?accounts/i.test(t));
+  if (coaTab) {
+    try {
+      const rows = await sheetsGet(`${coaTab}!A1:Z500`);
+      coaMap = parseCoA(rows);
+      console.log(`📊 ${coaTab}: ${coaMap ? Object.keys(coaMap).length : 0} account mappings loaded`);
+    } catch(e) {
+      console.warn(`CoA parse failed:`, e.message);
+    }
+  }
+
   // Transactions Database — feeds Revenue / Expenses / P&L drilldown
   status.Revenue  = status.Revenue  || 'demo';
   status.Expenses = status.Expenses || 'demo';
@@ -3431,15 +3664,16 @@ async function loadOtherLive(tabs) {
               || tabs.find(t => /transaction/i.test(t));
   if (txnTab) {
     try {
-      const rows = await sheetsGet(`${txnTab}!A1:Z10000`);
+      const rows = await sheetsGet(`${txnTab}!A1:Z20000`);
       const txns = parseTransactions(rows);
       console.log(`📊 ${txnTab}: parsed ${txns ? txns.length : 0} transactions`);
       if (txns && txns.length) {
         const agg = aggregateTxns(txns, fin.labels);
-        console.log(`📊 Aggregated: ${Object.keys(agg.byAccount).length} accounts, ${Object.keys(agg.byVendor).length} vendors, ${Object.keys(agg.byClass).length} classes`);
-        if (applyTxnRevenue(agg, fin))      status.Revenue  = 'live (txns)';
-        if (applyTxnExpenses(agg, fin))     status.Expenses = 'live (txns)';
-        if (applyTxnPLDrilldown(agg, fin))  console.log('📊 P&L drilldown rebuilt from Transactions');
+        console.log(`📊 Aggregated: ${Object.keys(agg.byAccount).length} accounts (${(agg.accountsByGroup.revenue||[]).length} rev / ${(agg.accountsByGroup.cogs||[]).length} cogs / ${(agg.accountsByGroup.opex||[]).length} opex / ${(agg.accountsByGroup.other||[]).length} other), ${Object.keys(agg.byVendor).length} vendors, ${Object.keys(agg.byClass).length} classes`);
+        if (applyTxnRevenue(agg, fin, txns))   status.Revenue  = 'live (txns)';
+        if (applyTxnExpenses(agg, fin, txns))  status.Expenses = 'live (txns)';
+        if (applyTxnPLDrilldown(agg, fin))     console.log('📊 P&L drilldown rebuilt from Transactions');
+        if (applyExpenseTransactions(agg, fin, txns)) console.log('📊 Expense Transactions ledger rendered');
       }
     } catch(e) {
       console.warn(`Transactions parse failed:`, e.message);
