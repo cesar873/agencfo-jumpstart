@@ -2782,10 +2782,65 @@ function applyLiveClients(parsed) {
   // Rebuild Clients charts
   Chart.getChart('clientProfitChart')?.destroy();
   Chart.getChart('clientMarginChart')?.destroy();
-  hbar('clientProfitChart',
-    sorted.map(c => c.name),
-    sorted.map(c => c.profit),
-    '#1390eb', { thickness: 14 });
+
+  // Top-N + rolled-up Other so the chart doesn't drown when there are
+  // many clients. Sized to fit cleanly with one row per client.
+  const TOP_N = 15;
+  let plotted = sorted.slice(0, TOP_N);
+  if (sorted.length > TOP_N) {
+    const tail = sorted.slice(TOP_N);
+    const otherProfit = tail.reduce((a,c) => a + c.profit, 0);
+    if (otherProfit !== 0) {
+      plotted = plotted.concat([{ name: `Other (${tail.length} clients)`, profit: otherProfit }]);
+    }
+  }
+  const profitCanvas = $('clientProfitChart');
+  const profitWrap = profitCanvas ? profitCanvas.parentElement : null;
+  if (profitWrap && profitWrap.classList.contains('chart-wrap')) {
+    profitWrap.style.height = Math.max(280, plotted.length * 32 + 30) + 'px';
+  }
+  new Chart(profitCanvas, {
+    type:'bar',
+    data:{
+      labels: plotted.map(c => c.name),
+      datasets:[{
+        data: plotted.map(c => c.profit),
+        backgroundColor: plotted.map(c => c.profit < 0 ? 'rgba(248,113,113,0.85)' : 'rgba(19,144,235,0.85)'),
+        borderRadius:3,
+        barThickness:18,
+      }]
+    },
+    plugins:[ChartDataLabels],
+    options:{
+      indexAxis:'y',
+      responsive:true, maintainAspectRatio:false,
+      layout:{padding:{top:6,right:90,bottom:6,left:6}},
+      plugins:{
+        legend:{display:false},
+        tooltip:{...TOOLTIP, callbacks:{ label: ctx => ` ${ctx.label}: ${fmtFullCur(ctx.raw)}` }},
+        datalabels:{
+          anchor:'end', align:'right', offset:6,
+          color:'rgba(255,255,255,.92)',
+          font:{size:12, weight:'600'},
+          formatter:v=>fmtCompactCur(v)
+        }
+      },
+      scales:{
+        x:{ grid:{color:'rgba(120,120,120,.10)',drawBorder:false},
+            ticks:{font:{size:11},color:'rgba(255,255,255,.55)',callback:v=>fmtCompactCur(v)} },
+        y:{ grid:{display:false},
+            ticks:{
+              font:{size:12, weight:'500'},
+              color:'rgba(255,255,255,.9)',
+              autoSkip:false,
+              callback: function(value){
+                const lbl = this.getLabelForValue(value);
+                return lbl && lbl.length > 28 ? lbl.slice(0,27) + '…' : lbl;
+              }
+            } }
+      }
+    }
+  });
   new Chart($('clientMarginChart'), {
     type:'bar',
     data:{ labels: sorted.map(c => c.name), datasets:[{
