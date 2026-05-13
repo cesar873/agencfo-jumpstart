@@ -4719,12 +4719,15 @@ function applyBudgetVsActual(budget, fin, monthIdx) {
     return sectionRow + lineRows + totRow;
   }).join('');
 
-  $('bvaRows').innerHTML = rowsHTML;
-  $('bvaMonth').textContent = monthLbl;
+  const rowsEl = $('bvaRows');
+  if (rowsEl) rowsEl.innerHTML = rowsHTML;
+  const monthEl = $('bvaMonth');
+  if (monthEl) monthEl.textContent = monthLbl;
   const subl = $('bvaSubline');
-  if (subl) subl.textContent = `${monthLbl} · single-month comparison · ordered Revenue → COGS → Expenses`;
+  if (subl) subl.textContent = `${monthLbl} · single-month comparison · ordered Revenue → COGS → Expenses · click the Period chip above to switch months`;
   const totalLines = sections.reduce((a,s)=>a + s.lines.length, 0);
-  $('bvaTotalsHint').textContent = `${totalLines} line items across ${sections.length} sections`;
+  const hintEl = $('bvaTotalsHint');
+  if (hintEl) hintEl.textContent = `${totalLines} line items across ${sections.length} sections`;
 
   // Keep reference so the Period chip can re-render.
   window._bvaState = { budget, fin };
