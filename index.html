@@ -938,9 +938,9 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
         <div class="kpi-delta"><span class="d up">▲ +6.4%</span><span class="ctx">vs Feb 2026</span></div>
       </div>
       <div class="kpi">
-        <div class="kpi-label">Active Service Lines</div>
-        <div class="kpi-value">5</div>
-        <div class="kpi-delta"><span class="ctx">SEO · Growth · Reporting · Stripe · Other</span></div>
+        <div class="kpi-label">% Recurring</div>
+        <div class="kpi-value">—</div>
+        <div class="kpi-delta"><span class="ctx">Ads management vs project income</span></div>
       </div>
       <div class="kpi">
         <div class="kpi-label">Largest Line</div>
@@ -953,9 +953,9 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
         <div class="kpi-delta"><span class="ctx">Oct '25 → Mar '26</span></div>
       </div>
       <div class="kpi">
-        <div class="kpi-label">Top-3 Concentration</div>
-        <div class="kpi-value warning">82%</div>
-        <div class="kpi-delta"><span class="d flat">▲ +1pp vs Feb</span><span class="ctx">SEO + Growth + Reporting</span></div>
+        <div class="kpi-label">Client Concentration</div>
+        <div class="kpi-value">—</div>
+        <div class="kpi-delta"><span class="ctx">Top-3 clients' share of revenue</span></div>
       </div>
     </div>
   </section>
@@ -3322,8 +3322,47 @@ function applyLiveServiceLineCards(parsed, fin) {
 
   window._live = window._live || {};
   window._live.svcCards = cards;
+  window._live.svcParsed = parsed;
   try { renderServiceLineCards(); } catch(e) {}
   return true;
+}
+
+/* Classify a Finance-Model revenue line as recurring (paid-ads management
+   retainers) vs project income. Matches "...Ads Management" / "...Video
+   Editing Management" — but explicitly excludes anything tagged Project
+   so "GoHighLevel Projects" lands in the project bucket. */
+function isRecurringRevenueLine(name) {
+  if (!name) return false;
+  const n = name.toLowerCase();
+  if (/refund|discount/.test(n)) return null; // exclude from numerator and denominator
+  if (/project/.test(n)) return false;
+  if (/management$|management\s*$/.test(n)) return true;
+  if (/retainer|maintenance|monthly|unlimited/.test(n)) return true;
+  return false;
+}
+
+/* Top-3 client concentration for the last actual month, from the Services
+   tab. Returns { share: pct, names: [..] } or null when no data. */
+function topClientConcentration(svcParsed, fin) {
+  if (!svcParsed || !svcParsed.records || !svcParsed.records.length) return null;
+  if (!fin || !fin.labels) return null;
+  const lastAct = fin.lastAct;
+  const lastLabel = fin.labels[lastAct];
+  const norm = s => String(s).replace(/\s+/g,'').toLowerCase();
+  const pi = svcParsed.monthCols.findIndex(m => norm(m.label) === norm(lastLabel));
+  if (pi < 0) return null;
+  const byClient = {};
+  svcParsed.records.forEach(r => {
+    const v = r.monthly[pi] || 0;
+    if (v <= 0) return;
+    byClient[r.client] = (byClient[r.client] || 0) + v;
+  });
+  const total = Object.values(byClient).reduce((a,b) => a + b, 0);
+  if (total <= 0) return null;
+  const sorted = Object.entries(byClient).sort((a,b) => b[1] - a[1]);
+  const top3 = sorted.slice(0, 3);
+  const top3Sum = top3.reduce((a,[,v]) => a + v, 0);
+  return { share: top3Sum / total * 100, names: top3.map(([k]) => k), total };
 }
 
 function applyLiveAnalytics(parsed, fin) {
@@ -4314,20 +4353,38 @@ function applyTxnRevenue(agg, fin, allTxns) {
   const kpis = document.querySelectorAll('#tab-revenue .kpi .kpi-value');
   const ctxs = document.querySelectorAll('#tab-revenue .kpi .kpi-delta');
   if (kpis.length >= 5 && accountTotals.length) {
+    const lastSum = accountTotals.reduce((a,b)=>a+b.last,0);
     const largest = accountTotals[0];
-    const largestShare = grandTotal ? largest.last / accountTotals.reduce((a,b)=>a+b.last,0) * 100 : 0;
-    kpis[1].textContent = String(revAccounts.length);
-    ctxs[1].innerHTML = `<span class="ctx">${revAccounts.slice(0,4).join(' · ')}${revAccounts.length>4?' · …':''}</span>`;
-    // Largest line
+    const largestShare = lastSum ? largest.last / lastSum * 100 : 0;
+    // KPI 2 — % Recurring
+    let recur = 0, project = 0;
+    accountTotals.forEach(a => {
+      const k = isRecurringRevenueLine(a.name);
+      if (k === null) return;
+      if (k) recur += a.last; else project += a.last;
+    });
+    const recurDenom = recur + project;
+    const recurShare = recurDenom ? recur / recurDenom * 100 : 0;
+    kpis[1].textContent = recurDenom ? recurShare.toFixed(0) + '%' : '—';
+    kpis[1].className   = 'kpi-value ' + (recurShare>=80?'success':recurShare>=60?'warning':'danger');
+    ctxs[1].innerHTML   = recurDenom
+      ? `<span class="ctx">${fmtCompactCur(recur)} recurring · ${fmtCompactCur(project)} project</span>`
+      : `<span class="ctx">No revenue lines classified</span>`;
+    // KPI 3 — Largest Line
     kpis[2].textContent = largest.name.length > 18 ? largest.name.slice(0,17)+'…' : largest.name;
     kpis[2].title = largest.name;
     ctxs[2].innerHTML = `<span class="d up">${fmtCompactCur(largest.last)} · ${largestShare.toFixed(0)}% share</span>`;
-    // Concentration
-    const top3Last = accountTotals.slice(0,3).reduce((a,b)=>a+b.last,0);
-    const top3LastShare = grandTotal ? top3Last / accountTotals.reduce((a,b)=>a+b.last,0) * 100 : 0;
-    kpis[4].textContent = top3LastShare.toFixed(0) + '%';
-    kpis[4].className = 'kpi-value ' + (top3LastShare<=50?'success':top3LastShare<=70?'warning':'danger');
-    ctxs[4].innerHTML = `<span class="ctx">${accountTotals.slice(0,3).map(a=>a.name).join(' + ')}</span>`;
+    // KPI 5 — Client Concentration (top-3 clients, from Services tab)
+    const conc = topClientConcentration(window._live && window._live.svcParsed, fin);
+    if (conc) {
+      kpis[4].textContent = conc.share.toFixed(0) + '%';
+      kpis[4].className   = 'kpi-value ' + (conc.share<=40?'success':conc.share<=60?'warning':'danger');
+      ctxs[4].innerHTML   = `<span class="ctx">${conc.names.join(' + ')}</span>`;
+    } else {
+      kpis[4].textContent = '—';
+      kpis[4].className   = 'kpi-value';
+      ctxs[4].innerHTML   = `<span class="ctx">Services tab unavailable</span>`;
+    }
   }
 
   // Stacked chart per service line
@@ -4775,21 +4832,39 @@ function applyFinSubRowsRevenue(fin) {
   const kpis = document.querySelectorAll('#tab-revenue .kpi .kpi-value');
   const ctxs = document.querySelectorAll('#tab-revenue .kpi .kpi-delta');
   if (kpis.length >= 5) {
-    // KPI 2 — Active Service Lines
-    kpis[1].textContent = String(lines.length);
-    ctxs[1].innerHTML = `<span class="ctx">${lines.slice(0,4).map(l=>l.name).join(' · ')}${lines.length>4?' · …':''}</span>`;
+    // KPI 2 — % Recurring (paid-ads management retainers vs project income).
+    let recur = 0, project = 0;
+    const recurNames = [], projectNames = [];
+    lines.forEach(l => {
+      const k = isRecurringRevenueLine(l.name);
+      if (k === null) return; // refunds/discounts excluded
+      if (k) { recur += l.last; recurNames.push(l.name); }
+      else   { project += l.last; projectNames.push(l.name); }
+    });
+    const recurDenom = recur + project;
+    const recurShare = recurDenom ? recur / recurDenom * 100 : 0;
+    kpis[1].textContent = recurDenom ? recurShare.toFixed(0) + '%' : '—';
+    kpis[1].className   = 'kpi-value ' + (recurShare>=80?'success':recurShare>=60?'warning':'danger');
+    ctxs[1].innerHTML   = recurDenom
+      ? `<span class="ctx">${fmtCompactCur(recur)} recurring · ${fmtCompactCur(project)} project</span>`
+      : `<span class="ctx">No revenue lines classified</span>`;
     // KPI 3 — Largest Line
     const largest = lines[0];
     const largestShare = grandLastAct ? largest.last / grandLastAct * 100 : 0;
     kpis[2].textContent = largest.name.length > 22 ? largest.name.slice(0,21)+'…' : largest.name;
     kpis[2].title = largest.name;
     ctxs[2].innerHTML = `<span class="d up">${fmtCompactCur(largest.last)} · ${largestShare.toFixed(0)}% share</span>`;
-    // KPI 5 — Top-3 Concentration (share of last actual month)
-    const top3Last = lines.slice(0,3).reduce((a,l)=>a+l.last,0);
-    const top3Share = grandLastAct ? top3Last / grandLastAct * 100 : 0;
-    kpis[4].textContent = top3Share.toFixed(0) + '%';
-    kpis[4].className = 'kpi-value ' + (top3Share<=50?'success':top3Share<=70?'warning':'danger');
-    ctxs[4].innerHTML = `<span class="ctx">${lines.slice(0,3).map(l=>l.name).join(' + ')}</span>`;
+    // KPI 5 — Client Concentration (top-3 clients' share, from Services tab).
+    const conc = topClientConcentration(window._live && window._live.svcParsed, fin);
+    if (conc) {
+      kpis[4].textContent = conc.share.toFixed(0) + '%';
+      kpis[4].className   = 'kpi-value ' + (conc.share<=40?'success':conc.share<=60?'warning':'danger');
+      ctxs[4].innerHTML   = `<span class="ctx">${conc.names.join(' + ')}</span>`;
+    } else {
+      kpis[4].textContent = '—';
+      kpis[4].className   = 'kpi-value';
+      ctxs[4].innerHTML   = `<span class="ctx">Services tab unavailable</span>`;
+    }
   }
 
   // Stacked chart per service line — Finance Model values
