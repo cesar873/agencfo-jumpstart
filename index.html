@@ -1241,41 +1241,7 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   </section>
 
   <section class="section">
-    <div class="grid-3">
-      <div class="svc-card">
-        <h3>SEO</h3>
-        <div class="svc-stats">
-          <div class="svc-stat"><div class="l">Revenue · Mar</div><div class="v">$38.0K</div></div>
-          <div class="svc-stat"><div class="l">Margin</div><div class="v ok">58%</div></div>
-          <div class="svc-stat"><div class="l">NRR</div><div class="v ok">112%</div></div>
-          <div class="svc-stat"><div class="l">Churn</div><div class="v">0%</div></div>
-          <div class="svc-stat"><div class="l">Avg Invoice</div><div class="v">$3.8K</div></div>
-          <div class="svc-stat"><div class="l">Active</div><div class="v">10</div></div>
-        </div>
-      </div>
-      <div class="svc-card">
-        <h3>Growth Marketing</h3>
-        <div class="svc-stats">
-          <div class="svc-stat"><div class="l">Revenue · Mar</div><div class="v">$34.0K</div></div>
-          <div class="svc-stat"><div class="l">Margin</div><div class="v ok">52%</div></div>
-          <div class="svc-stat"><div class="l">NRR</div><div class="v ok">108%</div></div>
-          <div class="svc-stat"><div class="l">Churn</div><div class="v">1.2%</div></div>
-          <div class="svc-stat"><div class="l">Avg Invoice</div><div class="v">$4.2K</div></div>
-          <div class="svc-stat"><div class="l">Active</div><div class="v">8</div></div>
-        </div>
-      </div>
-      <div class="svc-card">
-        <h3>Reporting / Analytics</h3>
-        <div class="svc-stats">
-          <div class="svc-stat"><div class="l">Revenue · Mar</div><div class="v">$22.0K</div></div>
-          <div class="svc-stat"><div class="l">Margin</div><div class="v ok">53%</div></div>
-          <div class="svc-stat"><div class="l">NRR</div><div class="v">102%</div></div>
-          <div class="svc-stat"><div class="l">Churn</div><div class="v">0%</div></div>
-          <div class="svc-stat"><div class="l">Avg Invoice</div><div class="v">$2.4K</div></div>
-          <div class="svc-stat"><div class="l">Active</div><div class="v">9</div></div>
-        </div>
-      </div>
-    </div>
+    <div class="grid-3" id="svcCardsGrid"></div>
   </section>
 
   <p class="page-footer">Live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Metrics · cached 5 minutes</p>
@@ -1554,6 +1520,30 @@ const D = {
   lost:       [0, 1, 1, 0, 0, 0, 1],
   totalCl:    [9, 9, 8, 10, 11, 12, 13],
   util:       [60, 63, 65, 68, 68, 72, 74],
+  // per-service KPIs (monthly, aligned with LABELS)
+  svc: {
+    seo: {
+      margin: [54, 55, 55, 56, 57, 58, 58],
+      nrr:    [108, 109, 109, 110, 111, 112, 112],
+      churn:  [1.5, 1.2, 1.0, 0.8, 0.4, 0, 0],
+      avgInv: [3500, 3550, 3600, 3650, 3700, 3800, 3900],
+      active: [8, 8, 8, 9, 9, 10, 10],
+    },
+    growth: {
+      margin: [48, 49, 50, 50, 51, 52, 52],
+      nrr:    [104, 105, 106, 106, 107, 108, 108],
+      churn:  [2.0, 1.8, 1.5, 1.5, 1.3, 1.2, 1.0],
+      avgInv: [4000, 4050, 4100, 4100, 4150, 4200, 4200],
+      active: [6, 6, 7, 7, 8, 8, 9],
+    },
+    reporting: {
+      margin: [50, 51, 51, 52, 52, 53, 53],
+      nrr:    [98, 99, 100, 101, 102, 102, 103],
+      churn:  [2.5, 2.0, 1.5, 1.0, 0.5, 0, 0],
+      avgInv: [2200, 2250, 2300, 2350, 2400, 2400, 2450],
+      active: [7, 7, 8, 8, 9, 9, 9],
+    },
+  },
 };
 
 /* Financials tab — live-overridable when Sheets data arrives. Other tabs keep using D + LABELS as demo. */
@@ -2463,6 +2453,77 @@ function openPeriodPicker(evt) {
   );
 }
 
+/* Service-line snapshot cards — Analytics tab. Three KPIs per service. */
+const SVC_CARDS = [
+  { key:'seo',       name:'SEO' },
+  { key:'growth',    name:'Growth Marketing' },
+  { key:'reporting', name:'Reporting / Analytics' },
+];
+function renderServiceLineCards(idx) {
+  const grid = $('svcCardsGrid');
+  if (!grid) return;
+
+  const liveFin = window._live && window._live.fin;
+  const labels  = (liveFin && liveFin.labels && liveFin.labels.length) ? liveFin.labels : LABELS;
+  const fallbackIdx = liveFin ? liveFin.lastAct : LAST_ACT;
+  if (idx == null || !isFinite(idx) || idx < 0 || idx >= labels.length) idx = fallbackIdx;
+
+  const selectedLabel = labels[idx] || LABELS[LAST_ACT];
+  const monthLabel    = selectedLabel.split(/\s+/)[0];
+
+  // Live path: top-3 service lines from fin.revenueLines + Services-tab enrichment.
+  const live = window._live && window._live.svcCards;
+  if (live && live.length) {
+    grid.innerHTML = live.map(card => {
+      const s      = (card.stats && card.stats[idx]) || {};
+      const rev    = s.rev || 0;
+      const margin = s.margin;
+      const avgInv = s.avgInv;
+      const act    = s.active;
+      const dash = '<span class="dim">—</span>';
+      return `
+        <div class="svc-card">
+          <h3>${card.name}</h3>
+          <div class="svc-stats">
+            <div class="svc-stat"><div class="l">Revenue · ${monthLabel}</div><div class="v">${rev>0?fmtCompactCur(rev):dash}</div></div>
+            <div class="svc-stat"><div class="l">Margin</div><div class="v ${margin!=null && margin>=50?'ok':''}">${margin!=null?fmtPctWhole(margin):dash}</div></div>
+            <div class="svc-stat"><div class="l">Avg Invoice</div><div class="v">${avgInv!=null && avgInv>0?fmtCompactCur(avgInv):dash}</div></div>
+            <div class="svc-stat"><div class="l">Active</div><div class="v">${act!=null && act>0?act:dash}</div></div>
+          </div>
+        </div>`;
+    }).join('');
+    return;
+  }
+
+  // Demo fallback (still period-aware): map selected month back to demo LABELS index.
+  const norm = s => String(s).replace(/['"\s,]/g,'').toLowerCase();
+  const target = norm(selectedLabel);
+  let demoIdx = LABELS.findIndex(l => norm(l) === target);
+  if (demoIdx < 0) {
+    const monthPrefix = norm(monthLabel);
+    demoIdx = LABELS.findIndex(l => norm(l.split(/\s+/)[0]) === monthPrefix);
+  }
+  if (demoIdx < 0) demoIdx = LAST_ACT;
+
+  grid.innerHTML = SVC_CARDS.map(s => {
+    const stats  = D.svc[s.key];
+    const rev    = D[s.key][demoIdx];
+    const margin = stats.margin[demoIdx];
+    const avgInv = stats.avgInv[demoIdx];
+    const act    = stats.active[demoIdx];
+    return `
+      <div class="svc-card">
+        <h3>${s.name}</h3>
+        <div class="svc-stats">
+          <div class="svc-stat"><div class="l">Revenue · ${monthLabel}</div><div class="v">${fmtCompactCur(rev)}</div></div>
+          <div class="svc-stat"><div class="l">Margin</div><div class="v ${margin>=50?'ok':''}">${fmtPctWhole(margin)}</div></div>
+          <div class="svc-stat"><div class="l">Avg Invoice</div><div class="v">${fmtCompactCur(avgInv)}</div></div>
+          <div class="svc-stat"><div class="l">Active</div><div class="v">${act}</div></div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
 /* Re-run every relevant applier for a new "active month" without
    rebuilding charts that depend on the forecast boundary. The trick:
    fin.lastAct drives the "current month" reads inside the appliers;
@@ -2494,6 +2555,7 @@ function rerenderForMonth(idx) {
     if (s.agg && s.txns) try { applyTxnExpenses(s.agg, s.fin, s.txns); } catch(e) {}
     // Analytics
     if (s.metrics) try { applyLiveAnalytics(s.metrics, s.fin); } catch(e) {}
+    try { renderServiceLineCards(idx); } catch(e) {}
     // Budget vs Actual (uses explicit idx)
     if (s.budget) try { applyBudgetVsActual(s.budget, s.fin, idx); } catch(e) {}
   } finally {
@@ -3183,6 +3245,123 @@ function renderMetricsDiag(parsed, fin) {
   body.innerHTML = ms.map(m => `
     <span class="diag-tag match" title="kind: ${m.kind}"><span class="k">${m.kind}</span><span class="v">${m.header}</span></span>
   `).join('');
+}
+
+/* ── Services tab parser ─────────────────────────────────────────────
+   Each row = one client-service engagement. Columns include Client,
+   Service, Status, Retainer Value, Variable Labour Costs, AM Pay,
+   Referral Costs, plus one column per month ("Jan 2025", "Feb 2025"…)
+   whose value is that engagement's revenue for that month.            */
+function parseServicesTab(rows) {
+  if (!rows || rows.length < 2) return null;
+  const header = (rows[0] || []).map(h => String(h||'').trim());
+  const findCol = name => header.findIndex(h => h.toLowerCase() === name.toLowerCase());
+  const iClient = findCol('Client');
+  const iService = findCol('Service');
+  if (iClient < 0 || iService < 0) return null;
+  const iStatus  = findCol('Status');
+  const iVarLab  = findCol('Variable Labour Costs');
+  const iAMPay   = findCol('AM Pay');
+  const iRef     = findCol('Referral Costs');
+
+  // Detect month columns by header pattern "MMM YYYY".
+  const monthCols = [];
+  for (let c = 0; c < header.length; c++) {
+    if (/^[A-Za-z]{3,9}\s+\d{4}$/.test(header[c])) monthCols.push({ label: header[c], col: c });
+  }
+  if (!monthCols.length) return null;
+
+  // Referral cell can be "15%" (pct of revenue) or "$X" (flat).
+  const parsePctOrFlat = v => {
+    if (v == null || v === '') return { kind:'none', val:0 };
+    const s = String(v).trim();
+    if (s.endsWith('%')) {
+      const n = parseFloat(s.replace(/[%\s]/g,''));
+      return { kind:'pct', val: isFinite(n) ? n/100 : 0 };
+    }
+    return { kind:'flat', val: num(s) };
+  };
+
+  const records = [];
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const client  = String(row[iClient] || '').trim();
+    const service = String(row[iService] || '').trim();
+    if (!client || !service) continue;
+    records.push({
+      client, service,
+      status: String(row[iStatus] || '').trim(),
+      varLab: num(row[iVarLab]),
+      amPay:  num(row[iAMPay]),
+      ref:    parsePctOrFlat(row[iRef]),
+      monthly: monthCols.map(m => num(row[m.col])),
+    });
+  }
+  return { monthCols, records };
+}
+
+/* Build per-service-line snapshot stats for the Analytics cards.
+   Picks the top-3 service lines by latest-actual revenue (from
+   fin.revenueLines, sourced from the Finance Model) and enriches each
+   with active-client count, avg invoice, and margin computed from the
+   Services tab cost columns. Stashes the result on window._live so the
+   period filter can repaint without a refetch. */
+function applyLiveServiceLineCards(parsed, fin) {
+  if (!fin || !fin.revenueLines || !fin.revenueLines.length) return false;
+  const L = fin.labels;
+  const lastAct = fin.lastAct;
+
+  const ranked = fin.revenueLines
+    .map(l => ({ name: l.name, vals: (l.vals || []).slice(0, L.length) }))
+    .filter(l => (l.vals[lastAct] || 0) > 0)
+    .sort((a,b) => (b.vals[lastAct] || 0) - (a.vals[lastAct] || 0))
+    .slice(0, 3);
+  if (!ranked.length) return false;
+
+  // Map fin label → Services-tab month-column index (both are "MMM YYYY").
+  const norm = s => String(s).replace(/\s+/g,'').toLowerCase();
+  const monthMap = L.map(lbl => {
+    if (!parsed || !parsed.monthCols) return -1;
+    return parsed.monthCols.findIndex(m => norm(m.label) === norm(lbl));
+  });
+
+  // Bucket Services records by exact service name (matches Finance Model line names).
+  const byService = {};
+  if (parsed && parsed.records) {
+    parsed.records.forEach(rec => {
+      (byService[rec.service] = byService[rec.service] || []).push(rec);
+    });
+  }
+
+  const cards = ranked.map(line => {
+    const recs = byService[line.name] || [];
+    const stats = L.map((_, fi) => {
+      const rev = line.vals[fi] || 0;
+      const pi = monthMap[fi];
+      if (pi < 0 || !recs.length) {
+        return { rev, active: null, avgInv: null, margin: null };
+      }
+      const activeRecs = recs.filter(r => (r.monthly[pi] || 0) > 0);
+      const activeClients = new Set(activeRecs.map(r => r.client));
+      const activeCount = activeClients.size;
+      const recRev = activeRecs.reduce((a,r) => a + r.monthly[pi], 0);
+      const avgInv = activeCount > 0 ? recRev / activeCount : null;
+      let cost = 0;
+      activeRecs.forEach(r => {
+        const refDollars = r.ref.kind === 'pct'  ? r.monthly[pi] * r.ref.val
+                         : r.ref.kind === 'flat' ? r.ref.val : 0;
+        cost += r.varLab + r.amPay + refDollars;
+      });
+      const margin = recRev > 0 ? (1 - cost / recRev) * 100 : null;
+      return { rev, active: activeCount, avgInv, margin };
+    });
+    return { name: line.name, stats };
+  });
+
+  window._live = window._live || {};
+  window._live.svcCards = cards;
+  try { renderServiceLineCards(); } catch(e) {}
+  return true;
 }
 
 function applyLiveAnalytics(parsed, fin) {
@@ -5343,6 +5522,23 @@ async function loadOtherLive(tabs) {
     console.log(`📊 Revenue service-lines from Finance Model: ${fin.revenueLines.length} lines`);
   }
 
+  // Services tab → Analytics service-line snapshot cards. fin.revenueLines
+  // (from Finance Model) picks the top-3 lines and supplies monthly revenue;
+  // Services rows supply active-client count, avg invoice, and margin.
+  const svcTab = tabs.find(t => /^\s*services?\s*$/i.test(t));
+  let svcParsed = null;
+  if (svcTab) {
+    try {
+      const rows = await sheetsGet(`${svcTab}!A1:BZ2000`);
+      svcParsed = parseServicesTab(rows);
+      if (svcParsed) console.log(`📊 ${svcTab}: ${svcParsed.records.length} engagements · ${svcParsed.monthCols.length} months`);
+      else console.warn(`📊 ${svcTab}: parser returned null — check that row 1 has Client/Service plus "MMM YYYY" month columns`);
+    } catch(e) { console.warn(`Services parse failed:`, e.message); }
+  }
+  if (applyLiveServiceLineCards(svcParsed, fin)) {
+    console.log(`📊 Service-line cards: top-3 lines rendered from live data`);
+  }
+
   // Transactions Database — feeds Revenue / Expenses / P&L drilldown
   status.Revenue  = status.Revenue  || 'demo';
   status.Expenses = status.Expenses || 'demo';
@@ -5436,6 +5632,7 @@ initCharts();
 renderPL();
 renderFinKpis();
 renderFinMeta();
+renderServiceLineCards();
 initLiveData();
 </script>
 </body>
