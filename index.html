@@ -4440,9 +4440,13 @@ function applyTxnRevenue(agg, fin, allTxns) {
     }
   }
 
-  // Stacked chart per service line
-  const PALETTE_BLUE = ['#1390eb','#0284c7','#0ea5e9','#38bdf8','#7dd3fc','#bae6fd','#dbeafe','#e0f2fe'];
-  const series = accountTotals.slice(0, 8).map((a,i) => ({
+  // Stacked chart per service line — top 7 individually + "Other (N)" so
+  // the stack sums to the full per-month revenue, not just the top slice.
+  const PALETTE_BLUE = ['#1390eb','#0284c7','#0ea5e9','#38bdf8','#7dd3fc','#bae6fd','#dbeafe'];
+  const TOP_N_STACK = 7;
+  const topAccounts  = accountTotals.slice(0, TOP_N_STACK);
+  const tailAccounts = accountTotals.slice(TOP_N_STACK);
+  const series = topAccounts.map((a,i) => ({
     label: a.name,
     data: a.vals.slice(0, L.length),
     backgroundColor: ctx => {
@@ -4454,7 +4458,17 @@ function applyTxnRevenue(agg, fin, allTxns) {
     borderRadius: 0,
     datalabels: { display: false },
   }));
-  const monthlyTotals = L.map((_,i) => series.reduce((a,s)=>a+(s.data[i]||0),0));
+  if (tailAccounts.length) {
+    const otherVals = L.map((_,i) => tailAccounts.reduce((a, t) => a + (t.vals[i] || 0), 0));
+    series.push({
+      label: `Other (${tailAccounts.length})`,
+      data: otherVals,
+      backgroundColor: ctx => `rgba(148,163,184,${ctx.dataIndex >= fin.fcstFrom ? 0.42 : 0.88})`,
+      borderRadius: 0,
+      datalabels: { display: false },
+    });
+  }
+  const monthlyTotals = L.map((_,i) => accountTotals.reduce((a,acc)=>a+(acc.vals[i]||0),0));
   series.push({
     type:'line', label:'__total', data: monthlyTotals,
     backgroundColor:'transparent', borderColor:'transparent', pointRadius:0, fill:false,
@@ -4920,9 +4934,15 @@ function applyFinSubRowsRevenue(fin) {
     }
   }
 
-  // Stacked chart per service line — Finance Model values
-  const PALETTE_BLUE = ['#1390eb','#0284c7','#0ea5e9','#38bdf8','#7dd3fc','#bae6fd','#dbeafe','#e0f2fe'];
-  const series = lines.slice(0, 8).map((l,i) => ({
+  // Stacked chart per service line — Finance Model values.
+  // Top 7 individually + roll the rest into "Other (N)" so the stack
+  // sums to the FULL revenue (no missing long tail) and the label above
+  // each bar equals the real monthly total.
+  const PALETTE_BLUE = ['#1390eb','#0284c7','#0ea5e9','#38bdf8','#7dd3fc','#bae6fd','#dbeafe'];
+  const TOP_N_STACK = 7;
+  const topSeries = lines.slice(0, TOP_N_STACK);
+  const tailSeries = lines.slice(TOP_N_STACK);
+  const series = topSeries.map((l,i) => ({
     label: l.name,
     data: l.vals,
     backgroundColor: ctx => {
@@ -4934,7 +4954,21 @@ function applyFinSubRowsRevenue(fin) {
     borderRadius: 0,
     datalabels: { display: false },
   }));
-  const monthlyTotals = L.map((_,i) => series.reduce((a,s)=>a+(s.data[i]||0),0));
+  if (tailSeries.length) {
+    const otherVals = L.map((_,i) => tailSeries.reduce((a,l) => a + (l.vals[i] || 0), 0));
+    series.push({
+      label: `Other (${tailSeries.length})`,
+      data: otherVals,
+      backgroundColor: ctx => {
+        const op = ctx.dataIndex >= fin.fcstFrom ? 0.42 : 0.88;
+        return `rgba(148,163,184,${op})`;
+      },
+      borderRadius: 0,
+      datalabels: { display: false },
+    });
+  }
+  // Total label across every line (including the rolled-up tail).
+  const monthlyTotals = L.map((_,i) => lines.reduce((a,l)=>a+(l.vals[i]||0),0));
   series.push({
     type:'line', label:'__total', data: monthlyTotals,
     backgroundColor:'transparent', borderColor:'transparent', pointRadius:0, fill:false,
