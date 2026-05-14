@@ -1075,7 +1075,7 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   <section class="section tight">
     <div class="kpi-strip">
       <div class="kpi">
-        <div class="kpi-label">Total Expenses · Mar</div>
+        <div class="kpi-label" id="expFirstKpiLabel">Total Expenses</div>
         <div class="kpi-value">$88.0K</div>
         <div class="kpi-delta"><span class="d down">▲ +6.0%</span><span class="ctx">vs Feb 2026</span></div>
       </div>
@@ -4102,6 +4102,7 @@ function applyLiveExpensesFromFin() {
   const kpis = document.querySelectorAll('#tab-expenses .kpi .kpi-value');
   const ctxs = document.querySelectorAll('#tab-expenses .kpi .kpi-delta');
   if (kpis.length >= 5) {
+    const elbl0 = $('expFirstKpiLabel'); if (elbl0) elbl0.textContent = `Total Expenses · ${L[lastAct] || ''}`.trim();
     kpis[0].textContent = fmtCompactCur(totalExp);
     if (prev != null) {
       const totalPrev = cogs[prev] + opex[prev];
