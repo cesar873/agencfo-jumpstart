@@ -5286,7 +5286,9 @@ function parseBudgetLongFormat(rows) {
   // month). We pull them verbatim instead of re-summing line items.
   const GT_REV_RX  = /^\s*total\s+revenue\s*$/i;
   const GT_COGS_RX = /^\s*total\s+cost\s+of\s+sales\s*$|^\s*total\s+cogs\s*$/i;
-  const GT_OPEX_RX = /^\s*total\s+operating\s+expenses?\s*$|^\s*total\s+opex\s*$|^\s*total\s+expenses?\s*$/i;
+  // Operating Expenses ONLY — must explicitly say "operating"/"opex".
+  // Not a bare "Total Expenses" row, which would conflate COGS + OpEx.
+  const GT_OPEX_RX = /^\s*total\s+operating\s+expenses?\s*$|^\s*total\s+opex\s*$/i;
   const groupMap = (g) => {
     const lg = String(g||'').toLowerCase();
     if (/\brevenue\b|\bincome\b|\bsales\b/.test(lg)) return 'revenue';
