@@ -5281,6 +5281,12 @@ function parseBudgetLongFormat(rows) {
   if (cMonth < 0 || cCat < 0 || (cBudget < 0 && cActual < 0)) return null;
 
   const SKIP_RX = /^\s*(total|sub.?total|grand)\b/i;
+  // These "Total X" rows in the Budget tab ARE the authoritative section
+  // grand totals (the user's stated Total Revenue / COGS / OpEx for the
+  // month). We pull them verbatim instead of re-summing line items.
+  const GT_REV_RX  = /^\s*total\s+revenue\s*$/i;
+  const GT_COGS_RX = /^\s*total\s+cost\s+of\s+sales\s*$|^\s*total\s+cogs\s*$/i;
+  const GT_OPEX_RX = /^\s*total\s+operating\s+expenses?\s*$|^\s*total\s+opex\s*$|^\s*total\s+expenses?\s*$/i;
   const groupMap = (g) => {
     const lg = String(g||'').toLowerCase();
     if (/\brevenue\b|\bincome\b|\bsales\b/.test(lg)) return 'revenue';
@@ -5289,7 +5295,7 @@ function parseBudgetLongFormat(rows) {
     return null; // skip Metrics / blanks
   };
 
-  // First pass: collect months + ordered lines per group.
+  // First pass: collect months + ordered lines per group + grand-total rows.
   const monthIsoSet = new Set();
   const monthOrder = [];   // preserve sheet order
   const seenIso = new Set();
@@ -5297,15 +5303,20 @@ function parseBudgetLongFormat(rows) {
   const linesByGroup = { revenue: new Map(), cogs: new Map(), opex: new Map() };
   let orderCounter = 0;
 
+  // Authoritative section totals straight from the Budget tab's
+  // "Total Revenue" / "Total Cost of Sales" / "Total Operating Expenses" rows.
+  const grandTotals = {
+    revenue: { budget: {}, actual: {} },
+    cogs:    { budget: {}, actual: {} },
+    opex:    { budget: {}, actual: {} },
+  };
+
   for (let i = hIdx + 1; i < rows.length; i++) {
     const r = rows[i] || [];
     const monthStr = String(r[cMonth] || '').trim();
     const cat = String(r[cCat] || '').trim();
     if (!monthStr || !cat) continue;
-    if (SKIP_RX.test(cat)) continue;
-    const grpRaw = cGroup >= 0 ? String(r[cGroup] || '').trim() : '';
-    const grp = groupMap(grpRaw);
-    if (!grp) continue;
+
     const d = parseDateLoose(monthStr);
     if (!d) continue;
     const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
@@ -5314,6 +5325,17 @@ function parseBudgetLongFormat(rows) {
 
     const budgetVal = cBudget >= 0 ? num(r[cBudget]) : 0;
     const actualVal = cActual >= 0 ? num(r[cActual]) : 0;
+
+    // Capture authoritative section grand totals BEFORE the generic
+    // SKIP_RX swallows them.
+    if (GT_REV_RX.test(cat))  { grandTotals.revenue.budget[iso] = budgetVal; grandTotals.revenue.actual[iso] = actualVal; continue; }
+    if (GT_COGS_RX.test(cat)) { grandTotals.cogs.budget[iso]    = budgetVal; grandTotals.cogs.actual[iso]    = actualVal; continue; }
+    if (GT_OPEX_RX.test(cat)) { grandTotals.opex.budget[iso]    = budgetVal; grandTotals.opex.actual[iso]    = actualVal; continue; }
+
+    if (SKIP_RX.test(cat)) continue;
+    const grpRaw = cGroup >= 0 ? String(r[cGroup] || '').trim() : '';
+    const grp = groupMap(grpRaw);
+    if (!grp) continue;
 
     const map = linesByGroup[grp];
     let ent = map.get(cat);
@@ -5346,13 +5368,28 @@ function parseBudgetLongFormat(rows) {
   const sumB = lines => months.map((_, i) => lines.reduce((a, l) => a + (l.vals[i]       || 0), 0));
   const sumA = lines => months.map((_, i) => lines.reduce((a, l) => a + (l.actualVals[i] || 0), 0));
 
-  const revenue   = sumB(revenueLines);
-  const cogs      = sumB(cogsLines);
-  const opex      = sumB(opexLines);
-  const grossProf = revenue.map((r,i) => r - cogs[i]);
-  const opProf    = revenue.map((r,i) => r - cogs[i] - opex[i]);
+  // Section totals: prefer the Budget tab's explicit "Total X" rows over
+  // a recomputed sum. Falls back to sum-of-lines when a Total row is
+  // missing for a given month (or entirely).
+  const totalFor = (kind, side) => months.map(iso => {
+    const explicit = grandTotals[kind][side][iso];
+    if (explicit != null) return explicit;
+    // Fallback: re-sum lines for this group on this month.
+    const lines = kind === 'revenue' ? revenueLines : kind === 'cogs' ? cogsLines : opexLines;
+    return lines.reduce((a, l) => a + ((side === 'budget' ? l.vals : l.actualVals)[months.indexOf(iso)] || 0), 0);
+  });
 
-  console.log(`📊 Budget long-format parsed: ${months.length} months · ${revenueLines.length} rev / ${cogsLines.length} cogs / ${opexLines.length} opex line items`);
+  const revenue       = totalFor('revenue','budget');
+  const cogs          = totalFor('cogs','budget');
+  const opex          = totalFor('opex','budget');
+  const actualsRev    = totalFor('revenue','actual');
+  const actualsCogs   = totalFor('cogs','actual');
+  const actualsOpex   = totalFor('opex','actual');
+  const grossProf     = revenue.map((r,i) => r - cogs[i]);
+  const opProf        = revenue.map((r,i) => r - cogs[i] - opex[i]);
+
+  const hasGT = (Object.keys(grandTotals.revenue.actual).length + Object.keys(grandTotals.cogs.actual).length + Object.keys(grandTotals.opex.actual).length) > 0;
+  console.log(`📊 Budget long-format parsed: ${months.length} months · ${revenueLines.length} rev / ${cogsLines.length} cogs / ${opexLines.length} opex line items${hasGT?' · using explicit Total Revenue/COGS/OpEx rows':' · summing lines (no Total rows found)'}`);
   console.log(`   months: ${labels.join(', ')}`);
 
   return {
@@ -5363,11 +5400,13 @@ function parseBudgetLongFormat(rows) {
     opMarg:   revenue.map((r,i)=> r ? opProf[i]/r*100 : 0),
     net: opProf,
     revenueLines, cogsLines, opexLines,
-    // budget tab carries its own actuals — use them directly for line-level comparison
+    // budget tab carries its own actuals — section totals come from the
+    // explicit "Total X" rows (with sum-of-lines fallback). Line-level
+    // actuals still come from each line item's Actual column.
     actuals: {
-      revenue: sumA(revenueLines),
-      cogs:    sumA(cogsLines),
-      opex:    sumA(opexLines),
+      revenue: actualsRev,
+      cogs:    actualsCogs,
+      opex:    actualsOpex,
       revenueLines: revenueLines.map(l => ({ name: l.name, vals: l.actualVals })),
       cogsLines:    cogsLines.map(l => ({ name: l.name, vals: l.actualVals })),
       opexLines:    opexLines.map(l => ({ name: l.name, vals: l.actualVals })),
