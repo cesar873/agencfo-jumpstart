@@ -5817,6 +5817,26 @@ async function loadOtherLive(tabs) {
       const txns = parseTransactions(rows);
       console.log(`📊 ${txnTab}: parsed ${txns ? txns.length : 0} transactions`);
       if (txns && txns.length) {
+        // Reclassify each transaction's group using the Finance Model's
+        // own revenue / cogs / opex line lists — those ARE the user's
+        // source of truth and beat the keyword/CoA heuristic.
+        if (fin) {
+          const norm = s => String(s||'').trim().toLowerCase();
+          const revSet  = new Set((fin.revenueLines || []).map(l => norm(l.name)));
+          const cogsSet = new Set((fin.cogsLines    || []).map(l => norm(l.name)));
+          const opexSet = new Set((fin.opexLines    || []).map(l => norm(l.name)));
+          let changed = 0;
+          txns.forEach(t => {
+            const k = norm(t.account);
+            let g = t.group;
+            if (revSet.has(k))  g = 'revenue';
+            else if (cogsSet.has(k)) g = 'cogs';
+            else if (opexSet.has(k)) g = 'opex';
+            if (g !== t.group) { t.group = g; changed++; }
+          });
+          if (changed) console.log(`📊 Reclassified ${changed} transactions to match Finance Model account groupings`);
+        }
+
         const agg = aggregateTxns(txns, fin.labels);
         window._live.txns = txns;
         window._live.agg = agg;
