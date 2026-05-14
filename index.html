@@ -2668,7 +2668,12 @@ async function loadPL(tab){
   const n = mCols.length;
   const get = label => {
     const i = rows.findIndex(r => r[0] && r[0].toString().toLowerCase().includes(label.toLowerCase()));
-    return i===-1 ? Array(n).fill(0) : rows[i].slice(1, n+1).map(num);
+    if (i === -1) return Array(n).fill(0);
+    const arr = rows[i].slice(1, n+1).map(num);
+    // Pad short rows: e.g. when a fresh month appears in the header but
+    // hasn't been filled into Operating Margin / Net Income yet.
+    while (arr.length < n) arr.push(0);
+    return arr;
   };
   const labels = mCols.map(m=>{
     const p = m.match(/(\w+)\s+(\d{4})/);
