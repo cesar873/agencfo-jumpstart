@@ -2437,6 +2437,17 @@ function showTab(btn) {
   setTimeout(()=>{ for (const id in Chart.instances) Chart.instances[id].resize(); }, 30);
 }
 
+/* Hash-based routing — lets hidden tabs be reached via URL fragment
+   (e.g. /#analytics, /#clients, /#people). The buttons can stay hidden;
+   typing the hash still flips to that panel. */
+function _applyHashTab() {
+  const key = (location.hash || '').replace(/^#/, '').trim().toLowerCase();
+  if (!key) return;
+  const btn = document.querySelector('.tab-btn[data-tab="' + key + '"]');
+  if (btn) showTab(btn);
+}
+window.addEventListener('hashchange', _applyHashTab);
+
 /* ─── Month-grid popover pickers ──────────────────────────────────── */
 let _activePopover = null;
 let _activeBackdrop = null;
@@ -5997,6 +6008,7 @@ renderPL();
 renderFinKpis();
 renderFinMeta();
 renderServiceLineCards();
+_applyHashTab();
 initLiveData();
 </script>
 </body>
