@@ -2216,7 +2216,6 @@ function initCharts() {
        segment:{borderDash:ctx=>ctx.p0DataIndex>=LAST_ACT?[4,4]:undefined}},
       {label:'LTV/CAC', data:D.ratio, yAxisID:'r',
        borderColor:'#22c55e', backgroundColor:'transparent', fill:false, tension:.35, pointRadius:3, borderWidth:2,
-       borderDash: ctx=>undefined,
        segment:{borderDash:ctx=>ctx.p0DataIndex>=LAST_ACT?[4,4]:undefined}},
     ]},
     plugins:[ChartDataLabels],
