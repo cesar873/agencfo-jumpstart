@@ -3938,6 +3938,43 @@ function applyLivePeople(parsed) {
   return true;
 }
 
+/* Shared: write the period-driven Revenue tab KPIs (the first card's
+   value + MoM delta + period-in-label, and the 6-month growth card).
+   Call from every Revenue applier so picking a different Period
+   refreshes them. Returns nothing — it just mutates the DOM. */
+function setRevenuePeriodKpis(fin) {
+  if (!fin || !fin.labels || !fin.revenue) return;
+  const L = fin.labels;
+  const r = fin.revenue;
+  const lastAct = fin.lastAct;
+  if (lastAct < 0 || lastAct >= L.length) return;
+  const kpis = document.querySelectorAll('#tab-revenue .kpi .kpi-value');
+  const ctxs = document.querySelectorAll('#tab-revenue .kpi .kpi-delta');
+  if (kpis.length < 5) return;
+
+  // KPI 0: label + value + MoM delta (always tracks the selected period).
+  const lbl0 = $('revFirstKpiLabel');
+  if (lbl0) lbl0.textContent = `Revenue · ${L[lastAct] || ''}`.trim();
+  kpis[0].textContent = fmtCompactCur(r[lastAct] || 0);
+  const prev = lastAct - 1;
+  const prevVal = prev >= 0 ? (r[prev] || 0) : 0;
+  if (prevVal) {
+    const mom = (r[lastAct] - prevVal) / prevVal * 100;
+    ctxs[0].innerHTML = `<span class="d ${mom>=0?'up':'down'}">${mom>=0?'▲':'▼'} ${mom>=0?'+':''}${mom.toFixed(1)}%</span><span class="ctx">vs ${L[prev]}</span>`;
+  } else {
+    ctxs[0].innerHTML = `<span class="ctx">no prior period</span>`;
+  }
+
+  // KPI 3: REAL 6-month growth — last actual month vs the month 6 prior.
+  // Falls back to entire span when there's less than 6 months of history.
+  const sixIdx = lastAct >= 6 ? lastAct - 6 : 0;
+  const sixStart = r[sixIdx] || 0;
+  const growth = sixStart ? (r[lastAct] - sixStart) / sixStart * 100 : 0;
+  kpis[3].textContent = (growth >= 0 ? '+' : '') + growth.toFixed(1) + '%';
+  kpis[3].className = 'kpi-value ' + (growth >= 10 ? 'success' : growth >= 0 ? 'warning' : 'danger');
+  ctxs[3].innerHTML = `<span class="ctx">${L[sixIdx]} → ${L[lastAct]}</span>`;
+}
+
 /* ── Revenue tab — aggregate from `fin` (Finance Model totals) ─────── */
 function applyLiveRevenueFromFin() {
   if (!fin || !fin.revenue) return false;
@@ -3949,20 +3986,15 @@ function applyLiveRevenueFromFin() {
   const mom = prev ? (r[lastAct] - prev) / prev * 100 : 0;
   const growth = r[0] ? (r[lastAct] - r[0]) / r[0] * 100 : 0;
 
-  // KPI strip
+  // KPI strip — period-driven cards (0 + 3) via shared helper, others inline.
+  setRevenuePeriodKpis(fin);
   const kpis = document.querySelectorAll('#tab-revenue .kpi .kpi-value');
   const ctxs = document.querySelectorAll('#tab-revenue .kpi .kpi-delta');
   if (kpis.length >= 5) {
-    const lbl0 = $('revFirstKpiLabel'); if (lbl0) lbl0.textContent = `Revenue · ${L[lastAct] || ''}`.trim();
-    kpis[0].textContent = fmtCompactCur(r[lastAct]);
-    ctxs[0].innerHTML = `<span class="d ${mom>=0?'up':'down'}">${mom>=0?'▲':'▼'} ${mom>=0?'+':''}${mom.toFixed(1)}%</span><span class="ctx">vs ${L[lastAct-1]||'—'}</span>`;
     kpis[1].textContent = '—';
     ctxs[1].innerHTML = '<span class="ctx">Service-line tab not wired yet</span>';
     kpis[2].textContent = 'Total';
     ctxs[2].innerHTML = `<span class="ctx">Aggregate from Finance Model</span>`;
-    kpis[3].textContent = (growth>=0?'+':'') + growth.toFixed(1) + '%';
-    kpis[3].className   = 'kpi-value ' + (growth>=10?'success':growth>=0?'warning':'danger');
-    ctxs[3].innerHTML = `<span class="ctx">${L[0]} → ${L[lastAct]}</span>`;
     kpis[4].textContent = '100%';
     kpis[4].className   = 'kpi-value';
     ctxs[4].innerHTML = `<span class="ctx">Single aggregate line</span>`;
@@ -4468,10 +4500,10 @@ function applyTxnRevenue(agg, fin, allTxns) {
   const grandTotal = accountTotals.reduce((a,b)=>a+b.total,0);
 
   // KPIs: Largest Line + Top-3 Concentration
+  setRevenuePeriodKpis(fin);
   const kpis = document.querySelectorAll('#tab-revenue .kpi .kpi-value');
   const ctxs = document.querySelectorAll('#tab-revenue .kpi .kpi-delta');
   if (kpis.length >= 5 && accountTotals.length) {
-    const lbl0 = $('revFirstKpiLabel'); if (lbl0) lbl0.textContent = `Revenue · ${L[lastAct] || ''}`.trim();
     const lastSum = accountTotals.reduce((a,b)=>a+b.last,0);
     const largest = accountTotals[0];
     const largestShare = lastSum ? largest.last / lastSum * 100 : 0;
@@ -5023,10 +5055,10 @@ function applyFinSubRowsRevenue(fin) {
   const grandLastAct  = lines.reduce((a,l)=>a+l.last,0);
 
   // KPIs
+  setRevenuePeriodKpis(fin);
   const kpis = document.querySelectorAll('#tab-revenue .kpi .kpi-value');
   const ctxs = document.querySelectorAll('#tab-revenue .kpi .kpi-delta');
   if (kpis.length >= 5) {
-    const lbl0 = $('revFirstKpiLabel'); if (lbl0) lbl0.textContent = `Revenue · ${L[lastAct] || ''}`.trim();
     // KPI 2 — % Recurring (paid-ads management retainers vs project income).
     let recur = 0, project = 0;
     const recurNames = [], projectNames = [];
