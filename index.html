@@ -635,6 +635,7 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   white-space:nowrap;
 }
 .amount-red{ color:#fb7185; font-weight:600; }
+.amount-green{ color:#86efac; font-weight:600; }
 
 /* ── UTILITIES ──────────────────────────────────────────────────────── */
 .row-flex{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
@@ -1002,6 +1003,11 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
     <div class="table-shell">
       <div class="table-toolbar">
         <div><h2>Revenue by service line — monthly</h2><div class="sub" id="revMomSub">All service lines · italic for forecast</div></div>
+        <div class="row-flex" style="gap:10px">
+          <span class="sub-eyebrow">Service Line</span>
+          <select id="revLineFilter" class="filter-select"><option value="">All Service Lines</option></select>
+          <input id="revLineSearch" type="search" placeholder="Search service line…" class="filter-search">
+        </div>
         <div class="right" id="revMomTotals">— line items</div>
       </div>
       <div class="table-scroll">
@@ -1013,7 +1019,32 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
     </div>
   </section>
 
-  <p class="page-footer">Live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Services + Clients · cached 5 minutes</p>
+  <section class="section">
+    <div class="table-shell">
+      <div class="table-toolbar">
+        <div><h2>Revenue Transactions</h2><div class="sub" id="revTxnSub">Full ledger</div></div>
+        <div class="row-flex" style="gap:10px">
+          <span class="sub-eyebrow">Category</span>
+          <select id="revTxnCatFilter" class="filter-select"><option value="">All Categories</option></select>
+          <input id="revTxnSearch" type="search" placeholder="Search customer…" class="filter-search">
+        </div>
+        <div class="right" id="revTxnCount">— transactions</div>
+      </div>
+      <div class="table-scroll" style="max-height:520px">
+        <table>
+          <thead><tr>
+            <th class="sticky-left">Date</th>
+            <th>Customer</th>
+            <th>Category</th>
+            <th class="num">Amount</th>
+          </tr></thead>
+          <tbody id="revTxnRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <p class="page-footer">Live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Transactions Database + Finance Model · cached 5 minutes</p>
 </div></div>
 
 
@@ -1757,6 +1788,38 @@ function hbar(id, labels, data, color='#1390eb', opts={}) {
   });
 }
 
+/* Wire the Service-Line dropdown + search above the Revenue MoM matrix.
+   Run after every revRows fill so the dropdown reflects the current
+   line list and re-attaches the filter. Filtering hides <tr> rows that
+   don't match the picked line / search term while leaving the totals
+   row visible. */
+function wireRevMomFilter() {
+  const sel = $('revLineFilter');
+  const search = $('revLineSearch');
+  const tbody = $('revRows');
+  if (!sel || !search || !tbody) return;
+  const rows = [...tbody.querySelectorAll('tr')].filter(r => !r.classList.contains('total'));
+  const names = [...new Set(rows.map(r => {
+    const c = r.firstElementChild;
+    if (!c) return '';
+    return (c.getAttribute('title') || c.textContent || '').trim();
+  }).filter(Boolean))].sort((a,b) => a.localeCompare(b));
+  sel.innerHTML = '<option value="">All Service Lines</option>'
+    + names.map(n => `<option value="${n.replace(/"/g,'&quot;')}">${n}</option>`).join('');
+  const apply = () => {
+    const cat = sel.value;
+    const q = search.value.toLowerCase().trim();
+    rows.forEach(r => {
+      const c = r.firstElementChild;
+      const n = c ? (c.getAttribute('title') || c.textContent || '').trim() : '';
+      const ok = (!cat || n === cat) && (!q || n.toLowerCase().includes(q));
+      r.style.display = ok ? '' : 'none';
+    });
+  };
+  sel.onchange = apply;
+  search.oninput = apply;
+}
+
 /* Shared helper: rebuild the Revenue MoM thead so it always has the
    same column count as the data rows. */
 function renderRevMomHead(labels, fcstFrom) {
@@ -2059,6 +2122,7 @@ function initCharts() {
     <td><span class="badge info">100%</span></td>
   </tr>`;
   $('revMomTotals').textContent = `${SERVICE_LINES.length} lines · grand total ${fmtCompactCur(grandTotal)}`;
+  wireRevMomFilter();
 
   /* ── EXPENSES ─────────────────────────────────────────────────── */
   bar('expStackedChart', LABELS, [
@@ -4641,6 +4705,7 @@ function applyTxnRevenue(agg, fin, allTxns) {
       <td class="num"><b>${fmtCompactCur(grandTotal)}</b></td>
       <td><span class="badge info">100%</span></td>
     </tr>`;
+    wireRevMomFilter();
   }
   const tot = $('revMomTotals');
   if (tot) tot.textContent = `${accountTotals.length} service lines · grand total ${fmtCompactCur(grandTotal)}`;
@@ -4810,6 +4875,66 @@ function applyTxnExpenses(agg, fin, allTxns) {
 }
 
 /* ───── Expense Transactions — full ledger panel ────────────────────── */
+/* ───── Revenue Transactions — full ledger panel (Revenue tab) ─────── */
+function applyRevenueTransactions(agg, fin, allTxns) {
+  if (!allTxns || !allTxns.length) return false;
+  const revenues = allTxns
+    .filter(t => t.group === 'revenue')
+    .slice()
+    .sort((a,b) => a.date - b.date);
+  if (!revenues.length) return false;
+
+  // Date range for subtitle.
+  const firstD = revenues[0].date;
+  const lastD  = revenues[revenues.length-1].date;
+  const fmtMY  = d => d.toLocaleDateString('en-US',{month:'short',year:'numeric'});
+  const subEl = $('revTxnSub');
+  if (subEl) subEl.textContent = `Full ledger — ${fmtMY(firstD)} to ${fmtMY(lastD)}`;
+
+  // Populate category dropdown.
+  const catSel = $('revTxnCatFilter');
+  if (catSel) {
+    const cats = [...new Set(revenues.map(t => t.account))].sort();
+    catSel.innerHTML = '<option value="">All Categories</option>' +
+      cats.map(c => `<option value="${c.replace(/"/g,'&quot;')}">${c}</option>`).join('');
+  }
+
+  const rowsEl  = $('revTxnRows');
+  const countEl = $('revTxnCount');
+  const MAX = 1000;
+  const renderTxns = (list) => {
+    if (!rowsEl) return;
+    const slice = list.slice(0, MAX);
+    rowsEl.innerHTML = slice.map(t => {
+      const d = t.date.toLocaleDateString('en-US', {month:'short', day:'2-digit', year:'numeric'});
+      return `<tr>
+        <td class="sticky-left">${d}</td>
+        <td>${t.vendor}</td>
+        <td><span class="cat-pill">${t.account}</span></td>
+        <td class="num amount-green">${fmtCompactCur(Math.abs(t.amount))}</td>
+      </tr>`;
+    }).join('');
+    if (countEl) {
+      countEl.textContent = `${list.length.toLocaleString()} transactions${list.length > MAX ? ` · showing first ${MAX}` : ''}`;
+    }
+  };
+  renderTxns(revenues);
+
+  const filterTxns = () => {
+    const cat = catSel ? catSel.value : '';
+    const q = ($('revTxnSearch')?.value || '').toLowerCase().trim();
+    let f = revenues;
+    if (cat) f = f.filter(t => t.account === cat);
+    if (q)   f = f.filter(t => t.vendor.toLowerCase().includes(q) || t.account.toLowerCase().includes(q));
+    renderTxns(f);
+  };
+  if (catSel) catSel.onchange = filterTxns;
+  const search = $('revTxnSearch');
+  if (search) search.oninput = filterTxns;
+
+  return true;
+}
+
 function applyExpenseTransactions(agg, fin, allTxns) {
   if (!allTxns || !allTxns.length) return false;
   const expenses = allTxns
@@ -5045,6 +5170,7 @@ function applyFinSubRowsRevenue(fin) {
       <td class="num"><b>${fmtCompactCur(grandTotal)}</b></td>
       <td><span class="badge info">100%</span></td>
     </tr>`;
+    wireRevMomFilter();
   }
   const tot = $('revMomTotals');
   if (tot) tot.textContent = `${lines.length} service lines · grand total ${fmtCompactCur(grandTotal)}`;
@@ -5699,6 +5825,7 @@ async function loadOtherLive(tabs) {
         if (applyTxnExpenses(agg, fin, txns))  status.Expenses = 'live (txns)';
         if (applyTxnPLDrilldown(agg, fin))     console.log('📊 P&L drilldown rebuilt from Transactions');
         if (applyExpenseTransactions(agg, fin, txns)) console.log('📊 Expense Transactions ledger rendered');
+        if (applyRevenueTransactions(agg, fin, txns)) console.log('📊 Revenue Transactions ledger rendered');
         // Override service-line views with Finance Model sub-rows (more reliable than the classifier)
         if (applyFinSubRowsRevenue(fin)) {
           console.log('📊 Revenue service-line views replaced by Finance Model sub-rows');
