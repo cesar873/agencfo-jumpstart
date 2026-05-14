@@ -1239,22 +1239,34 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
 
   <section class="section">
     <div class="shell">
-      <div class="shell-head"><div><h2>LTV, CAC, and ratio</h2><div class="sub">Currency on the left · ratio on the right · forecast included</div></div></div>
+      <div class="shell-head"><div><h2>LTV vs CAC</h2><div class="sub">Lifetime value over customer acquisition cost — gap = unit economics health</div></div></div>
       <div class="chart-wrap tall"><canvas id="ltvCacChart"></canvas></div>
     </div>
   </section>
 
   <section class="section">
     <div class="shell">
-      <div class="shell-head"><div><h2>Churn</h2><div class="sub">MRR churn vs client churn</div></div></div>
+      <div class="shell-head"><div><h2>Churn</h2><div class="sub">Monthly client churn rate</div></div></div>
       <div class="chart-wrap"><canvas id="churnChart"></canvas></div>
     </div>
   </section>
 
   <section class="section">
     <div class="shell">
-      <div class="shell-head"><div><h2>Signed &amp; Lost clients</h2><div class="sub">Net movement with total client trend · green = signed, red = lost, blue line = total active</div></div></div>
+      <div class="shell-head"><div><h2>Signed &amp; Lost clients</h2><div class="sub">Bars: monthly signs / losses · line: total clients on the books</div></div></div>
       <div class="chart-wrap tall"><canvas id="signedLostChart"></canvas></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="table-shell">
+      <div class="table-toolbar">
+        <div><h2>All metrics by month</h2><div class="sub">Every metric from the Metrics tab · global range</div></div>
+        <div class="right" id="allMetricsCount">— metrics</div>
+      </div>
+      <div class="table-scroll">
+        <table id="allMetricsTable"></table>
+      </div>
     </div>
   </section>
 
@@ -3545,179 +3557,182 @@ function applyLiveAnalytics(parsed, fin) {
   };
   for (let i = 0; i < 5; i++) setKpi(i, kpiPicks[i]);
 
-  // Bucket the metrics by kind for chart layout.
-  const currencyMs = live.filter(m => m.kind === 'currency');
-  // Churn lives with the client counts (Total / Signed / Lost / Net),
-  // not in the percent-margins chart.
-  const churnRe = /churn/i;
-  const percentMs  = live.filter(m => m.kind === 'percent' && !churnRe.test(m.header));
-  const churnMs    = live.filter(m => m.kind === 'percent' && churnRe.test(m.header));
-  const numberMs   = live.filter(m => m.kind === 'number').concat(churnMs);
+  // Find a metric by header pattern (case-insensitive). Returns null if missing.
+  const findMetric = (rx) => live.find(m => rx.test(m.header)) || null;
+  const ltv    = findMetric(/lifetime\s*value|^ltv\b/i);
+  const cac    = findMetric(/^cac\b|customer\s*acquisition/i);
+  const churn  = findMetric(/^churn\b/i);
+  const signed = findMetric(/clients?\s*signed/i);
+  const lost   = findMetric(/clients?\s*lost/i);
+  const totalC = findMetric(/total\s*clients|active\s*clients/i);
 
-  // Synthesize Gross Margin & Operating Margin from fin for the percent chart
-  // (these aren't usually columns in the Metrics tab but live on the P&L).
-  const synthPct = (header, vals) => ({
-    header, kind: 'percent', series: vals.slice(0, L.length),
-  });
-  if (fin.grossMarg && fin.grossMarg.some(v => v)) percentMs.push(synthPct('Gross Margin', fin.grossMarg));
-  if (fin.opMarg    && fin.opMarg.some(v => v))    percentMs.push(synthPct('Operating Margin', fin.opMarg));
-
-  const PALETTE = ['#1390eb','#22c55e','#c084fc','#f59e0b','#ef4444','#fde047','#38bdf8','#fb7185','#34d399','#a855f7'];
-
-  const buildLine = (chartId, list, fmt, yAxis) => {
-    Chart.getChart(chartId)?.destroy();
-    if (!list.length) return;
-    const top = list.slice().sort((a,b) => Math.abs(b.series[lastAct] || 0) - Math.abs(a.series[lastAct] || 0)).slice(0, 6);
-    new Chart($(chartId), {
+  /* ── Chart 1 · LTV vs CAC ─────────────────────────────────────────── */
+  Chart.getChart('ltvCacChart')?.destroy();
+  if (ltv || cac) {
+    const dashSeg = (ctx) => ctx.p0DataIndex >= fin.fcstFrom - 1 ? [4,4] : undefined;
+    const datasets = [];
+    if (cac) datasets.push({
+      label: 'CAC', data: cac.series,
+      borderColor: '#ef4444', backgroundColor: 'transparent',
+      fill: false, tension: .35, pointRadius: 4, borderWidth: 2,
+      segment: { borderDash: dashSeg },
+    });
+    if (ltv) datasets.push({
+      label: 'LTV', data: ltv.series,
+      borderColor: '#1390eb', backgroundColor: 'transparent',
+      fill: false, tension: .35, pointRadius: 4, borderWidth: 2,
+      segment: { borderDash: dashSeg },
+    });
+    new Chart($('ltvCacChart'), {
       type: 'line',
-      data: { labels: L, datasets: top.map((m, i) => ({
-        label: m.header,
-        data: m.series,
-        borderColor: PALETTE[i % PALETTE.length],
-        backgroundColor: 'transparent',
-        fill: false, tension: .35, pointRadius: 3, borderWidth: 2,
-        segment: { borderDash: ctx => ctx.p0DataIndex >= lastAct ? [4,4] : undefined },
-      })) },
+      data: { labels: L, datasets },
       plugins: [ChartDataLabels],
       options: {
         responsive: true, maintainAspectRatio: false,
         interaction: { mode:'index', intersect:false },
         layout: { padding: { top: 32, right: 14, bottom: 4, left: 6 } },
         plugins: {
-          legend: { position:'top', align:'end', labels:{ boxWidth:9, boxHeight:9, padding:12, font:{size:11}, color:'rgba(255,255,255,.65)' } },
-          tooltip: { ...TOOLTIP, callbacks:{ label: ctx => ` ${ctx.dataset.label}: ${fmt(ctx.raw)}` } },
+          legend: { position:'top', align:'end', labels:{ usePointStyle:true, boxWidth:9, boxHeight:9, padding:14, font:{size:11}, color:'rgba(255,255,255,.85)' } },
+          tooltip: { ...TOOLTIP, callbacks:{ label: ctx => ` ${ctx.dataset.label}: ${fmtCompactCur(ctx.raw)}` } },
           datalabels: {
-            align:'top', anchor:'end', offset: ctx => 6 + ctx.datasetIndex * 14,
-            color: ctx => ctx.dataset.borderColor,
-            font: { size: 10, weight: '600' },
-            formatter: v => fmt(v),
-            display: ctx => ctx.dataIndex === lastAct,
+            align: 'top', anchor: 'end', offset: 6,
+            color: 'rgba(255,255,255,.92)',
+            font: { size: 11, weight: '700' },
+            formatter: v => fmtCompactCur(v||0),
           },
           forecastDivider: { fromIndex: fin.fcstFrom },
         },
-        scales: { x: xAxis, y: yAxis },
+        scales: { x: xAxis, y: { ...yCurAxis, beginAtZero: true } },
       }
     });
-  };
-
-  // Chart 1 — currency metrics
-  const card1Head = document.querySelector('#tab-analytics .section:nth-of-type(2) .shell .shell-head h2');
-  const card1Sub  = document.querySelector('#tab-analytics .section:nth-of-type(2) .shell .shell-head .sub');
-  if (currencyMs.length) {
-    buildLine('ltvCacChart', currencyMs, v => fmtCompactCur(v), yCurAxis);
-    if (card1Head) card1Head.textContent = 'Dollar metrics over time';
-    if (card1Sub)  card1Sub.textContent  = `${Math.min(currencyMs.length, 6)} of ${currencyMs.length} · forecast included`;
-  } else {
-    Chart.getChart('ltvCacChart')?.destroy();
-    if (card1Head) card1Head.textContent = 'Dollar metrics';
-    if (card1Sub)  card1Sub.textContent  = 'No currency metrics in the sheet';
   }
 
-  // Chart 2 — percent metrics
-  const card2Head = document.querySelector('#tab-analytics .section:nth-of-type(3) .shell .shell-head h2');
-  const card2Sub  = document.querySelector('#tab-analytics .section:nth-of-type(3) .shell .shell-head .sub');
-  if (percentMs.length) {
-    buildLine('churnChart', percentMs, v => v.toFixed(1) + '%', { ...yCurAxis,
-      ticks: { font:{size:11}, color:'rgba(255,255,255,.65)', callback: v => Math.round(v) + '%' }, min: 0
-    });
-    if (card2Head) card2Head.textContent = 'Percent metrics over time';
-    if (card2Sub)  card2Sub.textContent  = `${Math.min(percentMs.length, 6)} of ${percentMs.length} · forecast dashed`;
-  } else {
-    Chart.getChart('churnChart')?.destroy();
-    if (card2Head) card2Head.textContent = 'Percent metrics';
-    if (card2Sub)  card2Sub.textContent  = 'No percent metrics in the sheet';
-  }
-
-  // Chart 3 — number metrics (counts) as bars
-  Chart.getChart('signedLostChart')?.destroy();
-  const card3Head = document.querySelector('#tab-analytics .section:nth-of-type(4) .shell .shell-head h2');
-  const card3Sub  = document.querySelector('#tab-analytics .section:nth-of-type(4) .shell .shell-head .sub');
-  if (numberMs.length) {
-    // Prefer Total / Signed / Lost / Net for the bars; Churn renders as
-    // a trend line on a secondary % axis.
-    const churnRe = /churn/i;
-    const counts = numberMs.filter(m => !(m.kind === 'percent' && churnRe.test(m.header)));
-    const churns = numberMs.filter(m =>  (m.kind === 'percent' && churnRe.test(m.header)));
-    const preferred = ['total clients', 'clients signed', 'clients lost', 'net clients'];
-    const scored = counts.map(m => {
-      const h = m.header.toLowerCase();
-      const i = preferred.findIndex(p => h.includes(p));
-      return { m, rank: i < 0 ? 1e9 : i, mag: Math.abs(m.series[lastAct] || 0) };
-    });
-    scored.sort((a,b) => a.rank - b.rank || b.mag - a.mag);
-    const topCounts = scored.slice(0, 4).map(s => s.m);
-    const topChurn  = churns[0];
-
-    const barDatasets = topCounts.map((m, i) => ({
-      type: 'bar',
-      label: m.header,
-      data: m.series,
-      _kind: m.kind,
-      yAxisID: 'y',
-      backgroundColor: ctx => {
-        const c = PALETTE[i % PALETTE.length];
-        const op = ctx.dataIndex >= fin.fcstFrom ? 0.42 : 0.88;
-        const r=parseInt(c.slice(1,3),16), g=parseInt(c.slice(3,5),16), b=parseInt(c.slice(5,7),16);
-        return `rgba(${r},${g},${b},${op})`;
-      },
-      borderRadius: [3,3,0,0], barThickness: 16,
-      order: 1,
-    }));
-    const lineDatasets = topChurn ? [{
+  /* ── Chart 2 · Churn (single line) ────────────────────────────────── */
+  Chart.getChart('churnChart')?.destroy();
+  if (churn) {
+    new Chart($('churnChart'), {
       type: 'line',
-      label: topChurn.header,
-      data: topChurn.series,
-      _kind: 'percent',
-      yAxisID: 'yPct',
-      borderColor: '#ef4444',
-      backgroundColor: 'transparent',
-      fill: false, tension: .35, pointRadius: 3, borderWidth: 2,
-      segment: { borderDash: ctx => ctx.p0DataIndex >= fin.fcstFrom - 1 ? [4,4] : undefined },
-      datalabels: { display: false },
-      order: 0,
-    }] : [];
-
-    new Chart($('signedLostChart'), {
-      data: { labels: L, datasets: barDatasets.concat(lineDatasets) },
+      data: { labels: L, datasets: [{
+        label: 'Churn', data: churn.series,
+        borderColor: '#ef4444', backgroundColor: 'transparent',
+        fill: false, tension: .35, pointRadius: 4, borderWidth: 2,
+        segment: { borderDash: ctx => ctx.p0DataIndex >= fin.fcstFrom - 1 ? [4,4] : undefined },
+      }] },
       plugins: [ChartDataLabels],
       options: {
-        responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
-        layout:{padding:{top:30,right:14,bottom:4,left:6}},
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 32, right: 14, bottom: 4, left: 6 } },
+        plugins: {
+          legend: { position:'top', align:'end', labels:{ usePointStyle:true, boxWidth:9, boxHeight:9, padding:14, font:{size:11}, color:'rgba(255,255,255,.85)' } },
+          tooltip: { ...TOOLTIP, callbacks:{ label: ctx => ` Churn: ${(ctx.raw||0).toFixed(1)}%` } },
+          datalabels: {
+            align: 'top', anchor: 'end', offset: 6,
+            color: 'rgba(255,255,255,.92)',
+            font: { size: 11, weight: '700' },
+            formatter: v => Math.round(v||0) + '%',
+          },
+          forecastDivider: { fromIndex: fin.fcstFrom },
+        },
+        scales: {
+          x: xAxis,
+          y: { ...yCurAxis, beginAtZero: true, ticks:{ font:{size:11}, color:'rgba(255,255,255,.65)', callback: v => v.toFixed(1) + '%' } }
+        },
+      }
+    });
+  }
+
+  /* ── Chart 3 · Signed & Lost bars + Total Clients line ────────────── */
+  Chart.getChart('signedLostChart')?.destroy();
+  if (signed || lost || totalC) {
+    const datasets = [];
+    if (lost) datasets.push({
+      type: 'bar', label: 'Lost', data: lost.series, yAxisID: 'y',
+      backgroundColor: ctx => ctx.dataIndex >= fin.fcstFrom ? 'rgba(239,68,68,0.42)' : 'rgba(239,68,68,0.88)',
+      borderRadius: [3,3,0,0], barThickness: 14, order: 1,
+    });
+    if (signed) datasets.push({
+      type: 'bar', label: 'Signed', data: signed.series, yAxisID: 'y',
+      backgroundColor: ctx => ctx.dataIndex >= fin.fcstFrom ? 'rgba(34,197,94,0.42)' : 'rgba(34,197,94,0.88)',
+      borderRadius: [3,3,0,0], barThickness: 14, order: 1,
+    });
+    if (totalC) datasets.push({
+      type: 'line', label: 'Total clients', data: totalC.series, yAxisID: 'yRight',
+      borderColor: '#1390eb', backgroundColor: 'transparent',
+      fill: false, tension: .35, pointRadius: 4, borderWidth: 2,
+      segment: { borderDash: ctx => ctx.p0DataIndex >= fin.fcstFrom - 1 ? [4,4] : undefined },
+      order: 0,
+    });
+    new Chart($('signedLostChart'), {
+      data: { labels: L, datasets },
+      plugins: [ChartDataLabels],
+      options: {
+        responsive:true, maintainAspectRatio:false, interaction:{mode:'index', intersect:false},
+        layout:{ padding:{ top:30, right:14, bottom:4, left:6 } },
         plugins:{
-          legend:{position:'top',align:'end',labels:{boxWidth:9,boxHeight:9,padding:12,font:{size:11},color:'rgba(255,255,255,.65)'}},
-          tooltip:{...TOOLTIP, callbacks:{ label: ctx => {
-            const v = ctx.raw;
-            const isPct = ctx.dataset._kind === 'percent';
-            return ` ${ctx.dataset.label}: ${isPct ? (v||0).toFixed(1) + '%' : v}`;
-          } }},
-          datalabels:{display:false},
+          legend:{ position:'top', align:'end', labels:{ usePointStyle:true, boxWidth:9, boxHeight:9, padding:14, font:{size:11}, color:'rgba(255,255,255,.85)' } },
+          tooltip:{ ...TOOLTIP, callbacks:{ label: ctx => ` ${ctx.dataset.label}: ${Math.round(ctx.raw||0)}` } },
+          datalabels:{
+            align: 'top', anchor: 'end', offset: 4,
+            color: 'rgba(255,255,255,.92)',
+            font: { size: 11, weight: '700' },
+            formatter: v => Math.round(v||0),
+          },
           forecastDivider:{ fromIndex: fin.fcstFrom },
         },
         scales:{
           x: xAxis,
-          y: { ...yCurAxis, ticks:{ font:{size:11}, color:'rgba(255,255,255,.65)', callback:v=>v } },
-          ...(topChurn ? { yPct: {
+          y: { ...yCurAxis, beginAtZero: true, position: 'left', ticks:{ font:{size:11}, color:'rgba(255,255,255,.65)', callback:v=>v } },
+          ...(totalC ? { yRight: {
             position: 'right',
             beginAtZero: true,
             grid: { drawOnChartArea: false },
-            ticks: { font:{size:11}, color:'rgba(239,68,68,.75)', callback: v => v + '%' },
+            ticks: { font:{size:11}, color:'rgba(19,144,235,.75)', callback: v => v },
           } } : {}),
         },
       }
     });
-    if (card3Head) card3Head.textContent = 'Count metrics';
-    if (card3Sub)  card3Sub.textContent  = topChurn
-      ? `${topCounts.length} client counts + churn trend`
-      : `${topCounts.length} of ${counts.length}`;
-  } else {
-    if (card3Head) card3Head.textContent = 'Count metrics';
-    if (card3Sub)  card3Sub.textContent  = 'No count metrics in the sheet';
   }
+
+  /* ── All-metrics-by-month heatmap-style table ─────────────────────── */
+  renderAllMetricsTable(live, fin);
 
   // Subline
   const sub = document.querySelector('#tab-analytics .subline');
   if (sub) sub.innerHTML = `${L[lastAct]} · live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Metrics`;
   return true;
+}
+
+/* Render every parsed Metrics-tab column as a row in a wide table.
+   Cells use the same fcst-italic styling as the Revenue MoM matrix. */
+function renderAllMetricsTable(liveMetrics, fin) {
+  const table = $('allMetricsTable');
+  if (!table) return;
+  const labels = fin.labels;
+  if (!liveMetrics || !liveMetrics.length) {
+    table.innerHTML = '<tbody><tr><td style="padding:20px;text-align:center;color:var(--muted)">No metrics available</td></tr></tbody>';
+    return;
+  }
+  const fmtVal = (v, kind) => {
+    if (v == null || !isFinite(v) || v === 0) return '<span class="dim">—</span>';
+    if (kind === 'percent')  return v.toFixed(1) + '%';
+    if (kind === 'currency') return fmtCompactCur(v);
+    return Math.abs(v) < 10 ? v.toFixed(1) : Math.round(v).toLocaleString('en-US');
+  };
+  const headerCells = labels.map((m,i) =>
+    `<th class="num ${i>=fin.fcstFrom?'fcst':''}">${m.toUpperCase()}</th>`
+  ).join('');
+  const headerHtml = `<thead><tr><th class="sticky-left">METRIC</th>${headerCells}</tr></thead>`;
+  const rowsHtml = liveMetrics.map(m => {
+    const cells = m.series.map((v,i) => {
+      const fcst = i >= fin.fcstFrom;
+      const isZero = v === 0 || v == null || !isFinite(v);
+      return `<td class="num ${fcst?'fcst':''} ${isZero?'zero':''}">${fmtVal(v, m.kind)}</td>`;
+    }).join('');
+    return `<tr><td class="sticky-left">${m.header}</td>${cells}</tr>`;
+  }).join('');
+  table.innerHTML = headerHtml + `<tbody>${rowsHtml}</tbody>`;
+  const count = $('allMetricsCount');
+  if (count) count.textContent = `${liveMetrics.length} metric${liveMetrics.length===1?'':'s'} · ${labels.length} month${labels.length===1?'':'s'}`;
 }
 
 function _unusedLegacyAnalytics(metrics, fin) {
