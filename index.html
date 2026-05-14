@@ -934,9 +934,9 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   <section class="section tight">
     <div class="kpi-strip">
       <div class="kpi">
-        <div class="kpi-label">Revenue · Mar</div>
-        <div class="kpi-value">$114.9K</div>
-        <div class="kpi-delta"><span class="d up">▲ +6.4%</span><span class="ctx">vs Feb 2026</span></div>
+        <div class="kpi-label" id="revFirstKpiLabel">Revenue</div>
+        <div class="kpi-value">—</div>
+        <div class="kpi-delta"><span class="d">—</span><span class="ctx">—</span></div>
       </div>
       <div class="kpi">
         <div class="kpi-label">% Recurring</div>
@@ -3953,6 +3953,7 @@ function applyLiveRevenueFromFin() {
   const kpis = document.querySelectorAll('#tab-revenue .kpi .kpi-value');
   const ctxs = document.querySelectorAll('#tab-revenue .kpi .kpi-delta');
   if (kpis.length >= 5) {
+    const lbl0 = $('revFirstKpiLabel'); if (lbl0) lbl0.textContent = `Revenue · ${L[lastAct] || ''}`.trim();
     kpis[0].textContent = fmtCompactCur(r[lastAct]);
     ctxs[0].innerHTML = `<span class="d ${mom>=0?'up':'down'}">${mom>=0?'▲':'▼'} ${mom>=0?'+':''}${mom.toFixed(1)}%</span><span class="ctx">vs ${L[lastAct-1]||'—'}</span>`;
     kpis[1].textContent = '—';
@@ -4470,6 +4471,7 @@ function applyTxnRevenue(agg, fin, allTxns) {
   const kpis = document.querySelectorAll('#tab-revenue .kpi .kpi-value');
   const ctxs = document.querySelectorAll('#tab-revenue .kpi .kpi-delta');
   if (kpis.length >= 5 && accountTotals.length) {
+    const lbl0 = $('revFirstKpiLabel'); if (lbl0) lbl0.textContent = `Revenue · ${L[lastAct] || ''}`.trim();
     const lastSum = accountTotals.reduce((a,b)=>a+b.last,0);
     const largest = accountTotals[0];
     const largestShare = lastSum ? largest.last / lastSum * 100 : 0;
@@ -5024,6 +5026,7 @@ function applyFinSubRowsRevenue(fin) {
   const kpis = document.querySelectorAll('#tab-revenue .kpi .kpi-value');
   const ctxs = document.querySelectorAll('#tab-revenue .kpi .kpi-delta');
   if (kpis.length >= 5) {
+    const lbl0 = $('revFirstKpiLabel'); if (lbl0) lbl0.textContent = `Revenue · ${L[lastAct] || ''}`.trim();
     // KPI 2 — % Recurring (paid-ads management retainers vs project income).
     let recur = 0, project = 0;
     const recurNames = [], projectNames = [];
