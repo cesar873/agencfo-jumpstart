@@ -746,7 +746,6 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   <div class="status-bar">
     <div class="dot warn" id="apiDot"></div>
     <span id="apiStatusMsg">Connecting…</span>
-    <span class="tab-found-list" id="tabsFound"></span>
   </div>
 </div>
 
@@ -974,7 +973,7 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   </section>
 
   <section class="section">
-    <div class="grid-3">
+    <div class="grid-2">
       <div class="shell">
         <div class="shell-head"><div><h2>By Industry · Mar 2026</h2><div class="sub">Snapshot share</div></div></div>
         <div class="chart-wrap"><canvas id="revIndustryChart"></canvas></div>
@@ -982,10 +981,6 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
       <div class="shell">
         <div class="shell-head"><div><h2>By Source · Mar 2026</h2><div class="sub">Where new revenue came from</div></div></div>
         <div class="chart-wrap"><canvas id="revSourceChart"></canvas></div>
-      </div>
-      <div class="shell">
-        <div class="shell-head"><div><h2>By Pod · Mar 2026</h2><div class="sub">Team allocation</div></div></div>
-        <div class="chart-wrap"><canvas id="revPodChart"></canvas></div>
       </div>
     </div>
   </section>
@@ -1166,14 +1161,6 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
     <p class="eyebrow">Unit economics</p>
     <h1>Analytics</h1>
     <p class="subline">April 2026 · live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Metrics</p>
-  </div>
-
-  <div id="metricsDiag" class="diag-strip" style="display:none">
-    <div class="diag-head">
-      <span class="sub-eyebrow">Metrics tab · parser report</span>
-      <span class="diag-meta" id="diagMeta">—</span>
-    </div>
-    <div class="diag-body" id="diagBody"></div>
   </div>
 
   <div class="wtdn">
@@ -2014,7 +2001,7 @@ function initCharts() {
     }
   });
 
-  // Mar 2026 snapshot — three breakdowns
+  // Mar 2026 snapshot — two breakdowns
   hbar('revIndustryChart',
     ['Healthcare','SaaS','E-commerce','Legal','Finance','Other'],
     [36000, 28000, 22000, 14000, 9000, 5928],
@@ -2024,11 +2011,6 @@ function initCharts() {
     ['Referral','Inbound','Outbound','Partner','Direct'],
     [42000, 30000, 22000, 14000, 6928],
     '#22c55e');
-
-  hbar('revPodChart',
-    ['Alpha','Bravo','Charlie'],
-    [68500, 32200, 14228],
-    '#c084fc');
 
   // Movers — based on Mar vs Feb deltas
   const moMDeltas = SERVICE_LINES.map(s=>{
@@ -2610,12 +2592,9 @@ function openRangePicker(evt) {
 }
 window.addEventListener('resize', closeMonthPopover);
 
-function setStatus(state, msg, tabs=[]) {
+function setStatus(state, msg /* tabs param ignored — list removed */) {
   $('apiDot').className = 'dot '+state;
   $('apiStatusMsg').textContent = msg;
-  $('tabsFound').innerHTML = tabs.length
-    ? 'Tabs: '+tabs.map(t=>`<span>${t}</span>`).join('')
-    : '';
 }
 
 function setLoading(show, msg='') {
@@ -3228,24 +3207,7 @@ function alignToLabels(metricsByMonth, fin, key) {
   });
 }
 
-function renderMetricsDiag(parsed, fin) {
-  const strip = $('metricsDiag');
-  const meta  = $('diagMeta');
-  const body  = $('diagBody');
-  if (!strip || !meta || !body) return;
-  strip.style.display = 'block';
-
-  const ms = parsed.metrics || [];
-  meta.textContent = `${parsed.monthsParsed||0} months · ${ms.length} metric columns`;
-  if (!ms.length) {
-    body.innerHTML = '<span class="muted">No metric columns detected. Check that row 1 has metric names and column A has dates.</span>';
-    return;
-  }
-
-  body.innerHTML = ms.map(m => `
-    <span class="diag-tag match" title="kind: ${m.kind}"><span class="k">${m.kind}</span><span class="v">${m.header}</span></span>
-  `).join('');
-}
+function renderMetricsDiag(/* parsed, fin */) { /* parser report removed */ }
 
 /* ── Services tab parser ─────────────────────────────────────────────
    Each row = one client-service engagement. Columns include Client,
@@ -3451,8 +3413,21 @@ function applyLiveAnalytics(parsed, fin) {
 
   // Bucket the metrics by kind for chart layout.
   const currencyMs = live.filter(m => m.kind === 'currency');
-  const percentMs  = live.filter(m => m.kind === 'percent');
-  const numberMs   = live.filter(m => m.kind === 'number');
+  // Churn lives with the client counts (Total / Signed / Lost / Net),
+  // not in the percent-margins chart.
+  const churnRe = /churn/i;
+  const percentMs  = live.filter(m => m.kind === 'percent' && !churnRe.test(m.header));
+  const churnMs    = live.filter(m => m.kind === 'percent' && churnRe.test(m.header));
+  const numberMs   = live.filter(m => m.kind === 'number').concat(churnMs);
+
+  // Synthesize Gross Margin & Operating Margin from fin for the percent chart
+  // (these aren't usually columns in the Metrics tab but live on the P&L).
+  const synthPct = (header, vals) => ({
+    header, kind: 'percent', series: vals.slice(0, L.length),
+  });
+  if (fin.grossMarg && fin.grossMarg.some(v => v)) percentMs.push(synthPct('Gross Margin', fin.grossMarg));
+  if (fin.opMarg    && fin.opMarg.some(v => v))    percentMs.push(synthPct('Operating Margin', fin.opMarg));
+
   const PALETTE = ['#1390eb','#22c55e','#c084fc','#f59e0b','#ef4444','#fde047','#38bdf8','#fb7185','#34d399','#a855f7'];
 
   const buildLine = (chartId, list, fmt, yAxis) => {
@@ -3524,12 +3499,23 @@ function applyLiveAnalytics(parsed, fin) {
   const card3Head = document.querySelector('#tab-analytics .section:nth-of-type(4) .shell .shell-head h2');
   const card3Sub  = document.querySelector('#tab-analytics .section:nth-of-type(4) .shell .shell-head .sub');
   if (numberMs.length) {
-    const top = numberMs.slice().sort((a,b) => Math.abs(b.series[lastAct] || 0) - Math.abs(a.series[lastAct] || 0)).slice(0, 4);
+    // Prefer the canonical client-counts (Total / Signed / Lost / Net) +
+    // Churn — push Churn last so it shows up alongside the counts even if
+    // its magnitude doesn't outrank them.
+    const preferred = ['total clients', 'clients signed', 'clients lost', 'net clients', 'churn'];
+    const scored = numberMs.slice().map(m => {
+      const h = m.header.toLowerCase();
+      const i = preferred.findIndex(p => h.includes(p));
+      return { m, rank: i < 0 ? 1e9 : i, mag: Math.abs(m.series[lastAct] || 0) };
+    });
+    scored.sort((a,b) => a.rank - b.rank || b.mag - a.mag);
+    const top = scored.slice(0, 5).map(s => s.m);
     new Chart($('signedLostChart'), {
       type: 'bar',
       data: { labels: L, datasets: top.map((m, i) => ({
         label: m.header,
         data: m.series,
+        _kind: m.kind,
         backgroundColor: ctx => {
           const c = PALETTE[i % PALETTE.length];
           const op = ctx.dataIndex >= fin.fcstFrom ? 0.42 : 0.88;
@@ -3544,7 +3530,11 @@ function applyLiveAnalytics(parsed, fin) {
         layout:{padding:{top:30,right:14,bottom:4,left:6}},
         plugins:{
           legend:{position:'top',align:'end',labels:{boxWidth:9,boxHeight:9,padding:12,font:{size:11},color:'rgba(255,255,255,.65)'}},
-          tooltip:{...TOOLTIP, callbacks:{ label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}` }},
+          tooltip:{...TOOLTIP, callbacks:{ label: ctx => {
+            const v = ctx.raw;
+            const isPct = ctx.dataset._kind === 'percent';
+            return ` ${ctx.dataset.label}: ${isPct ? v.toFixed(1) + '%' : v}`;
+          } }},
           datalabels:{display:false},
           forecastDivider:{ fromIndex: fin.fcstFrom },
         },
@@ -4385,10 +4375,10 @@ function applyTxnRevenue(agg, fin, allTxns) {
   const stackedSub  = document.querySelector('#tab-revenue .shell .shell-head .sub');
   if (stackedSub) stackedSub.textContent = `Stacked monthly · ${revAccounts.length} lines · biggest at the base · forecast included`;
 
-  // 3 snapshot breakdowns: by Account, by Customer, by Class (with live month)
+  // 2 snapshot breakdowns: by Account, by Customer (with live month)
   const liveLabel = L[lastAct];
   const updateBreakdownCard = (cardIndex, title, dataMap, color) => {
-    const cards = document.querySelectorAll('#tab-revenue .grid-3 .shell');
+    const cards = document.querySelectorAll('#tab-revenue .grid-2 .shell');
     if (!cards[cardIndex]) return;
     const h2 = cards[cardIndex].querySelector('h2');
     const sub = cards[cardIndex].querySelector('.sub');
@@ -4461,18 +4451,6 @@ function applyTxnRevenue(agg, fin, allTxns) {
     revCustomerMap[t.vendor][monthIdx] += Math.abs(t.amount);
   });
   updateBreakdownCard(1, 'By customer', revCustomerMap, '#22c55e');
-  // Class
-  if (Object.keys(agg.byClass).length) {
-    updateBreakdownCard(2, 'By class', agg.byClass, '#c084fc');
-  } else {
-    const cards = document.querySelectorAll('#tab-revenue .grid-3 .shell');
-    if (cards[2]) {
-      const h2 = cards[2].querySelector('h2'); if (h2) h2.textContent = 'By class';
-      const sub = cards[2].querySelector('.sub'); if (sub) sub.textContent = 'No Class column found in Transactions';
-      const canvas = cards[2].querySelector('canvas');
-      if (canvas) Chart.getChart(canvas.id)?.destroy();
-    }
-  }
 
   // Top growers/decliners — BY CLIENT (vendor with revenue), MoM
   if (lastAct >= 1) {
@@ -4859,8 +4837,8 @@ function applyFinSubRowsRevenue(fin) {
   const stackedSub  = document.querySelector('#tab-revenue .shell .shell-head .sub');
   if (stackedSub) stackedSub.textContent = `Stacked monthly · ${lines.length} lines · biggest at the base · from Finance Model`;
 
-  // "By service line" snapshot card — first of the 3 cards
-  const cards = document.querySelectorAll('#tab-revenue .grid-3 .shell');
+  // "By service line" snapshot card — first of the breakdown cards
+  const cards = document.querySelectorAll('#tab-revenue .grid-2 .shell');
   if (cards[0]) {
     const h2 = cards[0].querySelector('h2'); if (h2) h2.textContent = 'By service line';
     const sub = cards[0].querySelector('.sub'); if (sub) sub.textContent = `Snapshot · ${L[lastAct]}`;
