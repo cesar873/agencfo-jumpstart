@@ -1259,6 +1259,13 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   </section>
 
   <section class="section">
+    <div class="shell">
+      <div class="shell-head"><div><h2>Team vs annualized revenue per employee</h2><div class="sub">Bars: headcount · line: revenue per employee × 12</div></div></div>
+      <div class="chart-wrap tall"><canvas id="teamRevChart"></canvas></div>
+    </div>
+  </section>
+
+  <section class="section">
     <div class="table-shell">
       <div class="table-toolbar">
         <div><h2>All metrics by month</h2><div class="sub">Every metric from the Metrics tab · global range</div></div>
@@ -3687,6 +3694,59 @@ function applyLiveAnalytics(parsed, fin) {
             beginAtZero: true,
             grid: { drawOnChartArea: false },
             ticks: { font:{size:11}, color:'rgba(19,144,235,.75)', callback: v => v },
+          } } : {}),
+        },
+      }
+    });
+  }
+
+  /* ── Chart 4 · Team vs annualized revenue per employee ────────────── */
+  Chart.getChart('teamRevChart')?.destroy();
+  const team   = findMetric(/team\s*members|^headcount\b|^team$/i);
+  const revPer = findMetric(/revenue\s*(per|\/)\s*employee|rev\s*\/\s*employee|revenue\s*per\s*fte/i);
+  if (team || revPer) {
+    const annualized = revPer ? revPer.series.map(v => (v || 0) * 12) : null;
+    const datasets = [];
+    if (team) datasets.push({
+      type: 'bar', label: 'Team members', data: team.series, yAxisID: 'y',
+      backgroundColor: ctx => ctx.dataIndex >= fin.fcstFrom ? 'rgba(192,132,252,0.42)' : 'rgba(192,132,252,0.88)',
+      borderRadius: [3,3,0,0], barThickness: 18, order: 1,
+    });
+    if (annualized) datasets.push({
+      type: 'line', label: 'Revenue / employee (annualized)', data: annualized, yAxisID: 'yRight',
+      borderColor: '#22c55e', backgroundColor: 'transparent',
+      fill: false, tension: .35, pointRadius: 4, borderWidth: 2,
+      segment: { borderDash: ctx => ctx.p0DataIndex >= fin.fcstFrom - 1 ? [4,4] : undefined },
+      order: 0,
+    });
+    new Chart($('teamRevChart'), {
+      data: { labels: L, datasets },
+      plugins: [ChartDataLabels],
+      options: {
+        responsive:true, maintainAspectRatio:false, interaction:{ mode:'index', intersect:false },
+        layout:{ padding:{ top:30, right:14, bottom:4, left:6 } },
+        plugins:{
+          legend:{ position:'top', align:'end', labels:{ usePointStyle:true, boxWidth:9, boxHeight:9, padding:14, font:{size:11}, color:'rgba(255,255,255,.85)' } },
+          tooltip:{ ...TOOLTIP, callbacks:{ label: ctx => {
+            const isLine = ctx.dataset.type === 'line';
+            return ` ${ctx.dataset.label}: ${isLine ? fmtCompactCur(ctx.raw||0) : Math.round(ctx.raw||0)}`;
+          } } },
+          datalabels:{
+            align: 'top', anchor: 'end', offset: 4,
+            color: 'rgba(255,255,255,.92)',
+            font: { size: 11, weight: '700' },
+            formatter: (v, ctx) => ctx.dataset.type === 'line' ? fmtCompactCur(v||0) : Math.round(v||0),
+          },
+          forecastDivider:{ fromIndex: fin.fcstFrom },
+        },
+        scales:{
+          x: xAxis,
+          y: { ...yCurAxis, beginAtZero: true, position: 'left', ticks:{ font:{size:11}, color:'rgba(255,255,255,.65)', callback:v=>v } },
+          ...(annualized ? { yRight: {
+            position: 'right',
+            beginAtZero: true,
+            grid: { drawOnChartArea: false },
+            ticks: { font:{size:11}, color:'rgba(34,197,94,.75)', callback: v => fmtCompactCur(v) },
           } } : {}),
         },
       }
