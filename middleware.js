@@ -93,7 +93,7 @@ function loginResponse({ error } = {}) {
     .brand .b1{color:#fff;}
     .brand .b2{color:var(--blue);}
     .brand .x{color:var(--muted);font-family:'Inter',sans-serif;font-weight:400;margin:0 6px;}
-    .brand .b3{color:var(--amber);}
+    .brand .b3{color:#fff;}
     h1{
       font-family:'Anton',sans-serif;
       font-size:32px;font-weight:400;letter-spacing:.01em;
