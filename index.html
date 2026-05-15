@@ -2504,6 +2504,15 @@ function _liveMonths() {
     : ["Mar 2026","Feb 2026","Jan 2026","Dec 2025","Nov 2025","Oct 2025","Apr 2026"];
 }
 
+/* Full unsliced months — used by the Range picker so it can widen back
+   out after a range has been applied (the regular `_liveMonths` returns
+   the currently-active sliced labels). */
+function _liveMonthsFull() {
+  const full = window._live && window._live.finFull && window._live.finFull.labels;
+  if (full && full.length) return full;
+  return _liveMonths();
+}
+
 function openPeriodPicker(evt) {
   if (evt) evt.stopPropagation();
   const months = _liveMonths();
@@ -2634,9 +2643,67 @@ function rerenderForMonth(idx) {
   }
 }
 
+/* Slice fin/finFull down to [fromIdx, toIdx] and re-run every applier
+   so all charts + tables reflect the selected date range. Always
+   builds the slice from finFull (the snapshot taken at applyLiveFin
+   time), so widening or moving the range is non-destructive. */
+function rerenderForRange(fromIdx, toIdx) {
+  const s = window._live;
+  if (!s || !s.finFull) return;
+  if (fromIdx > toIdx) [fromIdx, toIdx] = [toIdx, fromIdx];
+  const full = s.finFull;
+  const len = full.labels.length;
+  if (fromIdx < 0 || toIdx >= len) return;
+  const slice = (arr) => Array.isArray(arr) ? arr.slice(fromIdx, toIdx + 1) : arr;
+  const sliceLines = (lines) => Array.isArray(lines)
+    ? lines.map(l => ({ ...l, vals: slice(l.vals) }))
+    : lines;
+  const newLastAct  = Math.min(toIdx, Math.max(fromIdx, full.lastAct)) - fromIdx;
+  const newFcstFrom = Math.max(0, Math.min(toIdx - fromIdx + 1, full.fcstFrom - fromIdx));
+  const sliced = {
+    ...full,
+    labels:       slice(full.labels),
+    revenue:      slice(full.revenue),
+    cogs:         slice(full.cogs),
+    grossProf:    slice(full.grossProf),
+    grossMarg:    slice(full.grossMarg),
+    opex:         slice(full.opex),
+    opProf:       slice(full.opProf),
+    opMarg:       slice(full.opMarg),
+    net:          slice(full.net),
+    revenueLines: sliceLines(full.revenueLines),
+    cogsLines:    sliceLines(full.cogsLines),
+    opexLines:    sliceLines(full.opexLines),
+    lastAct:      newLastAct,
+    fcstFrom:     newFcstFrom,
+  };
+  fin = sliced;
+  s.fin = sliced;
+  // Re-run every chart/table applier with the sliced view
+  try { renderFinKpis(); } catch(e) {}
+  try { rebuildFinInsights(); } catch(e) {}
+  try { renderPL(); } catch(e) {}
+  if (sliced.revenueLines && sliced.revenueLines.length) {
+    try { applyFinSubRowsRevenue(sliced); } catch(e) {}
+  } else {
+    try { applyLiveRevenueFromFin(); } catch(e) {}
+  }
+  if (s.agg && s.txns) try { applyTxnRevenue(s.agg, sliced, s.txns); } catch(e) {}
+  if (sliced.revenueLines && sliced.revenueLines.length) {
+    try { applyFinSubRowsRevenue(sliced); } catch(e) {}
+  }
+  try { applyLiveExpensesFromFin(); } catch(e) {}
+  if (s.agg && s.txns) try { applyTxnExpenses(s.agg, sliced, s.txns); } catch(e) {}
+  if (s.metrics) try { applyLiveAnalytics(s.metrics, sliced); } catch(e) {}
+  if (s.budget)  try { applyBudgetVsActual(s.budget, sliced, newLastAct); } catch(e) {}
+  // Keep the Period chip inside the new range
+  const pv = $('periodVal');
+  if (pv) pv.textContent = sliced.labels[newLastAct] || sliced.labels[0] || '';
+}
+
 function openRangePicker(evt) {
   if (evt) evt.stopPropagation();
-  const months = _liveMonths();
+  const months = _liveMonthsFull();
   const cur = $('rangeVal').textContent.trim();
   const arrowIdx = cur.indexOf('→');
   let selFrom = arrowIdx >= 0 ? cur.slice(0, arrowIdx).trim() : months[0];
@@ -2673,6 +2740,9 @@ function openRangePicker(evt) {
       }));
       pop.querySelector('#rangeApply').addEventListener('click', () => {
         $('rangeVal').textContent = `${selFrom} → ${selTo}`;
+        const fromIdx = months.indexOf(selFrom);
+        const toIdx   = months.indexOf(selTo);
+        if (fromIdx >= 0 && toIdx >= 0) rerenderForRange(fromIdx, toIdx);
         closeMonthPopover();
       });
     };
@@ -2884,6 +2954,10 @@ function applyLiveFin(d, sheetName) {
     lastAct, fcstFrom,
     source: sheetName ? `Finance Model · ${sheetName}` : 'Finance Model',
   };
+  // Snapshot the full series so the Range picker can slice off of it
+  // without losing the rest when the user widens the range again.
+  window._live = window._live || {};
+  window._live.finFull = fin;
   console.log(`📊 Finance Model sub-rows: ${fin.revenueLines.length} revenue lines, ${fin.cogsLines.length} cogs lines, ${fin.opexLines.length} opex lines`);
   refreshFinancials();
   return true;
