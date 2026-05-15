@@ -3705,7 +3705,8 @@ function applyLiveAnalytics(parsed, fin) {
   const team   = findMetric(/team\s*members|^headcount\b|^team$/i);
   const revPer = findMetric(/revenue\s*(per|\/)\s*employee|rev\s*\/\s*employee|revenue\s*per\s*fte/i);
   if (team || revPer) {
-    const annualized = revPer ? revPer.series.map(v => (v || 0) * 12) : null;
+    // Sheet's Revenue per Employee column is already annualized — use as-is.
+    const annualized = revPer ? revPer.series.slice() : null;
     const datasets = [];
     if (team) datasets.push({
       type: 'bar', label: 'Team members', data: team.series, yAxisID: 'y',
