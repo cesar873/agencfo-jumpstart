@@ -2679,10 +2679,12 @@ function rerenderForRange(fromIdx, toIdx) {
   };
   fin = sliced;
   s.fin = sliced;
-  // Re-run every chart/table applier with the sliced view
-  try { renderFinKpis(); } catch(e) {}
+  // Re-run every chart/table applier with the sliced view. refreshFinancials
+  // rebuilds the Revenue & Operating Profit + Gross & Operating Margin
+  // charts on the Financials tab (buildFinCharts), plus the P&L table and
+  // the KPI strip.
+  try { refreshFinancials(); } catch(e) {}
   try { rebuildFinInsights(); } catch(e) {}
-  try { renderPL(); } catch(e) {}
   if (sliced.revenueLines && sliced.revenueLines.length) {
     try { applyFinSubRowsRevenue(sliced); } catch(e) {}
   } else {
