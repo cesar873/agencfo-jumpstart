@@ -3544,10 +3544,12 @@ function parseServicesTab(rows) {
   const iClient = findCol('Client');
   const iService = findCol('Service');
   if (iClient < 0 || iService < 0) return null;
-  const iStatus  = findCol('Status');
-  const iVarLab  = findCol('Variable Labour Costs');
-  const iAMPay   = findCol('AM Pay');
-  const iRef     = findCol('Referral Costs');
+  const iStatus    = findCol('Status');
+  const iRetainer  = findCol('Retainer Value');
+  const iVarLab    = findCol('Variable Labour Costs');
+  const iAMPay     = findCol('AM Pay');
+  const iRef       = findCol('Referral Costs');
+  const iFee       = findCol('Fee');
 
   // Detect month columns by header pattern "MMM YYYY".
   const monthCols = [];
@@ -3575,11 +3577,13 @@ function parseServicesTab(rows) {
     if (!client || !service) continue;
     records.push({
       client, service,
-      status: String(row[iStatus] || '').trim(),
-      varLab: num(row[iVarLab]),
-      amPay:  num(row[iAMPay]),
-      ref:    parsePctOrFlat(row[iRef]),
-      monthly: monthCols.map(m => num(row[m.col])),
+      status:   String(row[iStatus] || '').trim(),
+      retainer: num(row[iRetainer]),
+      varLab:   num(row[iVarLab]),
+      amPay:    num(row[iAMPay]),
+      ref:      parsePctOrFlat(row[iRef]),
+      fee:      num(row[iFee]),
+      monthly:  monthCols.map(m => num(row[m.col])),
     });
   }
   return { monthCols, records };
