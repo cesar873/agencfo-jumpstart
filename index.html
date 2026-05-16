@@ -620,6 +620,34 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
 .filter-select{ min-width:170px; cursor:pointer; }
 .filter-select option{ background:#0b1f33; color:var(--text); }
 
+/* Segmented toggle (by-client / by-client × service, etc.) */
+.seg-toggle{
+  display:inline-flex;
+  background:rgba(255,255,255,0.05);
+  border:1px solid var(--card-border);
+  border-radius:8px;
+  padding:2px;
+  gap:2px;
+}
+.seg-btn{
+  background:transparent;
+  border:0;
+  color:rgba(255,255,255,.65);
+  font-family:inherit;
+  font-size:12px;
+  font-weight:500;
+  padding:5px 12px;
+  border-radius:6px;
+  cursor:pointer;
+  transition:background .12s,color .12s;
+}
+.seg-btn:hover{ color:var(--text); }
+.seg-btn.active{
+  background:rgba(19,144,235,.18);
+  color:#a5cdff;
+  font-weight:600;
+}
+
 /* Transaction category pill (small uppercase tag) */
 .cat-pill{
   display:inline-block;
@@ -1289,8 +1317,20 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   <div class="page-hero">
     <p class="eyebrow">Client profitability</p>
     <h1>Clients</h1>
-    <p class="subline">March 2026 · live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Client Profit</p>
+    <p class="subline" id="clientsSubline">March 2026 · live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Services</p>
   </div>
+
+  <section class="section tight">
+    <div class="row-flex" style="gap:12px;align-items:center;">
+      <span class="sub-eyebrow">View</span>
+      <div class="seg-toggle" id="clientsViewToggle" role="tablist">
+        <button class="seg-btn active" data-mode="client" role="tab">By client</button>
+        <button class="seg-btn" data-mode="service" role="tab">By client × service</button>
+      </div>
+      <span class="sub-eyebrow" style="margin-left:18px;">Month</span>
+      <span class="filter-select" id="clientsMonthChip" style="min-width:auto;padding:6px 12px;">— select period above —</span>
+    </div>
+  </section>
 
   <div class="wtdn">
     <div class="wtdn-head">
@@ -2636,6 +2676,8 @@ function rerenderForMonth(idx) {
     // Analytics
     if (s.metrics) try { applyLiveAnalytics(s.metrics, s.fin); } catch(e) {}
     try { renderServiceLineCards(idx); } catch(e) {}
+    // Clients
+    try { refreshClientsTab(); } catch(e) {}
     // Budget vs Actual (uses explicit idx)
     if (s.budget) try { applyBudgetVsActual(s.budget, s.fin, idx); } catch(e) {}
   } finally {
@@ -2698,6 +2740,7 @@ function rerenderForRange(fromIdx, toIdx) {
   if (s.agg && s.txns) try { applyTxnExpenses(s.agg, sliced, s.txns); } catch(e) {}
   if (s.metrics) try { applyLiveAnalytics(s.metrics, sliced); } catch(e) {}
   if (s.budget)  try { applyBudgetVsActual(s.budget, sliced, newLastAct); } catch(e) {}
+  try { refreshClientsTab(); } catch(e) {}
   // Keep the Period chip inside the new range
   const pv = $('periodVal');
   if (pv) pv.textContent = sliced.labels[newLastAct] || sliced.labels[0] || '';
@@ -3207,6 +3250,96 @@ function applyLiveClients(parsed) {
       <td><span class="badge ${avgMargin>=50?'ok':avgMargin>=30?'warn':'bad'}">${avgMargin.toFixed(1)}%</span></td>`;
   }
   return true;
+}
+
+/* Normalize month labels so "Apr 26" / "Apr 2026" / "april 2026" all
+   compare equal. Returns null if no month/year detected. */
+function _monthKey(s) {
+  const m = String(s || '').match(/([a-z]{3})[a-z]*\s*['‘’]?(\d{2,4})/i);
+  if (!m) return null;
+  const mon = m[1].toLowerCase();
+  let year = m[2];
+  if (year.length === 2) year = '20' + year;
+  return mon + year;
+}
+
+/* Compute Clients-tab rows from the Services tab for a given month +
+   view mode. Returns the same shape applyLiveClients expects (name, svc,
+   pod, rev, ppl, ref, oth, profit, margin) so we can reuse its render. */
+function clientsFromServices(svcParsed, monthLabel, viewMode) {
+  if (!svcParsed || !svcParsed.records) return null;
+  const target = _monthKey(monthLabel);
+  if (!target) return null;
+  const pi = svcParsed.monthCols.findIndex(m => _monthKey(m.label) === target);
+  if (pi < 0) return null;
+
+  const rows = [];
+  svcParsed.records.forEach(r => {
+    if (!(r.monthly[pi] > 0) || r.retainer <= 0) return;
+    const rev = r.retainer;
+    const ppl = r.varLab + r.amPay;
+    const ref = r.ref.kind === 'pct'  ? rev * r.ref.val
+              : r.ref.kind === 'flat' ? r.ref.val
+              : 0;
+    const oth = r.fee || 0; // Stripe / processing fee
+    const profit = rev - ppl - ref - oth;
+    rows.push({
+      name: r.client,
+      svc:  r.service || '—',
+      pod:  '—', // not exposed by Services tab today
+      rev, ppl, ref, oth, profit,
+      margin: rev > 0 ? profit / rev * 100 : 0,
+    });
+  });
+  if (!rows.length) return [];
+
+  if (viewMode === 'service') return rows;
+
+  // Aggregate by client
+  const byClient = new Map();
+  rows.forEach(r => {
+    if (!byClient.has(r.name)) {
+      byClient.set(r.name, { name: r.name, pod: r.pod, rev: 0, ppl: 0, ref: 0, oth: 0, profit: 0, services: [] });
+    }
+    const c = byClient.get(r.name);
+    c.rev += r.rev; c.ppl += r.ppl; c.ref += r.ref; c.oth += r.oth; c.profit += r.profit;
+    c.services.push(r.svc);
+  });
+  return Array.from(byClient.values()).map(c => ({
+    ...c,
+    svc: c.services.length === 1 ? c.services[0] : `${c.services.length} services`,
+    margin: c.rev > 0 ? c.profit / c.rev * 100 : 0,
+  }));
+}
+
+/* Top-level Clients-tab refresher. Reads the global Period chip for the
+   month and window._clientsViewMode for the toggle, then hands off to
+   applyLiveClients which does the rendering. */
+function refreshClientsTab() {
+  const svcParsed = window._live && window._live.svcParsed;
+  if (!svcParsed) return false;
+  const monthLabel = ($('periodVal').textContent || '').trim();
+  const viewMode = window._clientsViewMode || 'client';
+
+  // Mirror the month + view mode in the Clients tab UI
+  const sub = $('clientsSubline');
+  if (sub) {
+    const linkM = sub.querySelector('a');
+    const linkHTML = linkM ? linkM.outerHTML : 'Jumpstart ROI';
+    sub.innerHTML = `${monthLabel} · live from ${linkHTML} — Services`;
+  }
+  const monthChip = $('clientsMonthChip');
+  if (monthChip) monthChip.textContent = monthLabel || '—';
+
+  const rows = clientsFromServices(svcParsed, monthLabel, viewMode);
+  if (!rows || !rows.length) {
+    const tbody = $('clientRows');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="9" style="padding:20px;text-align:center;color:var(--muted)">No active engagements for ${monthLabel}</td></tr>`;
+    Chart.getChart('clientProfitChart')?.destroy();
+    Chart.getChart('clientMarginChart')?.destroy();
+    return false;
+  }
+  return applyLiveClients(rows);
 }
 
 /* ── Team Profit parser ───────────────────────────────────────────── */
@@ -6043,6 +6176,11 @@ async function loadOtherLive(tabs) {
   if (applyLiveServiceLineCards(svcParsed, fin)) {
     console.log(`📊 Service-line cards: top-3 lines rendered from live data`);
   }
+  // Clients tab is computed from Services (any month, any aggregation).
+  // refreshClientsTab() reads the global Period chip + view-mode toggle.
+  if (refreshClientsTab()) {
+    status.Clients = 'live (Services)';
+  }
 
   // Transactions Database — feeds Revenue / Expenses / P&L drilldown
   status.Revenue  = status.Revenue  || 'demo';
@@ -6160,6 +6298,19 @@ renderFinKpis();
 renderFinMeta();
 renderServiceLineCards();
 _applyHashTab();
+// Clients tab view-mode toggle (by-client vs by-client × service)
+window._clientsViewMode = 'client';
+document.querySelectorAll('#clientsViewToggle .seg-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const mode = btn.dataset.mode;
+    if (!mode || mode === window._clientsViewMode) return;
+    window._clientsViewMode = mode;
+    document.querySelectorAll('#clientsViewToggle .seg-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.mode === mode);
+    });
+    try { refreshClientsTab(); } catch(e) {}
+  });
+});
 initLiveData();
 </script>
 </body>
