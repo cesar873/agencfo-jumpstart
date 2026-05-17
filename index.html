@@ -1384,6 +1384,13 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
 
   <section class="section">
     <div class="shell">
+      <div class="shell-head"><div><h2>Average margin by month</h2><div class="sub" id="clientMarginByMonthSub">Total client profit ÷ total revenue · chronological</div></div></div>
+      <div class="chart-wrap tall"><canvas id="clientMarginByMonthChart"></canvas></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="shell">
       <div class="shell-head"><div><h2>Margin by client</h2><div class="sub">Red below 0 · blue above · sorted desc</div></div></div>
       <div class="chart-wrap tall"><canvas id="clientMarginChart"></canvas></div>
     </div>
@@ -3332,6 +3339,10 @@ function refreshClientsTab() {
   if (monthChip) monthChip.textContent = monthLabel || '—';
 
   const rows = clientsFromServices(svcParsed, monthLabel, viewMode);
+  // Average margin by month — loops over the currently-active label range
+  // (fin.labels, which is the slice when a date range is applied), so it
+  // automatically respects the global Range chip.
+  renderAvgMarginByMonth(svcParsed, fin && fin.labels);
   if (!rows || !rows.length) {
     const tbody = $('clientRows');
     if (tbody) tbody.innerHTML = `<tr><td colspan="9" style="padding:20px;text-align:center;color:var(--muted)">No active engagements for ${monthLabel}</td></tr>`;
@@ -3340,6 +3351,70 @@ function refreshClientsTab() {
     return false;
   }
   return applyLiveClients(rows);
+}
+
+/* Average client margin per month, over the currently-active label range.
+   Total client profit ÷ total revenue, computed from per-engagement rows. */
+function renderAvgMarginByMonth(svcParsed, labels) {
+  Chart.getChart('clientMarginByMonthChart')?.destroy();
+  const canvas = $('clientMarginByMonthChart');
+  if (!canvas || !svcParsed || !svcParsed.records || !labels || !labels.length) return;
+
+  const series = labels.map(lbl => {
+    const target = _monthKey(lbl);
+    const pi = target ? svcParsed.monthCols.findIndex(m => _monthKey(m.label) === target) : -1;
+    if (pi < 0) return null;
+    let rev = 0, profit = 0;
+    svcParsed.records.forEach(r => {
+      if (!(r.monthly[pi] > 0) || r.retainer <= 0) return;
+      const v = r.retainer;
+      const ppl = r.varLab + r.amPay;
+      const refF = r.ref.kind === 'pct'  ? v * r.ref.val
+                 : r.ref.kind === 'flat' ? r.ref.val : 0;
+      const oth = r.fee || 0;
+      rev    += v;
+      profit += v - ppl - refF - oth;
+    });
+    return rev > 0 ? (profit / rev * 100) : null;
+  });
+
+  const sub = $('clientMarginByMonthSub');
+  if (sub) sub.textContent = `Total client profit ÷ total revenue · ${labels.length} month${labels.length===1?'':'s'} in range · chronological`;
+
+  new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Avg margin',
+        data: series,
+        backgroundColor: 'rgba(19,144,235,0.88)',
+        borderRadius: [4,4,0,0],
+        barThickness: 36,
+      }],
+    },
+    plugins: [ChartDataLabels],
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 30, right: 14, bottom: 4, left: 6 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: { ...TOOLTIP, callbacks: { label: ctx => ` Avg margin: ${(ctx.raw==null?0:ctx.raw).toFixed(1)}%` } },
+        datalabels: {
+          align: 'top', anchor: 'end', offset: 4,
+          color: 'rgba(255,255,255,.92)',
+          font: { size: 12, weight: '700' },
+          formatter: v => v == null ? '—' : v.toFixed(1) + '%',
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 12, weight: '500' }, color: 'rgba(255,255,255,.9)' } },
+        y: { beginAtZero: true,
+             grid: { color: 'rgba(120,120,120,.10)', drawBorder: false },
+             ticks: { font: { size: 11 }, color: 'rgba(255,255,255,.55)', callback: v => v.toFixed(1) + '%' } },
+      }
+    }
+  });
 }
 
 /* ── Team Profit parser ───────────────────────────────────────────── */
