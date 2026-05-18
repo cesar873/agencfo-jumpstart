@@ -4011,10 +4011,11 @@ function applyLiveAnalytics(parsed, fin) {
       ? (findExact(uniqueName) || findExact(engagementName))
       : (findExact(engagementName) || findExact(uniqueName));
 
-  // Synthetic LTV/CAC ratio (sheet sometimes exposes this directly, otherwise derive)
+  // Synthetic LTV/CAC ratio (sheet sometimes exposes this directly, otherwise derive).
+  // Force kind='ratio' so fmtByKind renders "3.3x" instead of a currency / number.
   const ratioMetric = (() => {
     const direct = findExact('LTV/CAC');
-    if (direct) return direct;
+    if (direct) return { ...direct, kind: 'ratio' };
     const ltvForRatio = pick('Unique Client LTV', 'LTV');
     const cacForRatio = pick('Unique Client CAC', 'CAC');
     if (!ltvForRatio || !cacForRatio) return null;
@@ -4022,7 +4023,7 @@ function applyLiveAnalytics(parsed, fin) {
       const c = cacForRatio.series[i];
       return (c && isFinite(v) && isFinite(c) && c !== 0) ? v / c : 0;
     });
-    return { header: 'LTV / CAC', kind: 'number', series };
+    return { header: 'LTV / CAC', kind: 'ratio', series };
   })();
 
   // Fixed-slot KPI strip per tabs.md (LTV / CAC / LTV·CAC / Churn / Net new)
@@ -4038,6 +4039,7 @@ function applyLiveAnalytics(parsed, fin) {
     if (v == null || !isFinite(v) || v === 0) return '—';
     if (kind === 'percent')  return v.toFixed(1) + '%';
     if (kind === 'currency') return fmtCompactCur(v);
+    if (kind === 'ratio')    return v.toFixed(1) + 'x';
     return (Math.abs(v) < 10 ? v.toFixed(2) : Math.round(v).toLocaleString('en-US'));
   };
   const setKpi = (i, m) => {
