@@ -1482,14 +1482,14 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
 
   <section class="section">
     <div class="shell">
-      <div class="shell-head"><div><h2>Revenue gap by person</h2><div class="sub">Red = below target · green = surplus · zero line is break-even</div></div></div>
+      <div class="shell-head"><div><h2>Revenue gap by person</h2><div class="sub">Red = below target · green = surplus</div></div></div>
       <div class="chart-wrap tall"><canvas id="peopleGapChart"></canvas></div>
     </div>
   </section>
 
   <section class="section">
     <div class="shell">
-      <div class="shell-head"><div><h2>Utilization by department</h2><div class="sub">Target 80% (dashed line)</div></div></div>
+      <div class="shell-head"><div><h2>Utilization by department</h2><div class="sub">Tracks how each team is loaded</div></div></div>
       <div class="chart-wrap tall"><canvas id="deptUtilChart"></canvas></div>
     </div>
   </section>
@@ -2685,6 +2685,8 @@ function rerenderForMonth(idx) {
     try { renderServiceLineCards(idx); } catch(e) {}
     // Clients
     try { refreshClientsTab(); } catch(e) {}
+    // People
+    try { refreshPeopleTab(); } catch(e) {}
     // Budget vs Actual (uses explicit idx)
     if (s.budget) try { applyBudgetVsActual(s.budget, s.fin, idx); } catch(e) {}
   } finally {
@@ -2748,6 +2750,7 @@ function rerenderForRange(fromIdx, toIdx) {
   if (s.metrics) try { applyLiveAnalytics(s.metrics, sliced); } catch(e) {}
   if (s.budget)  try { applyBudgetVsActual(s.budget, sliced, newLastAct); } catch(e) {}
   try { refreshClientsTab(); } catch(e) {}
+  try { refreshPeopleTab(); } catch(e) {}
   // Keep the Period chip inside the new range
   const pv = $('periodVal');
   if (pv) pv.textContent = sliced.labels[newLastAct] || sliced.labels[0] || '';
@@ -3418,37 +3421,58 @@ function renderAvgMarginByMonth(svcParsed, labels) {
 }
 
 /* ── Team Profit parser ───────────────────────────────────────────── */
+/* Team Profit parser — long-format (one row per person per month). Returns
+   { months: [isoStrings], records: [{monthIso, name, dept, ...}] }.
+   Tolerates a missing Months column by treating every row as "current"
+   under an undefined monthIso (UI falls back to "current snapshot" mode). */
 function parseTeamProfit(rows) {
   if (!rows || rows.length < 2) return null;
   const hIdx = findHeaderRow(rows);
   if (hIdx < 0) return null;
   const find = colFinder(rows[hIdx]);
+  const cMonth = find(/^months?\b|month\b|period|date/);
   const cName  = find(/team.?member|^name|^person|employee/);
   const cDept  = find(/department|dept|^team$/);
+  const cTgt   = find(/utiliz.*target|util.*target|target/);
+  const cUtil  = find(/utiliz.*actual|util.*actual|utiliz|util\b/);
   const cHours = find(/hours.?avail|hours.?available|available|^hours\b/);
-  const cRev   = find(/revenue.?covered|rev.?covered|revenue/);
-  const cUtil  = find(/utiliz|util\b/);
-  const cTgt   = find(/target/);
-  const cGap   = find(/gap/);
+  const cDead  = find(/dead.?cost|deadcost/);
   if (cName < 0) return null;
 
-  const out = [];
+  const records = [];
+  const monthSet = new Set();
   for (let i = hIdx + 1; i < rows.length; i++) {
     const r = rows[i] || [];
     const name = String(r[cName] || '').trim();
     if (!name || /^(total|grand|sub|—)/i.test(name)) continue;
-    const rev = cRev >= 0 ? num(r[cRev]) : 0;
-    out.push({
+    let monthIso = null;
+    if (cMonth >= 0) {
+      const d = parseDateLoose(r[cMonth]);
+      if (d) monthIso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    }
+    if (monthIso) monthSet.add(monthIso);
+    // Percent values in the sheet show "75%" / "150.0%". normalizePct handles
+    // both "0.75" decimal style and "75" whole-number style — values > 5 are
+    // treated as already in whole-number percent.
+    const utilTarget = cTgt   >= 0 ? normalizePct(num(r[cTgt]))  : 80;
+    const utilActual = cUtil  >= 0 ? normalizePct(num(r[cUtil])) : 0;
+    const hoursAvail = cHours >= 0 ? num(r[cHours])              : 0;
+    const deadCost   = cDead  >= 0 ? num(r[cDead])               : 0;
+    records.push({
+      monthIso,
       name,
-      dept:   cDept  >= 0 ? (String(r[cDept]||'').trim() || '—') : '—',
-      hours:  cHours >= 0 ? num(r[cHours]) : 0,
-      rev,
-      util:   cUtil  >= 0 ? normalizePct(num(r[cUtil])) : 0,
-      target: cTgt   >= 0 ? normalizePct(num(r[cTgt])) : 80,
-      gap:    cGap   >= 0 ? num(r[cGap]) : 0,
+      dept:       cDept  >= 0 ? (String(r[cDept]||'').trim() || '—') : '—',
+      utilTarget,                  // whole-number percent (e.g. 75)
+      utilActual,                  // whole-number percent (e.g. 150)
+      hoursAvail,                  // unused capacity at target (can be negative)
+      deadCost,                    // $ cost of unused hours (negative = surplus)
     });
   }
-  return out.length ? out : null;
+  if (!records.length) return null;
+  return {
+    months: Array.from(monthSet).sort(),
+    records,
+  };
 }
 
 /* ── Metrics tab parser (TRANSPOSED — metric=column, month=row) ─────
@@ -3620,6 +3644,7 @@ function parseServicesTab(rows) {
   const iService = findCol('Service');
   if (iClient < 0 || iService < 0) return null;
   const iStatus    = findCol('Status');
+  const iTeam      = findCol('Team Member');
   const iRetainer  = findCol('Retainer Value');
   const iVarLab    = findCol('Variable Labour Costs');
   const iAMPay     = findCol('AM Pay');
@@ -3652,13 +3677,14 @@ function parseServicesTab(rows) {
     if (!client || !service) continue;
     records.push({
       client, service,
-      status:   String(row[iStatus] || '').trim(),
-      retainer: num(row[iRetainer]),
-      varLab:   num(row[iVarLab]),
-      amPay:    num(row[iAMPay]),
-      ref:      parsePctOrFlat(row[iRef]),
-      fee:      num(row[iFee]),
-      monthly:  monthCols.map(m => num(row[m.col])),
+      status:     String(row[iStatus] || '').trim(),
+      teamMember: String(row[iTeam] || '').trim(),
+      retainer:   num(row[iRetainer]),
+      varLab:     num(row[iVarLab]),
+      amPay:      num(row[iAMPay]),
+      ref:        parsePctOrFlat(row[iRef]),
+      fee:        num(row[iFee]),
+      monthly:    monthCols.map(m => num(row[m.col])),
     });
   }
   return { monthCols, records };
@@ -4225,7 +4251,359 @@ function _unusedLegacyAnalytics(metrics, fin) {
   return true;
 }
 
+/* Back-calc per-person total capacity from
+   hoursAvail = (utilTarget − utilActual)/100 × capacity. Sanity-bounded;
+   defaults to 160 (a standard month). */
+function _peopleCapacity(p) {
+  const dt = (p.utilTarget - p.utilActual) / 100;
+  if (Math.abs(dt) > 0.001 && p.hoursAvail !== 0) {
+    const c = p.hoursAvail / dt;
+    if (c > 0 && c < 500) return Math.round(c);
+  }
+  return 160;
+}
+
+/* Sum of retainer revenue for engagements where this person is the listed
+   Team Member and the engagement was active in the selected month. */
+function _peopleRevenueCovered(personName, monthIso, svcParsed) {
+  if (!svcParsed || !svcParsed.records || !monthIso) return null;
+  // monthIso is "YYYY-MM". svcParsed.monthCols labels are "MMM YYYY".
+  const norm = (lbl) => {
+    const d = parseDateLoose(lbl);
+    return d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` : null;
+  };
+  const pi = svcParsed.monthCols.findIndex(m => norm(m.label) === monthIso);
+  if (pi < 0) return null;
+  const target = personName.toLowerCase().trim();
+  let rev = 0;
+  svcParsed.records.forEach(r => {
+    if (!r.teamMember || r.teamMember.toLowerCase().trim() !== target) return;
+    if (!(r.monthly[pi] > 0)) return;
+    if (r.retainer <= 0) return;
+    rev += r.retainer;
+  });
+  return rev;
+}
+
+/* Build the per-person view for the selected month, decorating each record
+   with capacity / billable hours / revenue covered. */
+function peopleForMonth(tpParsed, svcParsed, monthIso) {
+  if (!tpParsed || !tpParsed.records) return [];
+  const rows = tpParsed.records.filter(p => !monthIso || p.monthIso === monthIso || !p.monthIso);
+  return rows.map(p => {
+    const capacity = _peopleCapacity(p);
+    const billableHours = Math.round(capacity * p.utilActual / 100);
+    const revCovered = _peopleRevenueCovered(p.name, monthIso, svcParsed);
+    return {
+      ...p,
+      capacity,
+      billableHours,
+      revenueCovered: revCovered, // null when not derivable
+      vsTarget: p.utilActual - p.utilTarget,           // percentage points
+      revenueGap: Math.max(0, p.deadCost),             // under-target only
+      surplus:    Math.max(0, -p.deadCost),            // over-target only
+      onTarget:   p.utilActual >= p.utilTarget,
+    };
+  });
+}
+
+/* tabs.md Phase 3 / People spec — five-branch insight generator. */
+function buildPeopleInsights(rows, monthLabel) {
+  const ins = [];
+  if (!rows || !rows.length) return ins;
+  const active = rows.filter(p => p.utilTarget > 0); // ignore people with 0% target
+  // 1. Under-target — list 1-3 with biggest revenue gap
+  const under = [...active].filter(p => p.revenueGap > 0).sort((a,b) => b.revenueGap - a.revenueGap).slice(0, 3);
+  if (under.length) {
+    const names = under.map(p => `${p.name} (-${fmtCompactCur(p.revenueGap)})`).join(', ');
+    ins.push({ tone: 'alert', text: `<b>${under.length} ${under.length===1?'person':'people'} under target</b> — biggest gaps: ${names}.` });
+  }
+  // 2. Over-utilised — anyone > 110% util
+  const over = active.filter(p => p.utilActual > 110);
+  if (over.length) {
+    const names = over.map(p => `${p.name} (${p.utilActual.toFixed(0)}%)`).join(', ');
+    ins.push({ tone: 'warn', text: `<b>${over.length} over-utilised</b> — burnout risk: ${names}.` });
+  }
+  // 3. High performers — top 1-3 by surplus
+  const winners = [...active].filter(p => p.surplus > 0).sort((a,b) => b.surplus - a.surplus).slice(0, 3);
+  if (winners.length) {
+    const names = winners.map(p => `${p.name} (+${fmtCompactCur(p.surplus)})`).join(', ');
+    ins.push({ tone: 'win', text: `<b>${winners.length} high performer${winners.length===1?'':'s'}</b> — most surplus: ${names}.` });
+  }
+  // 4. Department imbalance — any dept with avg below 50% or above 100%
+  const byDept = {};
+  active.forEach(p => {
+    (byDept[p.dept] = byDept[p.dept] || []).push(p);
+  });
+  Object.entries(byDept).forEach(([dept, list]) => {
+    const avg = list.reduce((a,p) => a + p.utilActual, 0) / list.length;
+    if (avg < 50)        ins.push({ tone: 'info', text: `<b>${dept} dept under-loaded</b> — average ${avg.toFixed(0)}% utilization. Re-allocate or upskill.` });
+    else if (avg > 100)  ins.push({ tone: 'info', text: `<b>${dept} dept over-loaded</b> — average ${avg.toFixed(0)}% utilization. Consider hiring.` });
+  });
+  // 5. Bench — any active person < 20% util
+  const bench = active.filter(p => p.utilActual > 0 && p.utilActual < 20);
+  if (bench.length) {
+    ins.push({ tone: 'info', text: `<b>${bench.length} on the bench</b> — ${bench.map(p=>p.name).join(', ')} below 20% util this month. Placement opportunity.` });
+  }
+  return ins.slice(0, 5);
+}
+
+function _renderPeopleInsights(insights, monthLabel) {
+  const list = document.querySelector('#tab-people .wtdn-list');
+  const title = document.querySelector('#tab-people .wtdn-title');
+  if (title) title.textContent = `What to do next · ${monthLabel}`;
+  if (!list) return;
+  if (!insights.length) {
+    list.innerHTML = `<li class="ins info"><div class="ins-circle">i</div><div class="ins-text">No insights for ${monthLabel} yet.</div></li>`;
+    return;
+  }
+  const icon = (tone) => tone === 'alert' ? '!' : tone === 'warn' ? '!' : tone === 'win' ? '✓' : 'i';
+  list.innerHTML = insights.map(it => `
+    <li class="ins ${it.tone}">
+      <div class="ins-circle">${icon(it.tone)}</div>
+      <div class="ins-text">${it.text}</div>
+    </li>`).join('');
+}
+
+/* Top-level People-tab refresher. Reads:
+   - Period chip → selected month
+   - window._live.tpParsed → Team Profit records
+   - window._live.svcParsed → for Revenue Covered cross-reference */
+function refreshPeopleTab() {
+  const live = window._live;
+  if (!live || !live.tpParsed) return false;
+  const monthLabel = ($('periodVal').textContent || '').trim();
+  // Convert "Apr 26" → "2026-04"
+  const d = parseDateLoose(monthLabel);
+  const monthIso = d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` : null;
+
+  // Subline reflects selected month + whether data is actually present
+  const sub = document.querySelector('#tab-people .subline');
+  if (sub) {
+    const linkM = sub.querySelector('a');
+    const linkHTML = linkM ? linkM.outerHTML : 'Jumpstart ROI';
+    const hasMonth = monthIso && live.tpParsed.months.includes(monthIso);
+    const suffix = hasMonth ? '' : ' · no Team Profit data for this month yet';
+    sub.innerHTML = `${monthLabel} · live from ${linkHTML} — Team Profit${suffix}`;
+  }
+
+  const rows = peopleForMonth(live.tpParsed, live.svcParsed, monthIso);
+  // If we requested a specific month but the sheet has none for it, fall back
+  // to the most recent month present so the page isn't blank.
+  let effective = rows;
+  let effectiveLabel = monthLabel;
+  if (!effective.length && live.tpParsed.months.length) {
+    const fallbackIso = live.tpParsed.months[live.tpParsed.months.length - 1];
+    effective = peopleForMonth(live.tpParsed, live.svcParsed, fallbackIso);
+    const [y, m] = fallbackIso.split('-');
+    const fdate = new Date(Number(y), Number(m)-1, 1);
+    effectiveLabel = fdate.toLocaleDateString('en-US',{month:'short',year:'2-digit'});
+  }
+
+  if (!effective.length) {
+    const tbody = $('peopleRows');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--muted)">No Team Profit rows available</td></tr>`;
+    Chart.getChart('peopleGapChart')?.destroy();
+    Chart.getChart('deptUtilChart')?.destroy();
+    return false;
+  }
+
+  // Insights
+  _renderPeopleInsights(buildPeopleInsights(effective, effectiveLabel), effectiveLabel);
+
+  // KPI strip (spec: Revenue Covered / Avg Util / On Target / Revenue Gap / Hours billable)
+  const totalRevCovered = effective.reduce((a,p) => a + (p.revenueCovered || 0), 0);
+  const anyRevCovered   = effective.some(p => p.revenueCovered != null && p.revenueCovered > 0);
+  const avgUtil         = effective.reduce((a,p) => a + p.utilActual, 0) / effective.length;
+  const onTarget        = effective.filter(p => p.onTarget && p.utilTarget > 0).length;
+  const totalGap        = effective.reduce((a,p) => a + p.revenueGap, 0);
+  const totalBillable   = effective.reduce((a,p) => a + p.billableHours, 0);
+  const kpis = document.querySelectorAll('#tab-people .kpi .kpi-value');
+  const ctxs = document.querySelectorAll('#tab-people .kpi .kpi-delta');
+  if (kpis.length >= 5) {
+    kpis[0].textContent = anyRevCovered ? fmtCompactCur(totalRevCovered) : '—';
+    kpis[0].className   = 'kpi-value';
+    if (ctxs[0]) ctxs[0].innerHTML = anyRevCovered
+      ? `<span class="ctx">Retainers tagged to team members</span>`
+      : `<span class="ctx">No Team Member tags found in Services</span>`;
+    kpis[1].textContent = avgUtil.toFixed(1) + '%';
+    kpis[1].className   = 'kpi-value ' + (avgUtil>=75?'success':avgUtil>=50?'warning':'danger');
+    if (ctxs[1]) ctxs[1].innerHTML = `<span class="ctx">Across ${effective.length} people</span>`;
+    kpis[2].textContent = `${onTarget} / ${effective.filter(p => p.utilTarget > 0).length}`;
+    kpis[2].className   = 'kpi-value';
+    if (ctxs[2]) ctxs[2].innerHTML = `<span class="ctx">Utilization ≥ target</span>`;
+    kpis[3].textContent = fmtCompactCur(totalGap);
+    kpis[3].className   = 'kpi-value ' + (totalGap===0?'success':'danger');
+    if (ctxs[3]) ctxs[3].innerHTML = `<span class="ctx">Under-target dead cost</span>`;
+    kpis[4].textContent = totalBillable.toLocaleString('en-US');
+    kpis[4].className   = 'kpi-value';
+    if (ctxs[4]) ctxs[4].innerHTML = `<span class="ctx">Hours actually billed</span>`;
+  }
+
+  // Revenue gap by person (diverging horizontal)
+  const byGap = [...effective].sort((a,b) => (a.revenueGap === 0 ? a.surplus : a.revenueGap) * (a.revenueGap > 0 ? 1 : -1)
+                                        - (b.revenueGap === 0 ? b.surplus : b.revenueGap) * (b.revenueGap > 0 ? 1 : -1));
+  // Simpler sort: surplus on top (green), gap on bottom (red), magnitude desc within each side
+  const gapsSorted = [...effective].sort((a,b) => (b.surplus - a.surplus) || (a.revenueGap - b.revenueGap));
+  Chart.getChart('peopleGapChart')?.destroy();
+  const gapCanvas = $('peopleGapChart');
+  const gapWrap = gapCanvas && gapCanvas.parentElement;
+  if (gapWrap && gapWrap.classList.contains('chart-wrap')) {
+    gapWrap.style.height = Math.max(280, gapsSorted.length * 26 + 30) + 'px';
+  }
+  new Chart(gapCanvas, {
+    type:'bar',
+    data:{
+      labels: gapsSorted.map(p => p.name),
+      datasets:[{
+        data: gapsSorted.map(p => p.surplus > 0 ? p.surplus : -p.revenueGap),
+        backgroundColor: gapsSorted.map(p =>
+          p.surplus > 0 ? 'rgba(52,211,153,0.85)' :
+          p.revenueGap > 0 ? 'rgba(248,113,113,0.85)' :
+          'rgba(255,255,255,.10)'),
+        borderRadius: 3, barThickness: 14,
+      }]
+    },
+    plugins:[ChartDataLabels],
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      layout:{padding:{top:6,right:80,bottom:6,left:6}},
+      plugins:{
+        legend:{display:false},
+        tooltip:{...TOOLTIP, callbacks:{ label: ctx => ` ${ctx.label}: ${ctx.raw>=0?'+':''}${fmtCompactCur(ctx.raw)}` }},
+        datalabels:{
+          align: ctx=>ctx.raw>=0?'right':'left',
+          anchor: ctx=>ctx.raw>=0?'end':'start',
+          offset:6, color:'rgba(255,255,255,.85)', font:{size:11,weight:'600'},
+          formatter: v=>v===0?'—':(v>0?'+':'')+fmtCompactCur(v)
+        }
+      },
+      scales:{
+        x:{ grid:{color:'rgba(120,120,120,.10)',drawBorder:false},
+            ticks:{font:{size:11},color:'rgba(255,255,255,.55)',callback:v=>fmtCompactCur(v)} },
+        y:{ grid:{display:false},
+            ticks:{font:{size:12,weight:'500'},color:'rgba(255,255,255,.9)',autoSkip:false} }
+      }
+    }
+  });
+
+  // Table
+  const tbody = $('peopleRows');
+  if (tbody) {
+    const ranked = [...effective].sort((a,b) => (b.revenueCovered||0) - (a.revenueCovered||0));
+    const maxRev = Math.max(...ranked.map(p => p.revenueCovered || 0), 1);
+    const maxGap = Math.max(...ranked.map(p => p.revenueGap || p.surplus || 0), 1);
+    tbody.innerHTML = ranked.map(p => {
+      const tgtDelta = p.vsTarget;
+      const tgtCls = tgtDelta >= 0 ? 'ok' : tgtDelta >= -10 ? 'warn' : 'bad';
+      const isSurplus = p.surplus > 0;
+      const gapClass = isSurplus ? 'b-emerald' : (p.revenueGap > 0 ? 'b-rose' : 'muted');
+      const gapVal = isSurplus ? p.surplus : -p.revenueGap;
+      const utilBg = p.utilActual === 0 ? 'rgba(255,255,255,.15)'
+                   : p.utilActual >= 75 ? '#34d399'
+                   : p.utilActual >= 50 ? '#fcd34d' : '#fda4af';
+      const revHtml = (p.revenueCovered == null || p.revenueCovered === 0)
+        ? '<span class="dim">—</span>'
+        : `<div class="cb"><span class="v">${fmtCompactCur(p.revenueCovered)}</span><span class="bg"><i class="b-sky" style="width:${Math.round(p.revenueCovered/maxRev*100)}%"></i></span></div>`;
+      return `<tr>
+        <td class="sticky-left truncate" title="${p.name}">${p.name}</td>
+        <td>${p.dept}</td>
+        <td class="num">${p.capacity}</td>
+        <td class="num">${revHtml}</td>
+        <td><div class="util-cell"><span class="val">${p.utilActual.toFixed(0)}%</span><span class="bar"><i style="width:${Math.min(p.utilActual,100)}%;background:${utilBg}"></i><span class="tick" style="left:${Math.min(p.utilTarget,100)}%"></span></span></div></td>
+        <td><span class="badge ${tgtCls}">${tgtDelta>=0?'+':''}${tgtDelta.toFixed(0)}pp</span></td>
+        <td class="num">${gapVal === 0 ? '<span class="dim">—</span>' : `<div class="cb"><span class="v">${(gapVal>0?'+':'')}${fmtCompactCur(gapVal)}</span><span class="bg"><i class="${gapClass}" style="width:${Math.round(Math.abs(gapVal)/maxGap*100)}%"></i></span></div>`}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Total row
+  const totalRow = document.querySelector('#tab-people tr.total');
+  if (totalRow) {
+    const totalCapacity = effective.reduce((a,p) => a + p.capacity, 0);
+    const totalSurplus  = effective.reduce((a,p) => a + p.surplus, 0);
+    const netDelta      = totalSurplus - totalGap;
+    totalRow.innerHTML = `<td class="sticky-left">Total (${effective.length})</td>
+      <td>—</td>
+      <td class="num">${totalCapacity.toLocaleString('en-US')}</td>
+      <td class="num"><b>${anyRevCovered ? fmtCompactCur(totalRevCovered) : '—'}</b></td>
+      <td><span class="badge ${avgUtil>=75?'ok':'warn'}">${avgUtil.toFixed(1)}%</span></td>
+      <td><span class="badge ${(avgUtil - effective.reduce((a,p)=>a+p.utilTarget,0)/effective.length) >= 0 ? 'ok' : 'warn'}">${(avgUtil-(effective.reduce((a,p)=>a+p.utilTarget,0)/effective.length)).toFixed(0)}pp</span></td>
+      <td class="num"><b>${netDelta === 0 ? '—' : (netDelta>0?'+':'')+fmtCompactCur(netDelta)}</b></td>`;
+  }
+
+  // Department utilization trend (multi-line across active range)
+  renderDeptUtilTrend(live.tpParsed, fin && fin.labels);
+
+  return true;
+}
+
+/* Multi-line utilization-by-department chart across the active label range.
+   Each department becomes one line; months without data render as gaps. */
+function renderDeptUtilTrend(tpParsed, labels) {
+  Chart.getChart('deptUtilChart')?.destroy();
+  const canvas = $('deptUtilChart');
+  if (!canvas || !tpParsed || !tpParsed.records || !labels || !labels.length) return;
+  const labelToIso = (lbl) => {
+    const d = parseDateLoose(lbl);
+    return d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` : null;
+  };
+  // Group by dept × monthIso → avg utilization
+  const byDeptMonth = {};
+  tpParsed.records.forEach(r => {
+    if (!r.monthIso || !r.dept || r.utilTarget === 0) return;
+    const key = r.dept + '|' + r.monthIso;
+    if (!byDeptMonth[key]) byDeptMonth[key] = { sum: 0, n: 0 };
+    byDeptMonth[key].sum += r.utilActual;
+    byDeptMonth[key].n   += 1;
+  });
+  const depts = Array.from(new Set(tpParsed.records.map(r => r.dept).filter(d => d && d !== '—'))).sort();
+  const isoSeries = labels.map(labelToIso);
+  const PALETTE_BLUE = ['#1390eb','#0284c7','#0ea5e9','#38bdf8','#7dd3fc','#bae6fd','#dbeafe','#e0f2fe'];
+  const datasets = depts.map((dept, i) => ({
+    label: dept,
+    data: isoSeries.map(iso => {
+      if (!iso) return null;
+      const k = dept + '|' + iso;
+      return byDeptMonth[k] ? byDeptMonth[k].sum / byDeptMonth[k].n : null;
+    }),
+    borderColor: PALETTE_BLUE[i % PALETTE_BLUE.length],
+    backgroundColor: 'transparent',
+    fill: false, tension: .35, pointRadius: 3, borderWidth: 2,
+    spanGaps: true,
+  }));
+  new Chart(canvas, {
+    type:'line',
+    data: { labels, datasets },
+    plugins:[ChartDataLabels],
+    options:{
+      responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      layout:{padding:{top:30,right:14,bottom:4,left:6}},
+      plugins:{
+        legend:{position:'top',align:'end',labels:{usePointStyle:true,boxWidth:9,boxHeight:9,padding:14,font:{size:11},color:'rgba(255,255,255,.85)'}},
+        tooltip:{...TOOLTIP, callbacks:{ label: ctx => ` ${ctx.dataset.label}: ${ctx.raw == null ? '—' : ctx.raw.toFixed(1) + '%'}` }},
+        datalabels:{display:false},
+      },
+      scales:{
+        x: xAxis,
+        y: { ...yCurAxis, beginAtZero: true,
+             ticks:{ font:{size:11}, color:'rgba(255,255,255,.65)', callback: v => v.toFixed(0) + '%' } }
+      }
+    }
+  });
+}
+
+/* Legacy compatibility shim — loadOtherLive calls applyLivePeople(parsed)
+   from the old contract. Stash the parsed Team Profit on _live and route
+   through refreshPeopleTab. */
 function applyLivePeople(parsed) {
+  if (!parsed || !parsed.records || !parsed.records.length) return false;
+  window._live = window._live || {};
+  window._live.tpParsed = parsed;
+  return refreshPeopleTab();
+}
+
+function _OLD_applyLivePeople(parsed) {
   if (!parsed || !parsed.length) return false;
   const byRev = [...parsed].sort((a,b) => b.rev - a.rev);
 
