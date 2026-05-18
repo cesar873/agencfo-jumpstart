@@ -1225,17 +1225,19 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   <div class="wtdn">
     <div class="wtdn-head">
       <span class="wtdn-chip">Insights</span>
-      <span class="wtdn-title">What to do next · April 2026</span>
+      <span class="wtdn-title">What to do next</span>
     </div>
-    <ul class="wtdn-list">
-      <li class="ins win"><div class="ins-circle">✓</div><div class="ins-text"><b>LTV / CAC at 3.3x</b> — every $1 of acquisition returns $3.30 in lifetime value. Above the 3x healthy threshold.</div></li>
-      <li class="ins win"><div class="ins-circle">✓</div><div class="ins-text"><b>Zero client churn in March</b> — no lost clients this month. Net new of +1 client; total active now 11.</div></li>
-      <li class="ins warn"><div class="ins-circle">!</div><div class="ins-text"><b>CAC up +4.2% vs Feb</b> — acquisition getting more expensive. Track payback period carefully through Q2.</div></li>
-      <li class="ins info"><div class="ins-circle">i</div><div class="ins-text"><b>MRR forecast $119K for April</b> — sustained 6-month growth trajectory at ~3.5% monthly.</div></li>
-    </ul>
+    <ul class="wtdn-list"></ul>
   </div>
 
   <section class="section tight">
+    <div class="row-flex" style="gap:12px;align-items:center;margin-bottom:14px;">
+      <span class="sub-eyebrow">Counting</span>
+      <div class="seg-toggle" id="analyticsViewToggle" role="tablist">
+        <button class="seg-btn" data-mode="engagement" role="tab">By engagement</button>
+        <button class="seg-btn active" data-mode="unique" role="tab">By unique client</button>
+      </div>
+    </div>
     <div class="kpi-strip">
       <div class="kpi">
         <div class="kpi-label">LTV (Est.)</div>
@@ -1377,13 +1379,6 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
 
   <section class="section">
     <div class="shell">
-      <div class="shell-head"><div><h2>Client profit · ranked</h2><div class="sub">Selected period · top contributors first · labels show dollars</div></div></div>
-      <div class="chart-wrap tall"><canvas id="clientProfitChart"></canvas></div>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="shell">
       <div class="shell-head"><div><h2>Average margin by month</h2><div class="sub" id="clientMarginByMonthSub">Total client profit ÷ total revenue · chronological</div></div></div>
       <div class="chart-wrap tall"><canvas id="clientMarginByMonthChart"></canvas></div>
     </div>
@@ -1391,7 +1386,7 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
 
   <section class="section">
     <div class="shell">
-      <div class="shell-head"><div><h2>Margin by client</h2><div class="sub">Red below 0 · blue above · sorted desc</div></div></div>
+      <div class="shell-head"><div><h2>Margin by service line</h2><div class="sub" id="clientMarginByServiceSub">Weighted margin per service · selected period</div></div></div>
       <div class="chart-wrap tall"><canvas id="clientMarginChart"></canvas></div>
     </div>
   </section>
@@ -3130,7 +3125,7 @@ function applyLiveClients(parsed) {
   if (profitWrap && profitWrap.classList.contains('chart-wrap')) {
     profitWrap.style.height = Math.max(280, plotted.length * 32 + 30) + 'px';
   }
-  new Chart(profitCanvas, {
+  if (profitCanvas) new Chart(profitCanvas, {
     type:'bar',
     data:{
       labels: plotted.map(c => c.name),
@@ -3172,57 +3167,65 @@ function applyLiveClients(parsed) {
       }
     }
   });
-  // Margin-by-client — top 15 by absolute margin so unprofitable
-  // clients still surface in the chart, sorted from highest to lowest
-  // margin so the red bars cluster at the bottom.
-  const marginSorted = [...sorted].sort((a,b) => b.margin - a.margin);
-  const marginPlotted = marginSorted.length > 15
-    ? marginSorted.slice(0, 10).concat(marginSorted.slice(-5))
-    : marginSorted;
+  // Margin-by-service-line — aggregate the per-engagement rows by `svc`
+  // (when input is svc-mode) or split clients with mixed services back
+  // out via their `services` array (when input is client-aggregated).
+  const svcBucket = new Map();
+  sorted.forEach(c => {
+    const list = (Array.isArray(c.services) && c.services.length)
+      ? c.services.map(svcName => ({ svc: svcName, share: 1 / c.services.length }))
+      : [{ svc: c.svc, share: 1 }];
+    list.forEach(({ svc, share }) => {
+      if (!svc || svc === '—') return;
+      if (!svcBucket.has(svc)) svcBucket.set(svc, { svc, rev: 0, profit: 0 });
+      const b = svcBucket.get(svc);
+      b.rev    += (c.rev    || 0) * share;
+      b.profit += (c.profit || 0) * share;
+    });
+  });
+  const marginPlotted = Array.from(svcBucket.values())
+    .map(b => ({ ...b, margin: b.rev > 0 ? b.profit / b.rev * 100 : 0 }))
+    .filter(b => b.rev > 0)
+    .sort((a,b) => b.margin - a.margin);
+
   const marginCanvas = $('clientMarginChart');
   const marginWrap = marginCanvas ? marginCanvas.parentElement : null;
   if (marginWrap && marginWrap.classList.contains('chart-wrap')) {
-    marginWrap.style.height = Math.max(280, marginPlotted.length * 32 + 30) + 'px';
+    marginWrap.style.height = 360 + 'px';
   }
-  new Chart(marginCanvas, {
+  const mbsSub = $('clientMarginByServiceSub');
+  if (mbsSub) mbsSub.textContent = `Weighted margin across ${marginPlotted.length} service line${marginPlotted.length===1?'':'s'} · selected period`;
+  if (marginCanvas) new Chart(marginCanvas, {
     type:'bar',
     data:{
-      labels: marginPlotted.map(c => c.name),
+      labels: marginPlotted.map(b => b.svc),
       datasets:[{
-        data: marginPlotted.map(c => c.margin),
-        backgroundColor: marginPlotted.map(c => c.margin < 0 ? 'rgba(248,113,113,0.85)' : 'rgba(19,144,235,0.85)'),
-        borderRadius: 3,
-        barThickness: 18,
+        data: marginPlotted.map(b => b.margin),
+        backgroundColor: marginPlotted.map(b => b.margin < 0 ? 'rgba(248,113,113,0.85)' : 'rgba(19,144,235,0.85)'),
+        borderRadius: [4,4,0,0],
+        barThickness: 42,
       }]
     },
     plugins:[ChartDataLabels],
     options:{
-      indexAxis:'y',
       responsive:true, maintainAspectRatio:false,
-      layout:{padding:{top:6,right:90,bottom:6,left:6}},
+      layout:{ padding:{ top:30, right:14, bottom:4, left:6 } },
       plugins:{
-        legend:{display:false},
-        tooltip:{...TOOLTIP, callbacks:{ label: ctx => ` ${ctx.label}: ${ctx.raw.toFixed(1)}%` }},
+        legend:{ display:false },
+        tooltip:{ ...TOOLTIP, callbacks:{ label: ctx => ` ${ctx.label}: ${ctx.raw.toFixed(1)}% margin` } },
         datalabels:{
-          anchor:'end', align:'right', offset:6,
+          align:'top', anchor:'end', offset:4,
           color:'rgba(255,255,255,.92)',
-          font:{size:12, weight:'600'},
-          formatter:v=>v.toFixed(1)+'%'
+          font:{ size:12, weight:'700' },
+          formatter: v => v.toFixed(1) + '%',
         }
       },
       scales:{
-        x:{ grid:{color:'rgba(120,120,120,.10)',drawBorder:false},
-            ticks:{font:{size:11},color:'rgba(255,255,255,.55)',callback:v=>v.toFixed(0)+'%'} },
-        y:{ grid:{display:false},
-            ticks:{
-              font:{size:12, weight:'500'},
-              color:'rgba(255,255,255,.9)',
-              autoSkip:false,
-              callback: function(value){
-                const lbl = this.getLabelForValue(value);
-                return lbl && lbl.length > 28 ? lbl.slice(0,27) + '…' : lbl;
-              }
-            } }
+        x:{ grid:{ display:false },
+            ticks:{ font:{ size:12, weight:'500' }, color:'rgba(255,255,255,.9)' } },
+        y:{ beginAtZero:true,
+            grid:{ color:'rgba(120,120,120,.10)', drawBorder:false },
+            ticks:{ font:{ size:11 }, color:'rgba(255,255,255,.55)', callback: v => v.toFixed(0) + '%' } }
       }
     }
   });
@@ -3883,20 +3886,22 @@ function topClientConcentration(svcParsed, fin) {
 /* tabs.md Phase 2 / Analytics spec — five-branch insight generator.
    `live` is the filtered metrics array (each item has header + series).
    `fin` provides lastAct + fcstFrom for forecast-trajectory comparisons. */
-function buildAnalyticsInsights(live, fin) {
+function buildAnalyticsInsights(live, fin, mode) {
   const ins = [];
   if (!live || !live.length || !fin) return ins;
   const lastAct = fin.lastAct;
-  const findMetric = (rx) => live.find(m => rx.test(m.header));
   const valAt = (m, i) => (m && m.series && isFinite(m.series[i])) ? m.series[i] : null;
-
-  const ltv     = findMetric(/lifetime\s*value|^ltv\b|ltgp/i);
-  const cac     = findMetric(/^cac\b|customer\s*acquisition/i);
-  const ratio   = findMetric(/ltv\s*\/\s*cac|ltv:cac|ratio/i);
-  const churn   = findMetric(/^churn\b|client\s*churn/i);
-  const mrrCh   = findMetric(/mrr\s*churn/i);
-  const signed  = findMetric(/clients?\s*signed|signed\b/i);
-  const lost    = findMetric(/clients?\s*lost|lost\b/i);
+  const findExact = (h) => live.find(m => m.header.trim().toLowerCase() === h.toLowerCase()) || null;
+  mode = mode || 'unique';
+  const pick = (u, e) => mode === 'unique' ? (findExact(u) || findExact(e)) : (findExact(e) || findExact(u));
+  const ltv     = pick('Unique Client LTV',     'LTV');
+  const cac     = pick('Unique Client CAC',     'CAC');
+  const ratio   = findExact('LTV/CAC');
+  const churn   = pick('Unique Client Churn',   'Churn');
+  const mrrCh   = findExact('MRR Churn');
+  const signed  = pick('Unique Clients Signed', 'Clients Signed');
+  const lost    = pick('Unique Clients Lost',   'Clients Lost');
+  const noun    = mode === 'unique' ? 'client' : 'engagement';
 
   // 1. LTV/CAC ratio
   let ratioVal = valAt(ratio, lastAct);
@@ -3914,7 +3919,7 @@ function buildAnalyticsInsights(live, fin) {
   const churnVal = valAt(churn, lastAct);
   const churnPrev = valAt(churn, lastAct - 1);
   if (churnVal != null) {
-    if (churnVal >= 5) ins.push({ tone: 'warn', text: `<b>Client churn at ${churnVal.toFixed(1)}%</b> — high. Identify and address departures from this cohort.` });
+    if (churnVal >= 5) ins.push({ tone: 'warn', text: `<b>${noun.charAt(0).toUpperCase()+noun.slice(1)} churn at ${churnVal.toFixed(1)}%</b> — high. Identify and address departures from this cohort.` });
     else if (churnPrev != null && churnVal - churnPrev >= 2) ins.push({ tone: 'warn', text: `<b>Churn rising</b> — ${churnPrev.toFixed(1)}% → ${churnVal.toFixed(1)}% MoM. Investigate cause.` });
   }
   const mrrVal = valAt(mrrCh, lastAct);
@@ -3934,9 +3939,9 @@ function buildAnalyticsInsights(live, fin) {
     if (curS != null && curL != null) {
       const net = curS - curL;
       if (monthsCounted >= 2 && netSum > 0 && net > 0) {
-        ins.push({ tone: 'win', text: `<b>Net positive ${monthsCounted} months running</b> — +${curS} signed vs ${curL} lost this month (net ${net>=0?'+':''}${net}).` });
+        ins.push({ tone: 'win', text: `<b>Net positive ${monthsCounted} months running</b> — +${curS} ${noun}s signed vs ${curL} lost this month (net ${net>=0?'+':''}${net}).` });
       } else if (net < 0) {
-        ins.push({ tone: 'alert', text: `<b>Net client loss this month</b> — ${curS} signed vs ${curL} lost (net ${net}). Pipeline needs pull.` });
+        ins.push({ tone: 'alert', text: `<b>Net ${noun} loss this month</b> — ${curS} signed vs ${curL} lost (net ${net}). Pipeline needs pull.` });
       }
     }
   }
@@ -3998,7 +4003,36 @@ function applyLiveAnalytics(parsed, fin) {
     }
     return Math.abs(m.series[lastAct] || 0);
   };
-  const kpiPicks = [...live].sort((a,b) => scoreOf(b) - scoreOf(a)).slice(0, 5);
+  // View mode + mode-aware pickers (declared early so both KPIs and charts share them)
+  const mode = window._analyticsViewMode || 'unique';
+  const findExact = (header) => live.find(m => m.header.trim().toLowerCase() === header.toLowerCase()) || null;
+  const pick = (uniqueName, engagementName) =>
+    mode === 'unique'
+      ? (findExact(uniqueName) || findExact(engagementName))
+      : (findExact(engagementName) || findExact(uniqueName));
+
+  // Synthetic LTV/CAC ratio (sheet sometimes exposes this directly, otherwise derive)
+  const ratioMetric = (() => {
+    const direct = findExact('LTV/CAC');
+    if (direct) return direct;
+    const ltvForRatio = pick('Unique Client LTV', 'LTV');
+    const cacForRatio = pick('Unique Client CAC', 'CAC');
+    if (!ltvForRatio || !cacForRatio) return null;
+    const series = ltvForRatio.series.map((v,i) => {
+      const c = cacForRatio.series[i];
+      return (c && isFinite(v) && isFinite(c) && c !== 0) ? v / c : 0;
+    });
+    return { header: 'LTV / CAC', kind: 'number', series };
+  })();
+
+  // Fixed-slot KPI strip per tabs.md (LTV / CAC / LTV·CAC / Churn / Net new)
+  const kpiPicks = [
+    pick('Unique Client LTV',     'LTV'),
+    pick('Unique Client CAC',     'CAC'),
+    ratioMetric,
+    pick('Unique Client Churn',   'Churn'),
+    pick('Total Unique Clients',  'Total Clients'),
+  ];
 
   const fmtByKind = (v, kind) => {
     if (v == null || !isFinite(v) || v === 0) return '—';
@@ -4052,14 +4086,14 @@ function applyLiveAnalytics(parsed, fin) {
   };
   for (let i = 0; i < 5; i++) setKpi(i, kpiPicks[i]);
 
-  // Find a metric by header pattern (case-insensitive). Returns null if missing.
-  const findMetric = (rx) => live.find(m => rx.test(m.header)) || null;
-  const ltv    = findMetric(/lifetime\s*value|^ltv\b/i);
-  const cac    = findMetric(/^cac\b|customer\s*acquisition/i);
-  const churn  = findMetric(/^churn\b/i);
-  const signed = findMetric(/clients?\s*signed/i);
-  const lost   = findMetric(/clients?\s*lost/i);
-  const totalC = findMetric(/total\s*clients|active\s*clients/i);
+  // Metric picks for the four chart blocks below (mode-aware via the
+  // `pick` helper declared earlier near the KPI strip).
+  const ltv    = pick('Unique Client LTV',     'LTV');
+  const cac    = pick('Unique Client CAC',     'CAC');
+  const churn  = pick('Unique Client Churn',   'Churn');
+  const signed = pick('Unique Clients Signed', 'Clients Signed');
+  const lost   = pick('Unique Clients Lost',   'Clients Lost');
+  const totalC = pick('Total Unique Clients',  'Total Clients');
 
   /* ── Chart 1 · LTV vs CAC ─────────────────────────────────────────── */
   Chart.getChart('ltvCacChart')?.destroy();
@@ -4246,7 +4280,13 @@ function applyLiveAnalytics(parsed, fin) {
   renderAllMetricsTable(live, fin);
 
   /* ── WhatToDoNext insights (live) ─────────────────────────────────── */
-  _renderInsights('tab-analytics', buildAnalyticsInsights(live, fin), L[lastAct]);
+  _renderInsights('tab-analytics', buildAnalyticsInsights(live, fin, mode), L[lastAct]);
+
+  // Reflect mode in the Signed & Lost chart subtitle
+  const slSub = document.querySelector('#tab-analytics .section:nth-of-type(5) .shell .shell-head .sub');
+  if (slSub) slSub.textContent = mode === 'unique'
+    ? 'Bars: unique clients signed / lost · line: total unique clients'
+    : 'Bars: monthly signs / losses (per engagement) · line: total engagements';
 
   // Subline
   const sub = document.querySelector('#tab-analytics .subline');
@@ -6951,6 +6991,22 @@ document.querySelectorAll('#clientsViewToggle .seg-btn').forEach(btn => {
       b.classList.toggle('active', b.dataset.mode === mode);
     });
     try { refreshClientsTab(); } catch(e) {}
+  });
+});
+// Analytics tab view-mode toggle (engagement vs unique client)
+window._analyticsViewMode = 'unique';
+document.querySelectorAll('#analyticsViewToggle .seg-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const mode = btn.dataset.mode;
+    if (!mode || mode === window._analyticsViewMode) return;
+    window._analyticsViewMode = mode;
+    document.querySelectorAll('#analyticsViewToggle .seg-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.mode === mode);
+    });
+    const s = window._live;
+    if (s && s.metrics && s.fin) {
+      try { applyLiveAnalytics(s.metrics, s.fin); } catch(e) {}
+    }
   });
 });
 initLiveData();
