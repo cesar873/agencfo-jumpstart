@@ -4222,10 +4222,16 @@ function applyLiveAnalytics(parsed, fin) {
     });
   }
 
-  /* ── Chart 4 · Team vs annualized revenue per employee ────────────── */
+  /* ── Chart 4 · Team vs annualized revenue per employee ──────────────
+     This chart is mode-agnostic — Team Members and Revenue/Employee are
+     headcount metrics, not unit-economics metrics, so they don't change
+     when the user toggles unique-client view. Same goes for the
+     all-metrics-by-month table at the bottom: it always shows every
+     column the sheet exposes. */
   Chart.getChart('teamRevChart')?.destroy();
-  const team   = findMetric(/team\s*members|^headcount\b|^team$/i);
-  const revPer = findMetric(/revenue\s*(per|\/)\s*employee|rev\s*\/\s*employee|revenue\s*per\s*fte/i);
+  const findMetricRx = (rx) => live.find(m => rx.test(m.header)) || null;
+  const team   = findMetricRx(/team\s*members|^headcount\b|^team$/i);
+  const revPer = findMetricRx(/revenue\s*(per|\/)\s*employee|rev\s*\/\s*employee|revenue\s*per\s*fte/i);
   if (team || revPer) {
     // Sheet's Revenue per Employee column is already annualized — use as-is.
     const annualized = revPer ? revPer.series.slice() : null;
