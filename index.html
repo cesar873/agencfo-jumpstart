@@ -3322,6 +3322,78 @@ function clientsFromServices(svcParsed, monthLabel, viewMode) {
   }));
 }
 
+/* tabs.md Phase 3 / Clients spec — five-branch insight generator. Takes
+   the current-period rows (aggregated by client) + prior-period rows so
+   it can compute margin compression. monthLabel is the current period. */
+function buildClientsInsights(curRows, priorRows, monthLabel) {
+  const ins = [];
+  if (!curRows || !curRows.length) return ins;
+  // Always work off by-client aggregation for fair comparisons.
+  const aggByClient = (rows) => {
+    const map = new Map();
+    rows.forEach(r => {
+      if (!map.has(r.name)) map.set(r.name, { name: r.name, rev: 0, profit: 0 });
+      const c = map.get(r.name);
+      c.rev += r.rev; c.profit += r.profit;
+    });
+    return Array.from(map.values()).map(c => ({ ...c, margin: c.rev > 0 ? c.profit / c.rev * 100 : 0 }));
+  };
+  const cur = aggByClient(curRows);
+  const prior = priorRows ? aggByClient(priorRows) : null;
+  const totalProfit = cur.reduce((a,c) => a + c.profit, 0);
+  const totalRev    = cur.reduce((a,c) => a + c.rev, 0);
+  const avgMargin   = totalRev > 0 ? totalProfit / totalRev * 100 : 0;
+  const fmtClient   = (c) => `${c.name} (${c.margin.toFixed(0)}%)`;
+
+  // 1. Unprofitable clients (alert)
+  const losers = cur.filter(c => c.profit < 0).sort((a,b) => a.profit - b.profit).slice(0, 3);
+  if (losers.length) {
+    const names = losers.map(c => `${c.name} (${fmtCompactCur(c.profit)})`).join(', ');
+    ins.push({ tone: 'alert', text: `<b>${losers.length} unprofitable ${losers.length===1?'client':'clients'}</b> — worst: ${names}. Review pricing or scope.` });
+  }
+
+  // 2. Margin compression (warn)
+  if (prior && prior.length) {
+    const priorRev = prior.reduce((a,c) => a + c.rev, 0);
+    const priorProfit = prior.reduce((a,c) => a + c.profit, 0);
+    const priorMargin = priorRev > 0 ? priorProfit / priorRev * 100 : 0;
+    const delta = avgMargin - priorMargin;
+    if (delta <= -5) {
+      ins.push({ tone: 'warn', text: `<b>Margin compressed ${Math.abs(delta).toFixed(1)}pp</b> vs prior period (${priorMargin.toFixed(1)}% → ${avgMargin.toFixed(1)}%). Identify which clients drove the dip.` });
+    }
+  }
+
+  // 3. Top profit drivers (win)
+  const winners = [...cur].filter(c => c.profit > 0).sort((a,b) => b.profit - a.profit).slice(0, 3);
+  if (winners.length) {
+    const names = winners.map(c => `${c.name} (${fmtCompactCur(c.profit)})`).join(', ');
+    ins.push({ tone: 'win', text: `<b>Top profit driver${winners.length===1?'':'s'}</b>: ${names}. Combined ${((winners.reduce((a,c)=>a+c.profit,0) / Math.max(totalProfit, 1)) * 100).toFixed(0)}% of monthly profit.` });
+  }
+
+  // 4. Concentration risk (warn if top-1 > 25% of total profit)
+  const sortedByProfit = [...cur].sort((a,b) => b.profit - a.profit);
+  if (sortedByProfit.length && totalProfit > 0) {
+    const topShare = sortedByProfit[0].profit / totalProfit * 100;
+    if (topShare > 25) {
+      ins.push({ tone: 'warn', text: `<b>${sortedByProfit[0].name} = ${topShare.toFixed(0)}% of profit</b> — concentration risk. Diversify the book.` });
+    }
+  }
+
+  // 5. Loss-leader pattern (info if revenue in top quartile but margin < 30%)
+  if (cur.length >= 4) {
+    const sortedByRev = [...cur].map(c => c.rev).sort((a,b) => b - a);
+    const q1cut = sortedByRev[Math.floor(cur.length / 4)] || 0;
+    const lossLeaders = cur.filter(c => c.rev >= q1cut && c.margin > 0 && c.margin < 30)
+                           .sort((a,b) => a.margin - b.margin)
+                           .slice(0, 2);
+    if (lossLeaders.length) {
+      const names = lossLeaders.map(fmtClient).join(', ');
+      ins.push({ tone: 'info', text: `<b>Loss-leader watch</b> — high-revenue but thin margins: ${names}. Revisit pricing.` });
+    }
+  }
+  return ins;
+}
+
 /* Top-level Clients-tab refresher. Reads the global Period chip for the
    month and window._clientsViewMode for the toggle, then hands off to
    applyLiveClients which does the rendering. */
@@ -3346,6 +3418,21 @@ function refreshClientsTab() {
   // (fin.labels, which is the slice when a date range is applied), so it
   // automatically respects the global Range chip.
   renderAvgMarginByMonth(svcParsed, fin && fin.labels);
+
+  // WhatToDoNext insights — always built from per-engagement (service-level)
+  // rows so the math is consistent regardless of the table's view mode.
+  // Prior period = the month immediately before monthLabel in the parsed
+  // Services monthCols list.
+  const targetKey = _monthKey(monthLabel);
+  const curIdx = targetKey ? svcParsed.monthCols.findIndex(m => _monthKey(m.label) === targetKey) : -1;
+  const priorLabel = (curIdx > 0) ? svcParsed.monthCols[curIdx - 1].label : null;
+  const curRowsForInsights   = clientsFromServices(svcParsed, monthLabel,  'service') || [];
+  const priorRowsForInsights = priorLabel
+    ? (clientsFromServices(svcParsed, priorLabel, 'service') || [])
+    : null;
+  const insights = buildClientsInsights(curRowsForInsights, priorRowsForInsights, monthLabel);
+  _renderInsights('tab-clients', insights, monthLabel);
+
   if (!rows || !rows.length) {
     const tbody = $('clientRows');
     if (tbody) tbody.innerHTML = `<tr><td colspan="9" style="padding:20px;text-align:center;color:var(--muted)">No active engagements for ${monthLabel}</td></tr>`;
@@ -3793,6 +3880,93 @@ function topClientConcentration(svcParsed, fin) {
   return { share: top3Sum / total * 100, names: top3.map(([k]) => k), total };
 }
 
+/* tabs.md Phase 2 / Analytics spec — five-branch insight generator.
+   `live` is the filtered metrics array (each item has header + series).
+   `fin` provides lastAct + fcstFrom for forecast-trajectory comparisons. */
+function buildAnalyticsInsights(live, fin) {
+  const ins = [];
+  if (!live || !live.length || !fin) return ins;
+  const lastAct = fin.lastAct;
+  const findMetric = (rx) => live.find(m => rx.test(m.header));
+  const valAt = (m, i) => (m && m.series && isFinite(m.series[i])) ? m.series[i] : null;
+
+  const ltv     = findMetric(/lifetime\s*value|^ltv\b|ltgp/i);
+  const cac     = findMetric(/^cac\b|customer\s*acquisition/i);
+  const ratio   = findMetric(/ltv\s*\/\s*cac|ltv:cac|ratio/i);
+  const churn   = findMetric(/^churn\b|client\s*churn/i);
+  const mrrCh   = findMetric(/mrr\s*churn/i);
+  const signed  = findMetric(/clients?\s*signed|signed\b/i);
+  const lost    = findMetric(/clients?\s*lost|lost\b/i);
+
+  // 1. LTV/CAC ratio
+  let ratioVal = valAt(ratio, lastAct);
+  if (ratioVal == null) {
+    const lvl = valAt(ltv, lastAct), cvl = valAt(cac, lastAct);
+    if (lvl != null && cvl != null && cvl !== 0) ratioVal = lvl / cvl;
+  }
+  if (ratioVal != null && isFinite(ratioVal)) {
+    if (ratioVal >= 3) ins.push({ tone: 'win',   text: `<b>LTV/CAC at ${ratioVal.toFixed(1)}x</b> — every $1 of acquisition returns $${ratioVal.toFixed(2)} in lifetime value. Above the 3x healthy threshold.` });
+    else if (ratioVal >= 1) ins.push({ tone: 'warn', text: `<b>LTV/CAC at ${ratioVal.toFixed(1)}x</b> — below the 3x target. Tighten acquisition spend or grow retention.` });
+    else ins.push({ tone: 'alert', text: `<b>LTV/CAC at ${ratioVal.toFixed(1)}x</b> — unit economics underwater. Acquisition is costing more than it earns.` });
+  }
+
+  // 2. Churn trend
+  const churnVal = valAt(churn, lastAct);
+  const churnPrev = valAt(churn, lastAct - 1);
+  if (churnVal != null) {
+    if (churnVal >= 5) ins.push({ tone: 'warn', text: `<b>Client churn at ${churnVal.toFixed(1)}%</b> — high. Identify and address departures from this cohort.` });
+    else if (churnPrev != null && churnVal - churnPrev >= 2) ins.push({ tone: 'warn', text: `<b>Churn rising</b> — ${churnPrev.toFixed(1)}% → ${churnVal.toFixed(1)}% MoM. Investigate cause.` });
+  }
+  const mrrVal = valAt(mrrCh, lastAct);
+  if (mrrVal != null && mrrVal >= 2) {
+    ins.push({ tone: 'warn', text: `<b>MRR churn ${mrrVal.toFixed(1)}%</b> — over the 2% threshold. Net new MRR needs to outpace.` });
+  }
+
+  // 3. Signed vs Lost
+  if (signed && lost) {
+    const window = 3;
+    let netSum = 0, monthsCounted = 0;
+    for (let i = Math.max(0, lastAct - window + 1); i <= lastAct; i++) {
+      const s = valAt(signed, i), l = valAt(lost, i);
+      if (s != null && l != null) { netSum += (s - l); monthsCounted++; }
+    }
+    const curS = valAt(signed, lastAct), curL = valAt(lost, lastAct);
+    if (curS != null && curL != null) {
+      const net = curS - curL;
+      if (monthsCounted >= 2 && netSum > 0 && net > 0) {
+        ins.push({ tone: 'win', text: `<b>Net positive ${monthsCounted} months running</b> — +${curS} signed vs ${curL} lost this month (net ${net>=0?'+':''}${net}).` });
+      } else if (net < 0) {
+        ins.push({ tone: 'alert', text: `<b>Net client loss this month</b> — ${curS} signed vs ${curL} lost (net ${net}). Pipeline needs pull.` });
+      }
+    }
+  }
+
+  // 4. Forecast trajectory (compare upcoming forecast to current actuals)
+  const fcst = fin.fcstFrom;
+  if (fcst != null && fcst < (fin.labels ? fin.labels.length : 0)) {
+    // Compare next 3 forecast months' revenue (from fin.revenue) vs last 3 actuals
+    if (fin.revenue && fin.revenue.length) {
+      const last3 = fin.revenue.slice(Math.max(0, lastAct - 2), lastAct + 1).reduce((a,b)=>a+(b||0),0) / 3;
+      const next3 = fin.revenue.slice(fcst, fcst + 3).reduce((a,b)=>a+(b||0),0) / Math.max(1, Math.min(3, fin.revenue.length - fcst));
+      if (last3 > 0 && next3 > 0) {
+        const dlt = (next3 - last3) / last3 * 100;
+        if (dlt <= -5)      ins.push({ tone: 'warn', text: `<b>Forecast revenue ${dlt.toFixed(0)}% vs recent actuals</b> — pull on pipeline now.` });
+        else if (dlt >= 10) ins.push({ tone: 'win',  text: `<b>Forecast revenue +${dlt.toFixed(0)}% vs recent actuals</b> — confirm pipeline coverage holds.` });
+      }
+    }
+  }
+
+  // 5. LTV / CAC absolute movement (info if either swung > 10% MoM)
+  const ltvCur = valAt(ltv, lastAct), ltvPrev = valAt(ltv, lastAct - 1);
+  if (ltvCur != null && ltvPrev != null && ltvPrev !== 0) {
+    const dlt = (ltvCur - ltvPrev) / Math.abs(ltvPrev) * 100;
+    if (Math.abs(dlt) >= 10) {
+      ins.push({ tone: 'info', text: `<b>LTV ${dlt>=0?'up':'down'} ${Math.abs(dlt).toFixed(0)}%</b> MoM (${fmtCompactCur(ltvPrev)} → ${fmtCompactCur(ltvCur)}).` });
+    }
+  }
+  return ins;
+}
+
 function applyLiveAnalytics(parsed, fin) {
   if (!parsed || !parsed.metrics || !parsed.metrics.length) return false;
   const L = fin.labels;
@@ -4071,6 +4245,9 @@ function applyLiveAnalytics(parsed, fin) {
   /* ── All-metrics-by-month heatmap-style table ─────────────────────── */
   renderAllMetricsTable(live, fin);
 
+  /* ── WhatToDoNext insights (live) ─────────────────────────────────── */
+  _renderInsights('tab-analytics', buildAnalyticsInsights(live, fin), L[lastAct]);
+
   // Subline
   const sub = document.querySelector('#tab-analytics .subline');
   if (sub) sub.innerHTML = `${L[lastAct]} · live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Metrics`;
@@ -4348,21 +4525,29 @@ function buildPeopleInsights(rows, monthLabel) {
   return ins.slice(0, 5);
 }
 
-function _renderPeopleInsights(insights, monthLabel) {
-  const list = document.querySelector('#tab-people .wtdn-list');
-  const title = document.querySelector('#tab-people .wtdn-title');
+/* Shared insight renderer — sorts alert→warn→win→info, caps at 5, writes
+   the rendered HTML into `#<tabId> .wtdn-list` and updates the title.    */
+function _renderInsights(tabId, insights, monthLabel) {
+  const list  = document.querySelector(`#${tabId} .wtdn-list`);
+  const title = document.querySelector(`#${tabId} .wtdn-title`);
   if (title) title.textContent = `What to do next · ${monthLabel}`;
   if (!list) return;
-  if (!insights.length) {
+  const TONE_ORDER = { alert: 0, warn: 1, win: 2, info: 3 };
+  const sorted = (insights || []).slice().sort((a,b) => TONE_ORDER[a.tone] - TONE_ORDER[b.tone]).slice(0, 5);
+  if (!sorted.length) {
     list.innerHTML = `<li class="ins info"><div class="ins-circle">i</div><div class="ins-text">No insights for ${monthLabel} yet.</div></li>`;
     return;
   }
   const icon = (tone) => tone === 'alert' ? '!' : tone === 'warn' ? '!' : tone === 'win' ? '✓' : 'i';
-  list.innerHTML = insights.map(it => `
+  list.innerHTML = sorted.map(it => `
     <li class="ins ${it.tone}">
       <div class="ins-circle">${icon(it.tone)}</div>
       <div class="ins-text">${it.text}</div>
     </li>`).join('');
+}
+
+function _renderPeopleInsights(insights, monthLabel) {
+  _renderInsights('tab-people', insights, monthLabel);
 }
 
 /* Top-level People-tab refresher. Reads:
