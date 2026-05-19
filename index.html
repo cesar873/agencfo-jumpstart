@@ -1778,36 +1778,13 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   </section>
 
   <section class="section">
-    <div class="grid-3">
-      <div class="shell">
-        <div class="shell-head"><div><h2>Reason split</h2><div class="sub">All contracts by churn reason</div></div></div>
-        <div class="chart-wrap"><canvas id="churnReasonDonut"></canvas></div>
-      </div>
-      <div class="shell">
-        <div class="shell-head"><div><h2>Reason by source</h2><div class="sub">Stacked share of contracts per acquisition channel</div></div></div>
-        <div class="chart-wrap"><canvas id="churnReasonBySourceChart"></canvas></div>
-      </div>
-      <div class="shell">
-        <div class="shell-head"><div><h2>Reason by service</h2><div class="sub">Stacked share of contracts per service line</div></div></div>
-        <div class="chart-wrap"><canvas id="churnReasonByServiceChart"></canvas></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section">
     <div class="grid-2">
       <div class="shell">
-        <div class="shell-head"><div><h2>Controllable vs uncontrollable churn</h2><div class="sub">Low ROAS &amp; Service/Comms are within JSR's control — the rest sit with the client</div></div></div>
-        <div class="grid-2" id="churnCtrlGrid" style="gap:14px;margin-top:6px;"></div>
-        <div style="margin-top:18px;">
-          <div class="shell-head" style="padding:4px 0 6px;"><div><h2 style="font-size:14px;">Avg lifetime by reason</h2><div class="sub">How long clients lasted before each churn type</div></div></div>
-          <div class="chart-wrap"><canvas id="churnLifetimeByReasonChart"></canvas></div>
-        </div>
+        <div class="shell-head"><div><h2>Service / Comms churn by team member</h2><div class="sub">Controllable reason — ranked by rate within each person's book</div></div></div>
+        <div id="churnSvcCommsByTeam" class="perf-list"></div>
       </div>
       <div class="shell">
-        <div class="shell-head"><div><h2>Service / Comms churn by team member</h2><div class="sub">Controllable reason — ranked by rate within each person's book</div></div></div>
-        <div id="churnSvcCommsByTeam" class="perf-list" style="margin-bottom:18px;"></div>
-        <div class="shell-head" style="padding:8px 0 6px;border-top:1px solid var(--card-border);margin-top:8px;"><div><h2 style="font-size:14px;">Low ROAS churn by team member</h2><div class="sub">Controllable reason — ranked by rate</div></div></div>
+        <div class="shell-head"><div><h2>Low ROAS churn by team member</h2><div class="sub">Controllable reason — ranked by rate within each person's book</div></div></div>
         <div id="churnLowRoasByTeam" class="perf-list"></div>
       </div>
     </div>
@@ -1815,8 +1792,8 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
 
   <section class="section">
     <div class="shell">
-      <div class="shell-head"><div><h2>Churn reason breakdown by account manager</h2><div class="sub">Stacked bar — 100% = all contracts for that AM</div></div></div>
-      <div class="chart-wrap tall"><canvas id="churnReasonByAMChart"></canvas></div>
+      <div class="shell-head"><div><h2>Churn reason breakdown by account manager</h2><div class="sub">One pie per AM · share of that AM's churn by reason</div></div></div>
+      <div id="churnReasonByAMGrid" class="grid-3" style="gap:14px;margin-top:8px;"></div>
     </div>
   </section>
 
@@ -5567,11 +5544,6 @@ function refreshChurnTab() {
   _renderTeamPerformance(rows);
   _renderChurnHeatmap(rows);
   _renderReasonTiles(rows);
-  _renderReasonSplit(rows);
-  _renderReasonBySource(rows);
-  _renderReasonByService(rows);
-  _renderControllable(rows);
-  _renderAvgLifetimeByReason(rows);
   _renderSvcCommsByTeam(rows);
   _renderLowRoasByTeam(rows);
   _renderReasonByAM(rows);
@@ -5805,142 +5777,6 @@ function _renderReasonTiles(rows) {
   host.innerHTML = cards;
 }
 
-/* Reason split donut — always on churned subset. */
-function _renderReasonSplit(rows) {
-  rows = _churnedOnly(rows);
-  Chart.getChart('churnReasonDonut')?.destroy();
-  const canvas = $('churnReasonDonut');
-  if (!canvas) return;
-  const total = rows.length;
-  const labels = CHURN_REASONS;
-  const data = labels.map(l => rows.filter(r => r.reason === l).length);
-  const colors = labels.map(l => CHURN_REASON_COLORS[l]);
-  new Chart(canvas, {
-    type: 'doughnut',
-    data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0 }] },
-    plugins: [ChartDataLabels],
-    options: {
-      responsive: true, maintainAspectRatio: false, cutout: '55%',
-      plugins: {
-        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 9, boxHeight: 9, padding: 10, font: { size: 11 }, color: 'rgba(255,255,255,.85)' } },
-        tooltip: { ...TOOLTIP, callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} (${total ? (ctx.raw/total*100).toFixed(0) : 0}%)` } },
-        datalabels: { color: '#fff', font: { size: 12, weight: '700' }, formatter: (v) => total && v ? Math.round(v/total*100) + '%' : '' }
-      }
-    }
-  });
-}
-
-/* Reason × Source / Reason × Service stacked bars — churned subset only. */
-function _renderStackedReasonBy(canvasId, rows, dimensionKey, labelMapper) {
-  rows = _churnedOnly(rows);
-  Chart.getChart(canvasId)?.destroy();
-  const canvas = $(canvasId);
-  if (!canvas) return;
-  const dimCounts = new Map();
-  rows.forEach(r => {
-    const k = labelMapper ? labelMapper(r) : r[dimensionKey];
-    if (!k) return;
-    dimCounts.set(k, (dimCounts.get(k)||0)+1);
-  });
-  const dims = Array.from(dimCounts.entries()).sort((a,b) => b[1]-a[1]).slice(0, 5).map(e => e[0]);
-  const datasets = CHURN_REASONS.map(reason => ({
-    label: reason,
-    data: dims.map(d => {
-      const slice = rows.filter(r => {
-        const k = labelMapper ? labelMapper(r) : r[dimensionKey];
-        return k === d && r.reason === reason;
-      });
-      const tot = rows.filter(r => (labelMapper ? labelMapper(r) : r[dimensionKey]) === d).length;
-      return tot ? slice.length / tot * 100 : 0;
-    }),
-    backgroundColor: CHURN_REASON_COLORS[reason],
-    borderWidth: 0,
-  }));
-  new Chart(canvas, {
-    type: 'bar',
-    data: { labels: dims, datasets },
-    plugins: [ChartDataLabels],
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 9, boxHeight: 9, padding: 12, font: { size: 10 }, color: 'rgba(255,255,255,.85)' } },
-        tooltip: { ...TOOLTIP, callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%` } },
-        datalabels: {
-          color: '#fff', font: { size: 10, weight: '700' },
-          formatter: (v) => v >= 5 ? v.toFixed(1) + '%' : '',
-        }
-      },
-      scales: {
-        x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 }, color: 'rgba(255,255,255,.85)' } },
-        y: { stacked: true, max: 100, grid: { color: 'rgba(120,120,120,.10)', drawBorder: false }, ticks: { font: { size: 11 }, color: 'rgba(255,255,255,.55)', callback: v => v + '%' } },
-      }
-    }
-  });
-}
-function _renderReasonBySource(rows)  { _renderStackedReasonBy('churnReasonBySourceChart',  rows, 'source',  null); }
-function _renderReasonByService(rows) { _renderStackedReasonBy('churnReasonByServiceChart', rows, 'service', null); }
-
-/* Controllable vs Uncontrollable cards — churned subset only. */
-function _renderControllable(rows) {
-  rows = _churnedOnly(rows);
-  const host = $('churnCtrlGrid');
-  if (!host) return;
-  const total = rows.length;
-  const totalRev = rows.reduce((a,r) => a + (r.retainer||0), 0);
-  const ctrlRows = rows.filter(r => isControllableReason(r.reason));
-  const uncRows  = rows.filter(r => !isControllableReason(r.reason) && r.reason !== 'Not Categorized');
-  const ctrlPct = total ? ctrlRows.length / total * 100 : 0;
-  const uncPct  = total ? uncRows.length  / total * 100 : 0;
-  const ctrlRev = ctrlRows.reduce((a,r) => a + (r.retainer||0), 0);
-  const uncRev  = uncRows.reduce((a,r) => a + (r.retainer||0), 0);
-  host.innerHTML = `
-    <div class="ctrl-card red">
-      <div class="lbl">Controllable</div>
-      <div class="val">${ctrlPct.toFixed(0)}%</div>
-      <div class="meta">${ctrlRows.length} contracts · ${fmtCompactCur(ctrlRev)} revenue</div>
-      <div class="desc">Low ROAS + Service/Comms</div>
-    </div>
-    <div class="ctrl-card blue">
-      <div class="lbl">Uncontrollable</div>
-      <div class="val">${uncPct.toFixed(0)}%</div>
-      <div class="meta">${uncRows.length} contracts · ${fmtCompactCur(uncRev)} revenue</div>
-      <div class="desc">Internal / Funnel / Bad Fit</div>
-    </div>
-  `;
-}
-
-/* Avg lifetime by reason — vertical bar; churned subset only. */
-function _renderAvgLifetimeByReason(rows) {
-  rows = _churnedOnly(rows);
-  Chart.getChart('churnLifetimeByReasonChart')?.destroy();
-  const canvas = $('churnLifetimeByReasonChart');
-  if (!canvas) return;
-  const labels = CHURN_REASONS;
-  const data = labels.map(l => {
-    const rs = rows.filter(r => r.reason === l);
-    return rs.length ? rs.reduce((a,r) => a + r.lifetime, 0) / rs.length : 0;
-  });
-  const colors = labels.map(l => CHURN_REASON_COLORS[l]);
-  new Chart(canvas, {
-    type: 'bar',
-    data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: [4,4,0,0], barPercentage: 0.65, categoryPercentage: 0.85 }]},
-    plugins: [ChartDataLabels],
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      layout: { padding: { top: 24, right: 14, bottom: 4, left: 6 } },
-      plugins: {
-        legend: { display: false },
-        tooltip: { ...TOOLTIP, callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw.toFixed(1)} mo` } },
-        datalabels: { align: 'top', anchor: 'end', offset: 4, color: 'rgba(255,255,255,.92)', font: { size: 11, weight: '700' }, formatter: v => v.toFixed(1) + ' mo' }
-      },
-      scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 10 }, color: 'rgba(255,255,255,.85)', maxRotation: 30, minRotation: 30 } },
-        y: { beginAtZero: true, grid: { color: 'rgba(120,120,120,.10)', drawBorder: false }, ticks: { font: { size: 11 }, color: 'rgba(255,255,255,.55)', callback: v => v + ' mo' } }
-      }
-    }
-  });
-}
-
 /* Service/Comms churn by team + Low ROAS churn by team — churned subset only. */
 function _renderReasonByTeam(targetId, rows, reason) {
   rows = _churnedOnly(rows);
@@ -5975,44 +5811,59 @@ function _renderReasonByTeam(targetId, rows, reason) {
 function _renderSvcCommsByTeam(rows) { _renderReasonByTeam('churnSvcCommsByTeam', rows, 'Service / Comms'); }
 function _renderLowRoasByTeam(rows)  { _renderReasonByTeam('churnLowRoasByTeam',  rows, 'Low ROAS / Lead Quality'); }
 
-/* Reason breakdown by AM — stacked bar (100%) — churned subset only. */
+/* Reason breakdown by AM — small-multiple donuts; one per AM. Each donut
+   shows the % share of reasons for that AM's churn book. Churned only. */
 function _renderReasonByAM(rows) {
   rows = _churnedOnly(rows);
-  Chart.getChart('churnReasonByAMChart')?.destroy();
-  const canvas = $('churnReasonByAMChart');
-  if (!canvas) return;
+  const host = $('churnReasonByAMGrid');
+  if (!host) return;
   const amCounts = new Map();
   rows.forEach(r => { if (r.am) amCounts.set(r.am, (amCounts.get(r.am)||0)+1); });
-  const ams = Array.from(amCounts.entries()).sort((a,b) => b[1]-a[1]).slice(0, 6).map(e => e[0]);
-  const datasets = CHURN_REASONS.map(reason => ({
-    label: reason,
-    data: ams.map(am => {
-      const slice = rows.filter(r => r.am === am && r.reason === reason).length;
-      const tot   = rows.filter(r => r.am === am).length;
-      return tot ? slice / tot * 100 : 0;
-    }),
-    backgroundColor: CHURN_REASON_COLORS[reason],
-    borderWidth: 0,
-  }));
-  new Chart(canvas, {
-    type: 'bar',
-    data: { labels: ams, datasets },
-    plugins: [ChartDataLabels],
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 9, boxHeight: 9, padding: 12, font: { size: 11 }, color: 'rgba(255,255,255,.85)' } },
-        tooltip: { ...TOOLTIP, callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%` } },
-        datalabels: {
-          color: '#fff', font: { size: 11, weight: '700' },
-          formatter: (v) => v >= 5 ? v.toFixed(1) + '%' : '',
+  const ams = Array.from(amCounts.entries()).sort((a,b) => b[1]-a[1]).map(e => e[0]);
+  if (!ams.length) { host.innerHTML = `<div style="padding:20px;color:var(--muted);text-align:center;grid-column:1/-1;">No data</div>`; return; }
+
+  // Render one shell per AM with a canvas inside
+  host.innerHTML = ams.map((am, i) => {
+    const n = amCounts.get(am);
+    const safe = `churnReasonByAM_${i}`;
+    return `<div style="background:rgba(255,255,255,.02);border:1px solid var(--card-border);border-radius:12px;padding:14px 16px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">
+        <div style="font-size:13px;font-weight:600;color:rgba(255,255,255,.92);">${am}</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.5);">${n} contract${n===1?'':'s'}</div>
+      </div>
+      <div style="height:200px;position:relative;"><canvas id="${safe}"></canvas></div>
+    </div>`;
+  }).join('');
+
+  // Build a donut for each. Only include reasons with non-zero counts so
+  // tiny slivers don't clutter every chart.
+  ams.forEach((am, i) => {
+    const canvas = $(`churnReasonByAM_${i}`);
+    if (!canvas) return;
+    Chart.getChart(canvas)?.destroy();
+    const all = rows.filter(r => r.am === am);
+    const labels = [], data = [], colors = [];
+    CHURN_REASONS.forEach(reason => {
+      const c = all.filter(r => r.reason === reason).length;
+      if (c > 0) { labels.push(reason); data.push(c); colors.push(CHURN_REASON_COLORS[reason]); }
+    });
+    const total = data.reduce((a,b) => a + b, 0);
+    new Chart(canvas, {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0 }] },
+      plugins: [ChartDataLabels],
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '55%',
+        plugins: {
+          legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, boxHeight: 8, padding: 8, font: { size: 10 }, color: 'rgba(255,255,255,.75)' } },
+          tooltip: { ...TOOLTIP, callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} (${total ? (ctx.raw/total*100).toFixed(0) : 0}%)` } },
+          datalabels: {
+            color: '#fff', font: { size: 11, weight: '700' },
+            formatter: (v) => total && v && (v/total*100) >= 8 ? Math.round(v/total*100) + '%' : '',
+          }
         }
-      },
-      scales: {
-        x: { stacked: true, grid: { display: false }, ticks: { font: { size: 12, weight: '500' }, color: 'rgba(255,255,255,.9)' } },
-        y: { stacked: true, max: 100, grid: { color: 'rgba(120,120,120,.10)', drawBorder: false }, ticks: { font: { size: 11 }, color: 'rgba(255,255,255,.55)', callback: v => v + '%' } },
       }
-    }
+    });
   });
 }
 
