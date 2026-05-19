@@ -1778,19 +1778,6 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   </section>
 
   <section class="section">
-    <div class="grid-2">
-      <div class="shell">
-        <div class="shell-head"><div><h2>Service / Comms churn by team member</h2><div class="sub">Controllable reason — ranked by rate within each person's book</div></div></div>
-        <div id="churnSvcCommsByTeam" class="perf-list"></div>
-      </div>
-      <div class="shell">
-        <div class="shell-head"><div><h2>Low ROAS churn by team member</h2><div class="sub">Controllable reason — ranked by rate within each person's book</div></div></div>
-        <div id="churnLowRoasByTeam" class="perf-list"></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section">
     <div class="shell">
       <div class="shell-head"><div><h2>Churn reason breakdown by account manager</h2><div class="sub">One pie per AM · share of that AM's churn by reason</div></div></div>
       <div id="churnReasonByAMGrid" class="grid-3" style="gap:14px;margin-top:8px;"></div>
@@ -5544,8 +5531,6 @@ function refreshChurnTab() {
   _renderTeamPerformance(rows);
   _renderChurnHeatmap(rows);
   _renderReasonTiles(rows);
-  _renderSvcCommsByTeam(rows);
-  _renderLowRoasByTeam(rows);
   _renderReasonByAM(rows);
   _renderChurnDetail(rows);
   return true;
@@ -5776,40 +5761,6 @@ function _renderReasonTiles(rows) {
   }).join('');
   host.innerHTML = cards;
 }
-
-/* Service/Comms churn by team + Low ROAS churn by team — churned subset only. */
-function _renderReasonByTeam(targetId, rows, reason) {
-  rows = _churnedOnly(rows);
-  const host = $(targetId);
-  if (!host) return;
-  const map = new Map();
-  rows.forEach(r => {
-    if (!r.teamMember) return;
-    if (!map.has(r.teamMember)) map.set(r.teamMember, { name: r.teamMember, n: 0, m: 0 });
-    const o = map.get(r.teamMember);
-    o.n += 1; if (r.reason === reason) o.m += 1;
-  });
-  const data = Array.from(map.values())
-    .filter(o => o.n >= 1)
-    .map(o => ({ name: o.name, rate: o.n ? o.m / o.n * 100 : 0, m: o.m, n: o.n }))
-    .sort((a,b) => b.rate - a.rate || b.n - a.n)
-    .slice(0, 12);
-  if (!data.length) { host.innerHTML = `<div style="padding:14px;color:var(--muted);text-align:center">No data</div>`; return; }
-  const tone = (rate) => rate >= 50 ? 'red' : rate >= 20 ? 'amber' : rate > 0 ? 'green' : 'green';
-  const color = (t) => t === 'red' ? '#ef4444' : t === 'amber' ? '#f59e0b' : '#22c55e';
-  host.innerHTML = data.map(d => {
-    const t = tone(d.rate);
-    return `<div class="row">
-      <div class="lbl">${d.name}</div>
-      <div class="track"><div class="fill" style="width:${Math.min(d.rate,100).toFixed(0)}%;background:${color(t)};"></div></div>
-      <div class="v ${t}">${d.rate.toFixed(0)}%</div>
-      <div class="meta">${d.m}/${d.n}</div>
-      <div class="n"></div>
-    </div>`;
-  }).join('');
-}
-function _renderSvcCommsByTeam(rows) { _renderReasonByTeam('churnSvcCommsByTeam', rows, 'Service / Comms'); }
-function _renderLowRoasByTeam(rows)  { _renderReasonByTeam('churnLowRoasByTeam',  rows, 'Low ROAS / Lead Quality'); }
 
 /* Reason breakdown by AM — small-multiple donuts; one per AM. Each donut
    shows the % share of reasons for that AM's churn book. Churned only. */
