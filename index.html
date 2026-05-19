@@ -648,6 +648,133 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   font-weight:600;
 }
 
+/* ── CHURN TAB ─────────────────────────────────────────────────────── */
+.churn-header-chips{ display:flex; gap:10px; flex-wrap:wrap; }
+.churn-chip{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:6px 12px; border-radius:8px;
+  font-size:12px; font-weight:600; letter-spacing:.02em;
+  border:1px solid;
+}
+.churn-chip.red   { background:rgba(239,68,68,.12);  border-color:rgba(239,68,68,.35);  color:#fca5a5; }
+.churn-chip.amber { background:rgba(245,158,11,.12); border-color:rgba(245,158,11,.35); color:#fcd34d; }
+.churn-chip.blue  { background:rgba(19,144,235,.12); border-color:rgba(19,144,235,.35); color:#7dd3fc; }
+.churn-chip.green { background:rgba(34,197,94,.12);  border-color:rgba(34,197,94,.35);  color:#86efac; }
+
+.kpi-badge{
+  display:inline-block;font-size:11px;font-weight:600;
+  padding:3px 9px;border-radius:6px;letter-spacing:.02em;
+  margin-top:6px;
+}
+.kpi-badge.red   { background:rgba(239,68,68,.12);  color:#fca5a5; }
+.kpi-badge.amber { background:rgba(245,158,11,.12); color:#fcd34d; }
+.kpi-badge.blue  { background:rgba(19,144,235,.12); color:#7dd3fc; }
+.kpi-badge.green { background:rgba(34,197,94,.12);  color:#86efac; }
+.kpi-badge.purple{ background:rgba(192,132,252,.15);color:#d8b4fe; }
+.kpi-badge.yellow{ background:rgba(253,224,71,.15); color:#fde047; }
+
+.kpi-value.purple{ color:#c084fc; }
+.kpi-value.amber { color:#fcd34d; }
+.kpi-value.yellow{ color:#fde047; }
+.kpi-value.red   { color:#fca5a5; }
+.kpi-value.green { color:#86efac; }
+.kpi-value.blue  { color:#7dd3fc; }
+
+/* Speed-to-Churn / AM-Team performance: label + bar + value + count rows */
+.bar-list{ display:flex; flex-direction:column; gap:12px; padding:6px 4px; }
+.bar-list .row{ display:grid; grid-template-columns: 130px 1fr 70px 50px; align-items:center; gap:10px; font-size:13px; }
+.bar-list .row .lbl{ color:rgba(255,255,255,.85); }
+.bar-list .row .track{ position:relative; height:6px; background:rgba(255,255,255,.06); border-radius:3px; overflow:hidden; }
+.bar-list .row .fill{ position:absolute; left:0; top:0; bottom:0; border-radius:3px; }
+.bar-list .row .v{ text-align:right; font-weight:700; font-variant-numeric:tabular-nums; }
+.bar-list .row .n{ text-align:right; color:rgba(255,255,255,.5); font-variant-numeric:tabular-nums; font-size:12px; }
+.bar-list .row .v.red    { color:#fca5a5; }
+.bar-list .row .v.amber  { color:#fcd34d; }
+.bar-list .row .v.green  { color:#86efac; }
+.bar-list .row .v.blue   { color:#7dd3fc; }
+.bar-list .row .v.purple { color:#c084fc; }
+.bar-list .row .meta{ font-size:11px; color:rgba(255,255,255,.5); font-variant-numeric:tabular-nums; }
+.bar-list .row.with-meta{ grid-template-columns: 130px 1fr 70px 80px 50px; }
+
+/* AM/Team performance row variant (2-line right side: rate / avg) */
+.perf-list{ display:flex; flex-direction:column; gap:14px; padding:8px 4px; }
+.perf-list .row{ display:grid; grid-template-columns: 160px 1fr 60px 80px 36px; align-items:center; gap:12px; font-size:13px; }
+.perf-list .row .lbl{ color:rgba(255,255,255,.92); font-weight:500; }
+.perf-list .row .track{ position:relative; height:7px; background:rgba(255,255,255,.06); border-radius:3px; overflow:hidden; }
+.perf-list .row .fill{ position:absolute; left:0; top:0; bottom:0; border-radius:3px; }
+.perf-list .row .v{ text-align:right; font-weight:700; font-variant-numeric:tabular-nums; }
+.perf-list .row .meta{ text-align:right; font-size:11px; color:rgba(255,255,255,.55); font-variant-numeric:tabular-nums; }
+.perf-list .row .n{ text-align:right; font-size:11px; color:rgba(255,255,255,.4); font-variant-numeric:tabular-nums; }
+.perf-list .row .v.red    { color:#fca5a5; }
+.perf-list .row .v.amber  { color:#fcd34d; }
+.perf-list .row .v.green  { color:#86efac; }
+.perf-list .row .v.blue   { color:#7dd3fc; }
+
+/* Heatmap table */
+.heatmap-table{ width:100%; border-collapse:collapse; font-size:13px; }
+.heatmap-table th{
+  text-align:left; padding:10px 14px; font-weight:600; font-size:11px;
+  text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.5);
+  border-bottom:1px solid var(--card-border);
+}
+.heatmap-table th.num{ text-align:right; }
+.heatmap-table td{ padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.04); }
+.heatmap-table tr:last-child td{ border-bottom:none; }
+.heatmap-table tr.overall{ background:rgba(255,255,255,.025); font-weight:600; }
+.heatmap-table .cell{ display:flex; justify-content:flex-end; align-items:center; gap:10px; }
+.heatmap-table .cell .pill{ padding:3px 9px; border-radius:6px; font-size:12px; font-weight:700; }
+.heatmap-table .cell .n{ color:rgba(255,255,255,.45); font-variant-numeric:tabular-nums; min-width:30px; text-align:right; }
+.heat-low    { background:rgba(34,197,94,.18);  color:#86efac; }
+.heat-mid    { background:rgba(245,158,11,.18); color:#fcd34d; }
+.heat-high   { background:rgba(239,68,68,.18);  color:#fca5a5; }
+
+/* Reason-tile sub badges (small block with count + lifetime) */
+.reason-tile{
+  padding:18px 20px; border-radius:14px; border:1px solid var(--card-border);
+  background:linear-gradient(180deg, rgba(255,255,255,.02), transparent), var(--card);
+}
+.reason-tile .lbl{ font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.55); }
+.reason-tile .val{ font-family:'Anton',sans-serif; font-size:32px; line-height:1.1; margin-top:6px; }
+.reason-tile .sub{ display:inline-block; margin-top:10px; font-size:11px; padding:3px 9px; border-radius:6px; }
+
+/* Controllable cards */
+.ctrl-card{
+  padding:20px 22px; border-radius:14px; border:1px solid;
+}
+.ctrl-card .lbl{ font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.55); }
+.ctrl-card .val{ font-family:'Anton',sans-serif; font-size:48px; line-height:1.1; margin-top:8px; }
+.ctrl-card .meta{ font-size:12px; color:rgba(255,255,255,.7); margin-top:6px; }
+.ctrl-card .desc{ font-size:11px; color:rgba(255,255,255,.4); margin-top:4px; }
+.ctrl-card.red  { border-color:rgba(239,68,68,.4); background:rgba(239,68,68,.04); }
+.ctrl-card.red  .val{ color:#fca5a5; }
+.ctrl-card.blue { border-color:rgba(19,144,235,.4); background:rgba(19,144,235,.04); }
+.ctrl-card.blue .val{ color:#7dd3fc; }
+
+/* Contract detail table */
+.contract-detail{ width:100%; border-collapse:collapse; font-size:13px; }
+.contract-detail th{
+  text-align:left; padding:10px 14px; font-weight:600; font-size:11px;
+  text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.5);
+  border-bottom:1px solid var(--card-border); cursor:pointer; user-select:none;
+}
+.contract-detail th:hover{ color:rgba(255,255,255,.9); }
+.contract-detail th.num{ text-align:right; }
+.contract-detail td{ padding:11px 14px; border-bottom:1px solid rgba(255,255,255,.04); }
+.contract-detail td.num{ text-align:right; font-variant-numeric:tabular-nums; }
+.contract-detail .svc-pill{ padding:3px 9px; border-radius:6px; font-size:11px; font-weight:600; }
+.contract-detail .svc-pill.meta   { background:rgba(19,144,235,.18);  color:#7dd3fc; }
+.contract-detail .svc-pill.google { background:rgba(34,197,94,.18);   color:#86efac; }
+.contract-detail .svc-pill.linkedin{background:rgba(192,132,252,.18); color:#d8b4fe; }
+.contract-detail .svc-pill.bing   { background:rgba(245,158,11,.18);  color:#fcd34d; }
+.contract-detail .svc-pill.tiktok { background:rgba(251,113,133,.18); color:#fda4af; }
+.contract-detail .svc-pill.other  { background:rgba(255,255,255,.08); color:rgba(255,255,255,.7); }
+.contract-detail .reason-pill{ padding:3px 9px; border-radius:6px; font-size:11px; font-weight:600; }
+.contract-detail .imm-pill{
+  display:inline-block; margin-left:8px;
+  padding:2px 7px; border-radius:5px; font-size:10px; font-weight:700; letter-spacing:.04em;
+  background:rgba(239,68,68,.18); color:#fca5a5;
+}
+
 /* Transaction category pill (small uppercase tag) */
 .cat-pill{
   display:inline-block;
@@ -740,6 +867,7 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
       <button class="tab-btn" data-tab="analytics"  onclick="showTab(this)" style="display:none">Analytics</button>
       <button class="tab-btn" data-tab="clients"    onclick="showTab(this)" style="display:none">Clients</button>
       <button class="tab-btn" data-tab="people"     onclick="showTab(this)" style="display:none">People</button>
+      <button class="tab-btn" data-tab="churn"      onclick="showTab(this)" style="display:none">Churn</button>
     </div>
   </div>
 </header>
@@ -1542,6 +1670,196 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   </section>
 
   <p class="page-footer">Live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Team Profit · cached 5 minutes</p>
+</div></div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     TAB 7 · CHURN  (hidden — accessible via /#churn)
+═══════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-churn"><div class="page">
+
+  <div class="page-hero" style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;">
+    <div>
+      <p class="eyebrow">Client retention</p>
+      <h1>Churn Analysis</h1>
+      <p class="subline" id="churnSubline">— live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Churn Analysis</p>
+    </div>
+    <div class="churn-header-chips" id="churnHeaderChips"></div>
+  </div>
+
+  <section class="section tight">
+    <div class="row-flex" style="gap:14px;align-items:center;flex-wrap:wrap;">
+      <span class="sub-eyebrow">Service</span>
+      <select id="churnSvcFilter"    class="filter-select"><option value="">All Services</option></select>
+      <span class="sub-eyebrow" style="margin-left:8px;">Source</span>
+      <select id="churnSourceFilter" class="filter-select"><option value="">All Sources</option></select>
+      <span class="sub-eyebrow" style="margin-left:8px;">Account Manager</span>
+      <select id="churnAMFilter"     class="filter-select"><option value="">All AMs</option></select>
+      <span class="sub-eyebrow" style="margin-left:8px;">Team Member</span>
+      <select id="churnTeamFilter"   class="filter-select"><option value="">All Members</option></select>
+      <button id="churnReset" class="seg-btn" style="margin-left:auto;">Reset</button>
+    </div>
+  </section>
+
+  <section class="section tight">
+    <div class="kpi-strip">
+      <div class="kpi">
+        <div class="kpi-label">Early Churn Rate</div>
+        <div class="kpi-value red" id="churnKpiEarlyRate">—</div>
+        <div><span class="kpi-badge red" id="churnKpiEarlyMeta">—</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Avg Months to Churn</div>
+        <div class="kpi-value amber" id="churnKpiAvgMonths">—</div>
+        <div><span class="kpi-badge amber" id="churnKpiAvgMeta">—</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Immediate Churn</div>
+        <div class="kpi-value red" id="churnKpiImmediate">—</div>
+        <div><span class="kpi-badge red" id="churnKpiImmediateMeta">—</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Long-term Rate (7+ mo)</div>
+        <div class="kpi-value green" id="churnKpiLongRate">—</div>
+        <div><span class="kpi-badge green" id="churnKpiLongMeta">—</span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Revenue in Early Churn</div>
+        <div class="kpi-value red" id="churnKpiRevPct">—</div>
+        <div><span class="kpi-badge red" id="churnKpiRevMeta">—</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="grid-21">
+      <div class="shell">
+        <div class="shell-head"><div><h2>Monthly churn volume &amp; early churn rate</h2><div class="sub">Contracts ended per month with early-churn % overlay</div></div></div>
+        <div class="chart-wrap tall"><canvas id="churnMonthlyChart"></canvas></div>
+      </div>
+      <div class="shell">
+        <div class="shell-head"><div><h2>Speed to churn</h2><div class="sub">Distribution of contract lifetimes</div></div></div>
+        <div id="churnSpeedList" class="bar-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="grid-3">
+      <div class="shell">
+        <div class="shell-head"><div><h2>Early churn rate by source</h2><div class="sub">% churned ≤3 mo · avg lifetime overlay</div></div></div>
+        <div class="chart-wrap"><canvas id="churnBySourceChart"></canvas></div>
+      </div>
+      <div class="shell">
+        <div class="shell-head"><div><h2>Early churn rate by service</h2><div class="sub">Ranked highest to lowest</div></div></div>
+        <div class="chart-wrap"><canvas id="churnByServiceChart"></canvas></div>
+      </div>
+      <div class="shell">
+        <div class="shell-head"><div><h2>Revenue by churn timing</h2><div class="sub">Share of retainer revenue by how quickly clients left</div></div></div>
+        <div class="chart-wrap"><canvas id="churnRevTimingChart"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="grid-2">
+      <div class="shell">
+        <div class="shell-head"><div><h2>Account Manager performance</h2><div class="sub">Early churn rate &amp; avg months retained — ranked worst to best</div></div></div>
+        <div id="churnAMPerfList" class="perf-list"></div>
+      </div>
+      <div class="shell">
+        <div class="shell-head"><div><h2>Team member performance</h2><div class="sub">Early churn rate &amp; avg months retained — ranked worst to best</div></div></div>
+        <div id="churnTeamPerfList" class="perf-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="shell">
+      <div class="shell-head"><div><h2>Early churn heatmap</h2><div class="sub">% of contracts churned ≤3 months — by Service × Source</div></div></div>
+      <div class="table-scroll" style="padding:6px 8px 14px;">
+        <table class="heatmap-table" id="churnHeatmap"></table>
+      </div>
+    </div>
+  </section>
+
+  <h2 style="font-family:'Anton',sans-serif;font-size:18px;letter-spacing:.04em;color:rgba(255,255,255,.5);margin:8px 6px 0;">CHURN REASON ANALYSIS</h2>
+
+  <section class="section tight">
+    <div class="grid-3" id="churnReasonTiles" style="grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;"></div>
+  </section>
+
+  <section class="section">
+    <div class="grid-3">
+      <div class="shell">
+        <div class="shell-head"><div><h2>Reason split</h2><div class="sub">All contracts by churn reason</div></div></div>
+        <div class="chart-wrap"><canvas id="churnReasonDonut"></canvas></div>
+      </div>
+      <div class="shell">
+        <div class="shell-head"><div><h2>Reason by source</h2><div class="sub">Stacked share of contracts per acquisition channel</div></div></div>
+        <div class="chart-wrap"><canvas id="churnReasonBySourceChart"></canvas></div>
+      </div>
+      <div class="shell">
+        <div class="shell-head"><div><h2>Reason by service</h2><div class="sub">Stacked share of contracts per service line</div></div></div>
+        <div class="chart-wrap"><canvas id="churnReasonByServiceChart"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="grid-2">
+      <div class="shell">
+        <div class="shell-head"><div><h2>Controllable vs uncontrollable churn</h2><div class="sub">Low ROAS &amp; Service/Comms are within JSR's control — the rest sit with the client</div></div></div>
+        <div class="grid-2" id="churnCtrlGrid" style="gap:14px;margin-top:6px;"></div>
+        <div style="margin-top:18px;">
+          <div class="shell-head" style="padding:4px 0 6px;"><div><h2 style="font-size:14px;">Avg lifetime by reason</h2><div class="sub">How long clients lasted before each churn type</div></div></div>
+          <div class="chart-wrap"><canvas id="churnLifetimeByReasonChart"></canvas></div>
+        </div>
+      </div>
+      <div class="shell">
+        <div class="shell-head"><div><h2>Service / Comms churn by team member</h2><div class="sub">Controllable reason — ranked by rate within each person's book</div></div></div>
+        <div id="churnSvcCommsByTeam" class="perf-list" style="margin-bottom:18px;"></div>
+        <div class="shell-head" style="padding:8px 0 6px;border-top:1px solid var(--card-border);margin-top:8px;"><div><h2 style="font-size:14px;">Low ROAS churn by team member</h2><div class="sub">Controllable reason — ranked by rate</div></div></div>
+        <div id="churnLowRoasByTeam" class="perf-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="shell">
+      <div class="shell-head"><div><h2>Churn reason breakdown by account manager</h2><div class="sub">Stacked bar — 100% = all contracts for that AM</div></div></div>
+      <div class="chart-wrap tall"><canvas id="churnReasonByAMChart"></canvas></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="table-shell">
+      <div class="table-toolbar">
+        <div><h2>Contract detail</h2><div class="sub" id="churnDetailSub">All churned contracts — click headers to sort</div></div>
+      </div>
+      <div style="padding:0 14px 10px;">
+        <input id="churnDetailSearch" type="search" placeholder="Search client, service, team member, reason…" class="filter-search" style="width:100%;">
+      </div>
+      <div class="table-scroll">
+        <table class="contract-detail" id="churnDetailTable">
+          <thead><tr>
+            <th data-sort="client">Client</th>
+            <th data-sort="service">Service</th>
+            <th class="num" data-sort="lifetime">Months</th>
+            <th data-sort="reason">Churn Reason</th>
+            <th data-sort="source">Source</th>
+            <th data-sort="team">Team Member</th>
+            <th data-sort="am">AM</th>
+            <th class="num" data-sort="retainer">Retainer</th>
+            <th class="num" data-sort="end">Churned</th>
+          </tr></thead>
+          <tbody id="churnDetailRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <p class="page-footer">Live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Churn Analysis · cached 5 minutes</p>
 </div></div>
 
 
@@ -5104,6 +5422,789 @@ function applyLivePeople(parsed) {
   return refreshPeopleTab();
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   CHURN ANALYSIS TAB
+   Source: Churn Analysis sheet — one row per churned engagement.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Map sheet's verbose reason text to canonical short reasons used across
+   all the visualisations. Anything we don't recognise lands in "Not Categorized". */
+const CHURN_REASONS = ['Internal / Pause','Low ROAS / Lead Quality','Service / Comms','Poor Funnel','Bad Fit','Not Categorized'];
+const CHURN_REASON_COLORS = {
+  'Internal / Pause':       '#1390eb',
+  'Low ROAS / Lead Quality':'#ef4444',
+  'Service / Comms':        '#f59e0b',
+  'Poor Funnel':            '#c084fc',
+  'Bad Fit':                '#fde047',
+  'Not Categorized':        'rgba(255,255,255,.25)',
+};
+const CHURN_REASON_BADGES = {
+  'Internal / Pause':       'blue',
+  'Low ROAS / Lead Quality':'red',
+  'Service / Comms':        'amber',
+  'Poor Funnel':            'purple',
+  'Bad Fit':                'yellow',
+  'Not Categorized':        '',
+};
+function canonChurnReason(s) {
+  if (!s) return 'Not Categorized';
+  const t = String(s).toLowerCase();
+  if (/internal|pause/.test(t))                                                return 'Internal / Pause';
+  if (/low\s*roas|lead\s*quality/.test(t))                                     return 'Low ROAS / Lead Quality';
+  if (/unhappy|service|comms?|communication|creative/.test(t))                 return 'Service / Comms';
+  if (/poor\s*funnel|sales\s*process|funnel\s*conversion/.test(t))             return 'Poor Funnel';
+  if (/bad\s*fit/.test(t))                                                     return 'Bad Fit';
+  return 'Not Categorized';
+}
+/* "Controllable" = the reasons JSR can act on directly. */
+function isControllableReason(r) {
+  return r === 'Low ROAS / Lead Quality' || r === 'Service / Comms';
+}
+
+/* Short label for a Service column value (e.g. "Meta Ads Management" → "Meta"). */
+function shortenService(s) {
+  if (!s) return '—';
+  const x = String(s).trim();
+  if (/^meta/i.test(x))     return 'Meta';
+  if (/^google/i.test(x))   return 'Google';
+  if (/^linkedin/i.test(x)) return 'LinkedIn';
+  if (/^bing/i.test(x))     return 'Bing';
+  if (/^tiktok/i.test(x))   return 'TikTok';
+  if (/^snap/i.test(x))     return 'Snap';
+  if (/^seo/i.test(x))      return 'SEO';
+  if (/^email/i.test(x))    return 'Email';
+  if (/^web/i.test(x))      return 'Web Design';
+  return x.replace(/\s*Ads\s*Management$/i, '');
+}
+
+/* Parser — long-format, one row per churned engagement. */
+function parseChurnAnalysis(rows) {
+  if (!rows || rows.length < 2) return null;
+  // Header has a backtick on "Service`" in the actual sheet — fuzzy-match.
+  const header = (rows[0] || []).map(h => String(h||'').trim());
+  const findCol = (rx) => header.findIndex(h => rx.test(h));
+  const iClient   = findCol(/^client$/i);
+  const iService  = findCol(/^service`?$/i);
+  const iStart    = findCol(/start\s*date/i);
+  const iEnd      = findCol(/end\s*date/i);
+  const iLife     = findCol(/lifetime/i);
+  const iTeam     = findCol(/team\s*member/i);
+  const iAM       = findCol(/^am$/i);
+  const iSource   = findCol(/^source$/i);
+  const iRet      = findCol(/retainer/i);
+  const iReason   = findCol(/churn\s*reason/i);
+  if (iClient < 0 || iEnd < 0) return null;
+
+  const records = [];
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const client = String(row[iClient]||'').trim();
+    if (!client) continue;
+    const endDate   = parseDateLoose(row[iEnd]);
+    const startDate = iStart >= 0 ? parseDateLoose(row[iStart]) : null;
+    const lifetimeRaw = iLife >= 0 ? num(row[iLife]) : 0;
+    const lifetime = (lifetimeRaw > 0 || (startDate && endDate))
+      ? (lifetimeRaw > 0 ? lifetimeRaw
+                         : Math.max(0, Math.round(((endDate - startDate) / (1000*60*60*24)) / 30)))
+      : 0;
+    const reasonRaw = iReason >= 0 ? String(row[iReason]||'') : '';
+    records.push({
+      client,
+      service:    iService >= 0 ? String(row[iService]||'').trim() : '',
+      svcShort:   iService >= 0 ? shortenService(row[iService])    : '—',
+      startDate,
+      endDate,
+      lifetime,
+      teamMember: iTeam   >= 0 ? String(row[iTeam]||'').trim()   : '',
+      am:         iAM     >= 0 ? String(row[iAM]||'').trim()     : '',
+      source:     iSource >= 0 ? String(row[iSource]||'').trim() : '',
+      retainer:   iRet    >= 0 ? num(row[iRet])                  : 0,
+      reasonRaw,
+      reason:     canonChurnReason(reasonRaw),
+    });
+  }
+  return records.length ? records : null;
+}
+
+/* Filter state */
+function _readChurnFilters() {
+  return {
+    service: ($('churnSvcFilter')    || {}).value || '',
+    source:  ($('churnSourceFilter') || {}).value || '',
+    am:      ($('churnAMFilter')     || {}).value || '',
+    team:    ($('churnTeamFilter')   || {}).value || '',
+  };
+}
+function _populateChurnFilters(records) {
+  const distinct = (key, mapper) => {
+    const set = new Set();
+    records.forEach(r => { const v = mapper ? mapper(r) : r[key]; if (v) set.add(v); });
+    return Array.from(set).sort();
+  };
+  const fill = (id, vals, allLabel) => {
+    const sel = $(id);
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = `<option value="">${allLabel}</option>` + vals.map(v => `<option value="${v}">${v}</option>`).join('');
+    if (vals.includes(cur)) sel.value = cur;
+  };
+  fill('churnSvcFilter',    distinct('service'),     'All Services');
+  fill('churnSourceFilter', distinct('source'),      'All Sources');
+  fill('churnAMFilter',     distinct('am'),          'All AMs');
+  fill('churnTeamFilter',   distinct('teamMember'),  'All Members');
+}
+function _applyChurnFilters(records, f) {
+  return records.filter(r =>
+    (!f.service || r.service    === f.service) &&
+    (!f.source  || r.source     === f.source)  &&
+    (!f.am      || r.am         === f.am)      &&
+    (!f.team    || r.teamMember === f.team)
+  );
+}
+
+/* Top-level Churn tab refresher */
+function refreshChurnTab() {
+  const all = window._live && window._live.churnParsed;
+  if (!all || !all.length) return false;
+  _populateChurnFilters(all);
+  const filters = _readChurnFilters();
+  const rows = _applyChurnFilters(all, filters);
+
+  _renderChurnHeader(rows);
+  _renderChurnKpis(rows);
+  _renderChurnMonthlyChart(rows);
+  _renderSpeedToChurn(rows);
+  _renderChurnBySource(rows);
+  _renderChurnByService(rows);
+  _renderRevByChurnTiming(rows);
+  _renderAMPerformance(rows);
+  _renderTeamPerformance(rows);
+  _renderChurnHeatmap(rows);
+  _renderReasonTiles(rows);
+  _renderReasonSplit(rows);
+  _renderReasonBySource(rows);
+  _renderReasonByService(rows);
+  _renderControllable(rows);
+  _renderAvgLifetimeByReason(rows);
+  _renderSvcCommsByTeam(rows);
+  _renderLowRoasByTeam(rows);
+  _renderReasonByAM(rows);
+  _renderChurnDetail(rows);
+  return true;
+}
+
+/* Header chips: total contracts · date range · early-churn rate · avg lifetime */
+function _renderChurnHeader(rows) {
+  const host = $('churnHeaderChips');
+  if (!host) return;
+  if (!rows.length) { host.innerHTML = ''; return; }
+  const dates = rows.map(r => r.endDate).filter(Boolean).sort((a,b) => a - b);
+  const minD = dates[0], maxD = dates[dates.length-1];
+  const fmtMo = (d) => d ? d.toLocaleDateString('en-US',{month:'short',year:'numeric'}) : '—';
+  const earlyCount = rows.filter(r => r.lifetime <= 3).length;
+  const earlyRate = rows.length ? earlyCount / rows.length * 100 : 0;
+  const avgLife = rows.length ? rows.reduce((a,r) => a + r.lifetime, 0) / rows.length : 0;
+  host.innerHTML = `
+    <span class="churn-chip red">${earlyRate.toFixed(1)}% early churn ≤3 mo</span>
+    <span class="churn-chip amber">Avg lifetime ${avgLife.toFixed(1)} mo</span>
+    <span class="churn-chip blue">${rows.length} contracts · ${fmtMo(minD)} – ${fmtMo(maxD)}</span>
+  `;
+  const sub = $('churnSubline');
+  if (sub) {
+    const linkM = sub.querySelector('a');
+    const linkHTML = linkM ? linkM.outerHTML : 'Jumpstart ROI';
+    sub.innerHTML = `${rows.length} churned contracts · live from ${linkHTML} — Churn Analysis`;
+  }
+}
+
+/* KPI strip */
+function _renderChurnKpis(rows) {
+  const n = rows.length;
+  const earlyCount = rows.filter(r => r.lifetime <= 3).length;
+  const earlyRate  = n ? earlyCount / n * 100 : 0;
+  const lifetimes  = rows.map(r => r.lifetime).sort((a,b) => a - b);
+  const avgLife    = n ? lifetimes.reduce((a,b) => a + b, 0) / n : 0;
+  const medianLife = n ? lifetimes[Math.floor(n/2)] : 0;
+  const immRows    = rows.filter(r => r.lifetime === 0);
+  const immRate    = n ? immRows.length / n * 100 : 0;
+  const immRev     = immRows.reduce((a,r) => a + (r.retainer||0), 0);
+  const longRows   = rows.filter(r => r.lifetime >= 7);
+  const longRate   = n ? longRows.length / n * 100 : 0;
+  const longRev    = longRows.reduce((a,r) => a + (r.retainer||0), 0);
+  const totalRev   = rows.reduce((a,r) => a + (r.retainer||0), 0);
+  const earlyRev   = rows.filter(r => r.lifetime <= 3).reduce((a,r) => a + (r.retainer||0), 0);
+  const earlyRevPct= totalRev > 0 ? earlyRev / totalRev * 100 : 0;
+
+  $('churnKpiEarlyRate').textContent     = earlyRate.toFixed(1) + '%';
+  $('churnKpiEarlyMeta').textContent     = `${earlyCount} of ${n} contracts`;
+  $('churnKpiAvgMonths').textContent     = avgLife.toFixed(1);
+  $('churnKpiAvgMeta').textContent       = `Median: ${medianLife} months`;
+  $('churnKpiImmediate').textContent     = immRate.toFixed(1) + '%';
+  $('churnKpiImmediateMeta').textContent = `${immRows.length} contracts · ${fmtCompactCur(immRev)}`;
+  $('churnKpiLongRate').textContent      = longRate.toFixed(1) + '%';
+  $('churnKpiLongMeta').textContent      = `${longRows.length} contracts · ${fmtCompactCur(longRev)}`;
+  $('churnKpiRevPct').textContent        = earlyRevPct.toFixed(0) + '%';
+  $('churnKpiRevMeta').textContent       = `${fmtCompactCur(earlyRev)} of ${fmtCompactCur(totalRev)}`;
+}
+
+/* Monthly churn volume (bars) + early churn rate (line, right axis) */
+function _renderChurnMonthlyChart(rows) {
+  Chart.getChart('churnMonthlyChart')?.destroy();
+  const canvas = $('churnMonthlyChart');
+  if (!canvas) return;
+  // Bucket by month of endDate (YYYY-MM)
+  const months = new Map();
+  rows.forEach(r => {
+    if (!r.endDate) return;
+    const key = `${r.endDate.getFullYear()}-${String(r.endDate.getMonth()+1).padStart(2,'0')}`;
+    if (!months.has(key)) months.set(key, { iso: key, date: new Date(r.endDate.getFullYear(), r.endDate.getMonth(), 1), total: 0, early: 0 });
+    const m = months.get(key);
+    m.total += 1;
+    if (r.lifetime <= 3) m.early += 1;
+  });
+  const ordered = Array.from(months.values()).sort((a,b) => a.date - b.date);
+  const labels = ordered.map(m => m.date.toLocaleDateString('en-US',{month:'short',year:'2-digit'}));
+  const counts = ordered.map(m => m.total);
+  const rates  = ordered.map(m => m.total ? (m.early / m.total * 100) : 0);
+
+  new Chart(canvas, {
+    data: { labels, datasets: [
+      {
+        type: 'bar', label: 'Contracts', data: counts, yAxisID: 'y',
+        backgroundColor: 'rgba(19,144,235,0.85)',
+        borderRadius: [3,3,0,0], barPercentage: 0.7, categoryPercentage: 0.85, order: 1,
+      },
+      {
+        type: 'line', label: 'Early Churn %', data: rates, yAxisID: 'yPct',
+        borderColor: '#ef4444', backgroundColor: 'transparent',
+        fill: false, tension: .25, pointRadius: 3, borderWidth: 2, order: 0,
+      }
+    ]},
+    plugins: [ChartDataLabels],
+    options: {
+      responsive: true, maintainAspectRatio: false, interaction: { mode:'index', intersect:false },
+      layout: { padding: { top: 24, right: 14, bottom: 4, left: 6 } },
+      plugins: {
+        legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 9, boxHeight: 9, padding: 14, font: { size: 11 }, color: 'rgba(255,255,255,.85)' } },
+        tooltip: { ...TOOLTIP, callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.dataset.type === 'line' ? ctx.raw.toFixed(1) + '%' : ctx.raw}` } },
+        datalabels: {
+          align: 'top', anchor: 'end', offset: 4,
+          color: ctx => ctx.dataset.type === 'line' ? '#fca5a5' : 'rgba(255,255,255,.85)',
+          font: { size: 10, weight: '600' },
+          formatter: (v, ctx) => ctx.dataset.type === 'line' ? Math.round(v) + '%' : v,
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 10 }, color: 'rgba(255,255,255,.7)', maxRotation: 45, minRotation: 45 } },
+        y: { beginAtZero: true, grid: { color: 'rgba(120,120,120,.10)', drawBorder: false }, ticks: { font: { size: 11 }, color: 'rgba(255,255,255,.55)' } },
+        yPct: { position: 'right', beginAtZero: true, max: 100, grid: { drawOnChartArea: false }, ticks: { font: { size: 11 }, color: 'rgba(239,68,68,.75)', callback: v => v + '%' } },
+      }
+    }
+  });
+}
+
+/* Speed-to-Churn bucket bars */
+function _renderSpeedToChurn(rows) {
+  const host = $('churnSpeedList');
+  if (!host) return;
+  const buckets = [
+    { label: 'Immediate (0 mo)',  test: (l) => l === 0,             tone: 'red'    },
+    { label: 'Very short (1 mo)', test: (l) => l === 1,             tone: 'amber'  },
+    { label: 'Short (2-3 mo)',    test: (l) => l >= 2 && l <= 3,    tone: 'amber'  },
+    { label: 'Medium (4-6 mo)',   test: (l) => l >= 4 && l <= 6,    tone: 'blue'   },
+    { label: 'Long (7-12 mo)',    test: (l) => l >= 7 && l <= 12,   tone: 'green'  },
+    { label: 'Loyal (13+ mo)',    test: (l) => l >= 13,             tone: 'purple' },
+  ];
+  const colors = { red:'#ef4444', amber:'#f59e0b', blue:'#1390eb', green:'#22c55e', purple:'#c084fc' };
+  const total = rows.length;
+  host.innerHTML = buckets.map(b => {
+    const n = rows.filter(r => b.test(r.lifetime)).length;
+    const pct = total ? n / total * 100 : 0;
+    return `<div class="row">
+      <div class="lbl">${b.label}</div>
+      <div class="track"><div class="fill" style="width:${pct.toFixed(1)}%;background:${colors[b.tone]};"></div></div>
+      <div class="v ${b.tone}">${pct.toFixed(1)}%</div>
+      <div class="n">${n}</div>
+    </div>`;
+  }).join('');
+}
+
+/* Early churn rate by source — mixed: bars (rate) + line (avg lifetime) */
+function _renderChurnBySource(rows) {
+  Chart.getChart('churnBySourceChart')?.destroy();
+  const canvas = $('churnBySourceChart');
+  if (!canvas) return;
+  const map = new Map();
+  rows.forEach(r => {
+    if (!r.source) return;
+    if (!map.has(r.source)) map.set(r.source, { source: r.source, n: 0, early: 0, lifeSum: 0 });
+    const m = map.get(r.source);
+    m.n += 1; m.lifeSum += r.lifetime; if (r.lifetime <= 3) m.early += 1;
+  });
+  const data = Array.from(map.values())
+    .map(m => ({ source: m.source, rate: m.n ? m.early / m.n * 100 : 0, life: m.n ? m.lifeSum / m.n : 0, n: m.n }))
+    .sort((a,b) => b.n - a.n)
+    .slice(0, 6);
+  const colors = data.map(d => d.rate >= 70 ? '#ef4444' : d.rate >= 50 ? '#f59e0b' : d.rate >= 35 ? '#1390eb' : '#22c55e');
+  new Chart(canvas, {
+    data: { labels: data.map(d => d.source), datasets: [
+      { type: 'bar', label: 'Early Churn %', data: data.map(d => d.rate), yAxisID: 'y',
+        backgroundColor: colors, borderRadius: [3,3,0,0], barPercentage: 0.6, categoryPercentage: 0.85, order: 1 },
+      { type: 'line', label: 'Avg Lifetime (mo)', data: data.map(d => d.life), yAxisID: 'yRight',
+        borderColor: '#7dd3fc', backgroundColor: 'transparent', fill: false, tension: .35, pointRadius: 4, borderWidth: 2, order: 0 },
+    ]},
+    plugins: [ChartDataLabels],
+    options: {
+      responsive: true, maintainAspectRatio: false, interaction: { mode:'index', intersect:false },
+      layout: { padding: { top: 24, right: 14, bottom: 4, left: 6 } },
+      plugins: {
+        legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 9, boxHeight: 9, padding: 12, font: { size: 11 }, color: 'rgba(255,255,255,.85)' } },
+        tooltip: { ...TOOLTIP, callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.dataset.type === 'line' ? ctx.raw.toFixed(1) + ' mo' : ctx.raw.toFixed(1) + '%'}` } },
+        datalabels: {
+          align: 'top', anchor: 'end', offset: 4,
+          color: ctx => ctx.dataset.type === 'line' ? '#7dd3fc' : 'rgba(255,255,255,.9)',
+          font: { size: 10, weight: '600' },
+          formatter: (v, ctx) => ctx.dataset.type === 'line' ? v.toFixed(1) + 'mo' : Math.round(v) + '%',
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11 }, color: 'rgba(255,255,255,.85)' } },
+        y: { beginAtZero: true, max: 100, grid: { color: 'rgba(120,120,120,.10)', drawBorder: false }, ticks: { font: { size: 11 }, color: 'rgba(255,255,255,.55)', callback: v => v + '%' } },
+        yRight: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, ticks: { font: { size: 11 }, color: 'rgba(125,211,252,.75)', callback: v => v + 'mo' } },
+      }
+    }
+  });
+}
+
+/* Early churn rate by service — horizontal bars */
+function _renderChurnByService(rows) {
+  Chart.getChart('churnByServiceChart')?.destroy();
+  const canvas = $('churnByServiceChart');
+  if (!canvas) return;
+  const map = new Map();
+  rows.forEach(r => {
+    const key = r.svcShort || '—';
+    if (key === '—') return;
+    if (!map.has(key)) map.set(key, { svc: key, n: 0, early: 0 });
+    const m = map.get(key);
+    m.n += 1; if (r.lifetime <= 3) m.early += 1;
+  });
+  const data = Array.from(map.values())
+    .map(m => ({ svc: m.svc, rate: m.n ? m.early / m.n * 100 : 0, n: m.n }))
+    .filter(d => d.n >= 1)
+    .sort((a,b) => b.rate - a.rate)
+    .slice(0, 8);
+  const colors = data.map(d => d.rate >= 80 ? '#b91c1c' : d.rate >= 65 ? '#f59e0b' : '#1390eb');
+  new Chart(canvas, {
+    type: 'bar',
+    data: { labels: data.map(d => d.svc), datasets: [{
+      data: data.map(d => d.rate),
+      backgroundColor: colors,
+      borderRadius: 3, barThickness: 18,
+    }]},
+    plugins: [ChartDataLabels],
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 4, right: 60, bottom: 4, left: 6 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: { ...TOOLTIP, callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw.toFixed(1)}% early churn` } },
+        datalabels: { anchor: 'end', align: 'right', offset: 6, color: 'rgba(255,255,255,.95)', font: { size: 12, weight: '700' }, formatter: v => v.toFixed(1) + '%' }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(120,120,120,.10)', drawBorder: false }, max: 100, ticks: { font: { size: 11 }, color: 'rgba(255,255,255,.55)', callback: v => v + '%' } },
+        y: { grid: { display: false }, ticks: { font: { size: 12, weight: '500' }, color: 'rgba(255,255,255,.9)' } }
+      }
+    }
+  });
+}
+
+/* Revenue by churn timing — donut */
+function _renderRevByChurnTiming(rows) {
+  Chart.getChart('churnRevTimingChart')?.destroy();
+  const canvas = $('churnRevTimingChart');
+  if (!canvas) return;
+  const buckets = [
+    { label: 'Immediate (0-1 mo)', test: (l) => l <= 1,         color: '#ef4444' },
+    { label: 'Short (2-3 mo)',     test: (l) => l >= 2 && l <= 3, color: '#f59e0b' },
+    { label: 'Medium (4-6 mo)',    test: (l) => l >= 4 && l <= 6, color: '#1390eb' },
+    { label: 'Long (7+ mo)',       test: (l) => l >= 7,         color: '#22c55e' },
+  ];
+  const totals = buckets.map(b => rows.filter(r => b.test(r.lifetime)).reduce((a,r) => a + (r.retainer||0), 0));
+  const grand = totals.reduce((a,b) => a + b, 0);
+  new Chart(canvas, {
+    type: 'doughnut',
+    data: { labels: buckets.map(b => b.label), datasets: [{ data: totals, backgroundColor: buckets.map(b => b.color), borderWidth: 0 }] },
+    plugins: [ChartDataLabels],
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '60%',
+      plugins: {
+        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 9, boxHeight: 9, padding: 12, font: { size: 11 }, color: 'rgba(255,255,255,.85)' } },
+        tooltip: { ...TOOLTIP, callbacks: { label: ctx => ` ${ctx.label}: ${fmtCompactCur(ctx.raw)} (${grand ? (ctx.raw/grand*100).toFixed(0) : 0}%)` } },
+        datalabels: { color: '#fff', font: { size: 13, weight: '700' }, formatter: (v, ctx) => grand ? Math.round(v/grand*100) + '%' : '' }
+      }
+    }
+  });
+}
+
+/* AM/Team performance — early churn rate + avg months, worst first */
+function _renderPerfList(targetId, rows, key, minN) {
+  const host = $(targetId);
+  if (!host) return;
+  const map = new Map();
+  rows.forEach(r => {
+    const k = r[key]; if (!k) return;
+    if (!map.has(k)) map.set(k, { name: k, n: 0, early: 0, lifeSum: 0 });
+    const m = map.get(k);
+    m.n += 1; m.lifeSum += r.lifetime; if (r.lifetime <= 3) m.early += 1;
+  });
+  const data = Array.from(map.values())
+    .filter(m => m.n >= (minN || 1))
+    .map(m => ({ name: m.name, n: m.n, rate: m.n ? m.early / m.n * 100 : 0, life: m.n ? m.lifeSum / m.n : 0 }))
+    .sort((a,b) => b.rate - a.rate || b.n - a.n);
+  if (!data.length) { host.innerHTML = `<div style="padding:20px;color:var(--muted);text-align:center">No data</div>`; return; }
+  const toneOf = (rate) => rate >= 95 ? 'red' : rate >= 70 ? 'amber' : rate >= 50 ? 'blue' : 'green';
+  const colorOf = (tone) => tone === 'red' ? '#ef4444' : tone === 'amber' ? '#f59e0b' : tone === 'blue' ? '#1390eb' : '#22c55e';
+  host.innerHTML = data.map(d => {
+    const tone = toneOf(d.rate);
+    return `<div class="row">
+      <div class="lbl">${d.name}</div>
+      <div class="track"><div class="fill" style="width:${Math.min(d.rate,100).toFixed(0)}%;background:${colorOf(tone)};"></div></div>
+      <div class="v ${tone}">${d.rate.toFixed(0)}%</div>
+      <div class="meta">${d.life.toFixed(1)} mo avg</div>
+      <div class="n">${d.n}</div>
+    </div>`;
+  }).join('');
+}
+function _renderAMPerformance(rows)   { _renderPerfList('churnAMPerfList',   rows, 'am',         1); }
+function _renderTeamPerformance(rows) { _renderPerfList('churnTeamPerfList', rows, 'teamMember', 1); }
+
+/* Service × Source heatmap */
+function _renderChurnHeatmap(rows) {
+  const host = $('churnHeatmap');
+  if (!host) return;
+  // Pick top-3 services + top-3 sources by volume to keep it compact
+  const svcCounts = new Map(), srcCounts = new Map();
+  rows.forEach(r => {
+    if (r.svcShort && r.svcShort !== '—') svcCounts.set(r.svcShort, (svcCounts.get(r.svcShort)||0)+1);
+    if (r.source) srcCounts.set(r.source, (srcCounts.get(r.source)||0)+1);
+  });
+  const topSvcs = Array.from(svcCounts.entries()).sort((a,b) => b[1]-a[1]).slice(0, 5).map(e => e[0]);
+  const topSrcs = Array.from(srcCounts.entries()).sort((a,b) => b[1]-a[1]).slice(0, 4).map(e => e[0]);
+  const heatClass = (pct) => pct >= 70 ? 'heat-high' : pct >= 55 ? 'heat-mid' : 'heat-low';
+  const cellHTML = (svc, src) => {
+    let rs = rows;
+    if (svc) rs = rs.filter(r => r.svcShort === svc);
+    if (src) rs = rs.filter(r => r.source   === src);
+    const n = rs.length;
+    if (!n) return `<td class="num"><div class="cell"><span class="pill heat-low">—</span><span class="n">0</span></div></td>`;
+    const earlyN = rs.filter(r => r.lifetime <= 3).length;
+    const pct = earlyN / n * 100;
+    return `<td class="num"><div class="cell"><span class="pill ${heatClass(pct)}">${pct.toFixed(0)}%</span><span class="n">${n}</span></div></td>`;
+  };
+  let html = `<thead><tr><th>Service / Source</th>${topSrcs.map(s => `<th class="num">${s}</th>`).join('')}<th class="num">Total</th></tr></thead><tbody>`;
+  topSvcs.forEach(svc => {
+    html += `<tr><td>${svc}</td>${topSrcs.map(src => cellHTML(svc, src)).join('')}${cellHTML(svc, null)}</tr>`;
+  });
+  html += `<tr class="overall"><td>Overall</td>${topSrcs.map(src => cellHTML(null, src)).join('')}${cellHTML(null, null)}</tr></tbody>`;
+  host.innerHTML = html;
+}
+
+/* Reason analysis tiles (5 across) */
+function _renderReasonTiles(rows) {
+  const host = $('churnReasonTiles');
+  if (!host) return;
+  const reasons = CHURN_REASONS.filter(r => r !== 'Not Categorized');
+  const total = rows.length;
+  const cards = reasons.map(reason => {
+    const rs = rows.filter(r => r.reason === reason);
+    const pct = total ? rs.length / total * 100 : 0;
+    const life = rs.length ? rs.reduce((a,r) => a + r.lifetime, 0) / rs.length : 0;
+    const tone = CHURN_REASON_BADGES[reason] || 'blue';
+    return `<div class="reason-tile">
+      <div class="lbl">${reason}</div>
+      <div class="val ${tone}">${pct.toFixed(1)}%</div>
+      <span class="sub kpi-badge ${tone}">${rs.length} contracts · avg ${life.toFixed(1)} mo</span>
+    </div>`;
+  }).join('');
+  host.innerHTML = cards;
+}
+
+/* Reason split donut */
+function _renderReasonSplit(rows) {
+  Chart.getChart('churnReasonDonut')?.destroy();
+  const canvas = $('churnReasonDonut');
+  if (!canvas) return;
+  const total = rows.length;
+  const labels = CHURN_REASONS;
+  const data = labels.map(l => rows.filter(r => r.reason === l).length);
+  const colors = labels.map(l => CHURN_REASON_COLORS[l]);
+  new Chart(canvas, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0 }] },
+    plugins: [ChartDataLabels],
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '55%',
+      plugins: {
+        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 9, boxHeight: 9, padding: 10, font: { size: 11 }, color: 'rgba(255,255,255,.85)' } },
+        tooltip: { ...TOOLTIP, callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} (${total ? (ctx.raw/total*100).toFixed(0) : 0}%)` } },
+        datalabels: { color: '#fff', font: { size: 12, weight: '700' }, formatter: (v) => total && v ? Math.round(v/total*100) + '%' : '' }
+      }
+    }
+  });
+}
+
+/* Reason × Source / Reason × Service stacked bars */
+function _renderStackedReasonBy(canvasId, rows, dimensionKey, labelMapper) {
+  Chart.getChart(canvasId)?.destroy();
+  const canvas = $(canvasId);
+  if (!canvas) return;
+  const dimCounts = new Map();
+  rows.forEach(r => {
+    const k = labelMapper ? labelMapper(r) : r[dimensionKey];
+    if (!k) return;
+    dimCounts.set(k, (dimCounts.get(k)||0)+1);
+  });
+  const dims = Array.from(dimCounts.entries()).sort((a,b) => b[1]-a[1]).slice(0, 5).map(e => e[0]);
+  const datasets = CHURN_REASONS.map(reason => ({
+    label: reason,
+    data: dims.map(d => {
+      const slice = rows.filter(r => {
+        const k = labelMapper ? labelMapper(r) : r[dimensionKey];
+        return k === d && r.reason === reason;
+      });
+      const tot = rows.filter(r => (labelMapper ? labelMapper(r) : r[dimensionKey]) === d).length;
+      return tot ? slice.length / tot * 100 : 0;
+    }),
+    backgroundColor: CHURN_REASON_COLORS[reason],
+    borderWidth: 0,
+  }));
+  new Chart(canvas, {
+    type: 'bar',
+    data: { labels: dims, datasets },
+    plugins: [ChartDataLabels],
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 9, boxHeight: 9, padding: 12, font: { size: 10 }, color: 'rgba(255,255,255,.85)' } },
+        tooltip: { ...TOOLTIP, callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%` } },
+        datalabels: {
+          color: '#fff', font: { size: 10, weight: '700' },
+          formatter: (v) => v >= 5 ? v.toFixed(1) + '%' : '',
+        }
+      },
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 }, color: 'rgba(255,255,255,.85)' } },
+        y: { stacked: true, max: 100, grid: { color: 'rgba(120,120,120,.10)', drawBorder: false }, ticks: { font: { size: 11 }, color: 'rgba(255,255,255,.55)', callback: v => v + '%' } },
+      }
+    }
+  });
+}
+function _renderReasonBySource(rows)  { _renderStackedReasonBy('churnReasonBySourceChart',  rows, 'source',  null); }
+function _renderReasonByService(rows) { _renderStackedReasonBy('churnReasonByServiceChart', rows, 'service', null); }
+
+/* Controllable vs Uncontrollable cards */
+function _renderControllable(rows) {
+  const host = $('churnCtrlGrid');
+  if (!host) return;
+  const total = rows.length;
+  const totalRev = rows.reduce((a,r) => a + (r.retainer||0), 0);
+  const ctrlRows = rows.filter(r => isControllableReason(r.reason));
+  const uncRows  = rows.filter(r => !isControllableReason(r.reason) && r.reason !== 'Not Categorized');
+  const ctrlPct = total ? ctrlRows.length / total * 100 : 0;
+  const uncPct  = total ? uncRows.length  / total * 100 : 0;
+  const ctrlRev = ctrlRows.reduce((a,r) => a + (r.retainer||0), 0);
+  const uncRev  = uncRows.reduce((a,r) => a + (r.retainer||0), 0);
+  host.innerHTML = `
+    <div class="ctrl-card red">
+      <div class="lbl">Controllable</div>
+      <div class="val">${ctrlPct.toFixed(0)}%</div>
+      <div class="meta">${ctrlRows.length} contracts · ${fmtCompactCur(ctrlRev)} revenue</div>
+      <div class="desc">Low ROAS + Service/Comms</div>
+    </div>
+    <div class="ctrl-card blue">
+      <div class="lbl">Uncontrollable</div>
+      <div class="val">${uncPct.toFixed(0)}%</div>
+      <div class="meta">${uncRows.length} contracts · ${fmtCompactCur(uncRev)} revenue</div>
+      <div class="desc">Internal / Funnel / Bad Fit</div>
+    </div>
+  `;
+}
+
+/* Avg lifetime by reason — vertical bar */
+function _renderAvgLifetimeByReason(rows) {
+  Chart.getChart('churnLifetimeByReasonChart')?.destroy();
+  const canvas = $('churnLifetimeByReasonChart');
+  if (!canvas) return;
+  const labels = CHURN_REASONS;
+  const data = labels.map(l => {
+    const rs = rows.filter(r => r.reason === l);
+    return rs.length ? rs.reduce((a,r) => a + r.lifetime, 0) / rs.length : 0;
+  });
+  const colors = labels.map(l => CHURN_REASON_COLORS[l]);
+  new Chart(canvas, {
+    type: 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: [4,4,0,0], barPercentage: 0.65, categoryPercentage: 0.85 }]},
+    plugins: [ChartDataLabels],
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 24, right: 14, bottom: 4, left: 6 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: { ...TOOLTIP, callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw.toFixed(1)} mo` } },
+        datalabels: { align: 'top', anchor: 'end', offset: 4, color: 'rgba(255,255,255,.92)', font: { size: 11, weight: '700' }, formatter: v => v.toFixed(1) + ' mo' }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 10 }, color: 'rgba(255,255,255,.85)', maxRotation: 30, minRotation: 30 } },
+        y: { beginAtZero: true, grid: { color: 'rgba(120,120,120,.10)', drawBorder: false }, ticks: { font: { size: 11 }, color: 'rgba(255,255,255,.55)', callback: v => v + ' mo' } }
+      }
+    }
+  });
+}
+
+/* Service/Comms churn by team + Low ROAS churn by team — perf-list */
+function _renderReasonByTeam(targetId, rows, reason) {
+  const host = $(targetId);
+  if (!host) return;
+  const map = new Map();
+  rows.forEach(r => {
+    if (!r.teamMember) return;
+    if (!map.has(r.teamMember)) map.set(r.teamMember, { name: r.teamMember, n: 0, m: 0 });
+    const o = map.get(r.teamMember);
+    o.n += 1; if (r.reason === reason) o.m += 1;
+  });
+  const data = Array.from(map.values())
+    .filter(o => o.n >= 1)
+    .map(o => ({ name: o.name, rate: o.n ? o.m / o.n * 100 : 0, m: o.m, n: o.n }))
+    .sort((a,b) => b.rate - a.rate || b.n - a.n)
+    .slice(0, 12);
+  if (!data.length) { host.innerHTML = `<div style="padding:14px;color:var(--muted);text-align:center">No data</div>`; return; }
+  const tone = (rate) => rate >= 50 ? 'red' : rate >= 20 ? 'amber' : rate > 0 ? 'green' : 'green';
+  const color = (t) => t === 'red' ? '#ef4444' : t === 'amber' ? '#f59e0b' : '#22c55e';
+  host.innerHTML = data.map(d => {
+    const t = tone(d.rate);
+    return `<div class="row">
+      <div class="lbl">${d.name}</div>
+      <div class="track"><div class="fill" style="width:${Math.min(d.rate,100).toFixed(0)}%;background:${color(t)};"></div></div>
+      <div class="v ${t}">${d.rate.toFixed(0)}%</div>
+      <div class="meta">${d.m}/${d.n}</div>
+      <div class="n"></div>
+    </div>`;
+  }).join('');
+}
+function _renderSvcCommsByTeam(rows) { _renderReasonByTeam('churnSvcCommsByTeam', rows, 'Service / Comms'); }
+function _renderLowRoasByTeam(rows)  { _renderReasonByTeam('churnLowRoasByTeam',  rows, 'Low ROAS / Lead Quality'); }
+
+/* Reason breakdown by AM — stacked bar (100%) */
+function _renderReasonByAM(rows) {
+  Chart.getChart('churnReasonByAMChart')?.destroy();
+  const canvas = $('churnReasonByAMChart');
+  if (!canvas) return;
+  const amCounts = new Map();
+  rows.forEach(r => { if (r.am) amCounts.set(r.am, (amCounts.get(r.am)||0)+1); });
+  const ams = Array.from(amCounts.entries()).sort((a,b) => b[1]-a[1]).slice(0, 6).map(e => e[0]);
+  const datasets = CHURN_REASONS.map(reason => ({
+    label: reason,
+    data: ams.map(am => {
+      const slice = rows.filter(r => r.am === am && r.reason === reason).length;
+      const tot   = rows.filter(r => r.am === am).length;
+      return tot ? slice / tot * 100 : 0;
+    }),
+    backgroundColor: CHURN_REASON_COLORS[reason],
+    borderWidth: 0,
+  }));
+  new Chart(canvas, {
+    type: 'bar',
+    data: { labels: ams, datasets },
+    plugins: [ChartDataLabels],
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 9, boxHeight: 9, padding: 12, font: { size: 11 }, color: 'rgba(255,255,255,.85)' } },
+        tooltip: { ...TOOLTIP, callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%` } },
+        datalabels: {
+          color: '#fff', font: { size: 11, weight: '700' },
+          formatter: (v) => v >= 5 ? v.toFixed(1) + '%' : '',
+        }
+      },
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: { font: { size: 12, weight: '500' }, color: 'rgba(255,255,255,.9)' } },
+        y: { stacked: true, max: 100, grid: { color: 'rgba(120,120,120,.10)', drawBorder: false }, ticks: { font: { size: 11 }, color: 'rgba(255,255,255,.55)', callback: v => v + '%' } },
+      }
+    }
+  });
+}
+
+/* Contract detail table — sortable + searchable */
+let _churnDetailSort = { key: 'end', dir: 'desc' };
+function _renderChurnDetail(rows) {
+  const tbody = $('churnDetailRows');
+  if (!tbody) return;
+  const search = ($('churnDetailSearch') ? $('churnDetailSearch').value : '').trim().toLowerCase();
+  const filtered = rows.filter(r => {
+    if (!search) return true;
+    return [r.client, r.service, r.teamMember, r.am, r.reason, r.source]
+      .some(v => v && v.toLowerCase().includes(search));
+  });
+  const sk = _churnDetailSort.key, sd = _churnDetailSort.dir === 'asc' ? 1 : -1;
+  const sortKeyFn = (r) => {
+    switch (sk) {
+      case 'client':   return r.client.toLowerCase();
+      case 'service':  return r.service.toLowerCase();
+      case 'lifetime': return r.lifetime;
+      case 'reason':   return r.reason.toLowerCase();
+      case 'source':   return r.source.toLowerCase();
+      case 'team':     return r.teamMember.toLowerCase();
+      case 'am':       return r.am.toLowerCase();
+      case 'retainer': return r.retainer;
+      case 'end':      return r.endDate ? r.endDate.getTime() : 0;
+      default:         return 0;
+    }
+  };
+  const sorted = filtered.slice().sort((a,b) => {
+    const va = sortKeyFn(a), vb = sortKeyFn(b);
+    if (va < vb) return -1 * sd;
+    if (va > vb) return  1 * sd;
+    return 0;
+  });
+  const svcPillClass = (svc) => {
+    const x = (svc || '').toLowerCase();
+    if (/meta/.test(x))     return 'meta';
+    if (/google/.test(x))   return 'google';
+    if (/linkedin/.test(x)) return 'linkedin';
+    if (/bing/.test(x))     return 'bing';
+    if (/tiktok|snap/.test(x)) return 'tiktok';
+    return 'other';
+  };
+  const reasonBadgeClass = (reason) => CHURN_REASON_BADGES[reason] || '';
+  tbody.innerHTML = sorted.map(r => {
+    const fmtEnd = r.endDate ? r.endDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: '2-digit' }).replace(/ /g,'-') : '—';
+    const imm = r.lifetime === 0 ? `<span class="imm-pill">IMMEDIATE</span>` : '';
+    return `<tr>
+      <td>${r.client}</td>
+      <td><span class="svc-pill ${svcPillClass(r.service)}">${r.svcShort}</span></td>
+      <td class="num">${r.lifetime} mo ${imm}</td>
+      <td><span class="reason-pill kpi-badge ${reasonBadgeClass(r.reason)}">${r.reason}</span></td>
+      <td>${r.source || '—'}</td>
+      <td>${r.teamMember || '—'}</td>
+      <td>${r.am || '—'}</td>
+      <td class="num">${r.retainer ? fmtCompactCur(r.retainer).replace('$','$') : '—'}</td>
+      <td class="num">${fmtEnd}</td>
+    </tr>`;
+  }).join('');
+  const sub = $('churnDetailSub');
+  if (sub) sub.textContent = `${sorted.length} of ${rows.length} churned contracts — click headers to sort`;
+}
+
+/* Entry point — called from loadOtherLive after fetching the Churn Analysis tab. */
+function applyLiveChurn(parsed) {
+  if (!parsed || !parsed.length) return false;
+  window._live = window._live || {};
+  window._live.churnParsed = parsed;
+  return refreshChurnTab();
+}
+
 function _OLD_applyLivePeople(parsed) {
   if (!parsed || !parsed.length) return false;
   const byRev = [...parsed].sort((a,b) => b.rev - a.rev);
@@ -7075,6 +8176,17 @@ async function loadOtherLive(tabs) {
     } catch(e) { console.warn(`Team Profit (${tpTab}) failed:`, e.message); }
   }
 
+  // Churn Analysis → Churn tab
+  const churnTab = tabs.find(t => /^\s*churn\s*analysis\s*$/i.test(t)) || tabs.find(t => /churn/i.test(t));
+  if (churnTab) {
+    try {
+      const rows = await sheetsGet(`${churnTab}!A1:Z2000`);
+      const parsed = parseChurnAnalysis(rows);
+      console.log(`📊 ${churnTab}: parsed ${parsed?parsed.length:0} churn events`);
+      if (parsed) applyLiveChurn(parsed);
+    } catch(e) { console.warn(`Churn Analysis (${churnTab}) failed:`, e.message); }
+  }
+
   // Budget tab → Budget vs Actual view (rendered inside the Financials tab)
   const budgetTab = tabs.find(t => /^\s*budget\s*$/i.test(t)) || tabs.find(t => /budget/i.test(t));
   if (budgetTab) {
@@ -7282,6 +8394,43 @@ if (_clientsClearBtn) _clientsClearBtn.addEventListener('click', () => {
   });
   try { refreshClientsTab(); } catch(e) {}
 });
+// Churn tab filters
+['churnSvcFilter','churnSourceFilter','churnAMFilter','churnTeamFilter'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('change', () => { try { refreshChurnTab(); } catch(e) {} });
+});
+const _churnResetBtn = document.getElementById('churnReset');
+if (_churnResetBtn) _churnResetBtn.addEventListener('click', () => {
+  ['churnSvcFilter','churnSourceFilter','churnAMFilter','churnTeamFilter'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  try { refreshChurnTab(); } catch(e) {}
+});
+const _churnSearchEl = document.getElementById('churnDetailSearch');
+if (_churnSearchEl) _churnSearchEl.addEventListener('input', () => {
+  try {
+    const rows = _applyChurnFilters(window._live.churnParsed || [], _readChurnFilters());
+    _renderChurnDetail(rows);
+  } catch(e) {}
+});
+const _churnTable = document.getElementById('churnDetailTable');
+if (_churnTable) _churnTable.querySelectorAll('thead th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const k = th.dataset.sort;
+    if (_churnDetailSort.key === k) {
+      _churnDetailSort.dir = _churnDetailSort.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+      _churnDetailSort.key = k;
+      _churnDetailSort.dir = (k === 'lifetime' || k === 'retainer' || k === 'end') ? 'desc' : 'asc';
+    }
+    try {
+      const rows = _applyChurnFilters(window._live.churnParsed || [], _readChurnFilters());
+      _renderChurnDetail(rows);
+    } catch(e) {}
+  });
+});
+
 // Analytics tab view-mode toggle (engagement vs unique client)
 window._analyticsViewMode = 'unique';
 document.querySelectorAll('#analyticsViewToggle .seg-btn').forEach(btn => {
