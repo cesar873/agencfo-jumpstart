@@ -1484,13 +1484,13 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
     <div class="kpi-strip">
       <div class="kpi">
         <div class="kpi-label">Total Client Profit</div>
-        <div class="kpi-value success">$62.1K</div>
-        <div class="kpi-delta"><span class="d up">▲ +6.2%</span><span class="ctx">vs Feb 2026</span></div>
+        <div class="kpi-value">—</div>
+        <div class="kpi-delta"><span class="ctx">vs prior period</span></div>
       </div>
       <div class="kpi">
         <div class="kpi-label">Avg Margin</div>
-        <div class="kpi-value success">54.1%</div>
-        <div class="kpi-delta"><span class="d up">▲ +0.6pp</span><span class="ctx">vs Feb 2026</span></div>
+        <div class="kpi-value">—</div>
+        <div class="kpi-delta"><span class="ctx">vs prior period</span></div>
       </div>
       <div class="kpi">
         <div class="kpi-label">Profitable Clients</div>
@@ -3802,6 +3802,35 @@ function refreshClientsTab() {
     return false;
   }
   applyLiveClients(rows);
+
+  // MoM deltas on the first two KPI tiles (Total Client Profit + Avg Margin).
+  // Computed off the same per-engagement current/prior arrays the insights use.
+  const sumKey = (arr, k) => arr.reduce((a,r) => a + (r[k]||0), 0);
+  const curRev    = sumKey(curRowsForInsights, 'rev');
+  const curProfit = sumKey(curRowsForInsights, 'profit');
+  const curMargin = curRev > 0 ? curProfit / curRev * 100 : 0;
+  const priorRev    = priorRowsForInsights ? sumKey(priorRowsForInsights, 'rev')    : 0;
+  const priorProfit = priorRowsForInsights ? sumKey(priorRowsForInsights, 'profit') : 0;
+  const priorMargin = priorRev > 0 ? priorProfit / priorRev * 100 : 0;
+  const deltas = document.querySelectorAll('#tab-clients .kpi .kpi-delta');
+  if (deltas[0]) {
+    if (priorRowsForInsights && priorProfit !== 0) {
+      const pct = (curProfit - priorProfit) / Math.abs(priorProfit) * 100;
+      const up  = pct >= 0.05, down = pct <= -0.05;
+      deltas[0].innerHTML = `<span class="d ${up?'up':down?'down':'flat'}">${up?'▲':down?'▼':'▬'} ${pct>=0?'+':''}${pct.toFixed(1)}%</span><span class="ctx">vs ${priorLabel}</span>`;
+    } else {
+      deltas[0].innerHTML = `<span class="ctx">no prior period</span>`;
+    }
+  }
+  if (deltas[1]) {
+    if (priorRowsForInsights && priorRev > 0) {
+      const pp = curMargin - priorMargin;
+      const up = pp >= 0.1, down = pp <= -0.1;
+      deltas[1].innerHTML = `<span class="d ${up?'up':down?'down':'flat'}">${up?'▲':down?'▼':'▬'} ${pp>=0?'+':''}${pp.toFixed(1)}pp</span><span class="ctx">vs ${priorLabel}</span>`;
+    } else {
+      deltas[1].innerHTML = `<span class="ctx">no prior period</span>`;
+    }
+  }
 
   // Margin-by-source mirrors the margin-by-service chart but aggregates on `source`.
   renderMarginBySource(rows);
