@@ -5710,7 +5710,8 @@ function _renderChurnMonthlyChart(rows) {
   });
 }
 
-/* Speed-to-Churn bucket bars */
+/* Speed-to-Churn bucket bars. Counts are always churned events; the
+   denominator follows scope so % drops when actives are included. */
 function _renderSpeedToChurn(rows) {
   const host = $('churnSpeedList');
   if (!host) return;
@@ -5723,9 +5724,10 @@ function _renderSpeedToChurn(rows) {
     { label: 'Loyal (13+ mo)',    test: (l) => l >= 13,             tone: 'purple' },
   ];
   const colors = { red:'#ef4444', amber:'#f59e0b', blue:'#1390eb', green:'#22c55e', purple:'#c084fc' };
-  const total = rows.length;
+  const churned = _churnedOnly(rows);
+  const total   = rows.length;
   host.innerHTML = buckets.map(b => {
-    const n = rows.filter(r => b.test(r.lifetime)).length;
+    const n = churned.filter(r => b.test(r.lifetime)).length;
     const pct = total ? n / total * 100 : 0;
     return `<div class="row">
       <div class="lbl">${b.label}</div>
