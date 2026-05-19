@@ -1323,12 +1323,17 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   </div>
 
   <section class="section tight">
-    <div class="row-flex" style="gap:12px;align-items:center;">
+    <div class="row-flex" style="gap:12px;align-items:center;flex-wrap:wrap;">
       <span class="sub-eyebrow">View</span>
       <div class="seg-toggle" id="clientsViewToggle" role="tablist">
-        <button class="seg-btn active" data-mode="client" role="tab">By client</button>
-        <button class="seg-btn" data-mode="service" role="tab">By client × service</button>
+        <button class="seg-btn" data-mode="client" role="tab">By client</button>
+        <button class="seg-btn active" data-mode="service" role="tab">By client × service</button>
       </div>
+      <span class="sub-eyebrow" style="margin-left:18px;">Filters</span>
+      <select id="clientsTeamFilter"   class="filter-select"><option value="">All Team Members</option></select>
+      <select id="clientsAMFilter"     class="filter-select"><option value="">All Account Managers</option></select>
+      <select id="clientsSourceFilter" class="filter-select"><option value="">All Sources</option></select>
+      <button id="clientsClearFilters" class="seg-btn" style="margin-left:auto;">Clear</button>
       <span class="sub-eyebrow" style="margin-left:18px;">Month</span>
       <span class="filter-select" id="clientsMonthChip" style="min-width:auto;padding:6px 12px;">— select period above —</span>
     </div>
@@ -1378,23 +1383,35 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   </section>
 
   <section class="section">
-    <div class="shell">
-      <div class="shell-head"><div><h2>Average margin by month</h2><div class="sub" id="clientMarginByMonthSub">Total client profit ÷ total revenue · chronological</div></div></div>
-      <div class="chart-wrap tall"><canvas id="clientMarginByMonthChart"></canvas></div>
+    <div class="grid-2">
+      <div class="shell">
+        <div class="shell-head"><div><h2>Average margin by month</h2><div class="sub" id="clientMarginByMonthSub">Total client profit ÷ total revenue · chronological</div></div></div>
+        <div class="chart-wrap tall"><canvas id="clientMarginByMonthChart"></canvas></div>
+      </div>
+      <div class="shell">
+        <div class="shell-head"><div><h2>Total profit by month</h2><div class="sub" id="clientTotalProfitByMonthSub">Sum of per-engagement client profit · chronological</div></div></div>
+        <div class="chart-wrap tall"><canvas id="clientTotalProfitByMonthChart"></canvas></div>
+      </div>
     </div>
   </section>
 
   <section class="section">
-    <div class="shell">
-      <div class="shell-head"><div><h2>Margin by service line</h2><div class="sub" id="clientMarginByServiceSub">Weighted margin per service · selected period</div></div></div>
-      <div class="chart-wrap tall"><canvas id="clientMarginChart"></canvas></div>
+    <div class="grid-2">
+      <div class="shell">
+        <div class="shell-head"><div><h2>Margin by service line</h2><div class="sub" id="clientMarginByServiceSub">Weighted margin per service · selected period</div></div></div>
+        <div class="chart-wrap tall"><canvas id="clientMarginChart"></canvas></div>
+      </div>
+      <div class="shell">
+        <div class="shell-head"><div><h2>Margin by source</h2><div class="sub" id="clientMarginBySourceSub">Weighted margin per acquisition source · selected period</div></div></div>
+        <div class="chart-wrap tall"><canvas id="clientMarginBySourceChart"></canvas></div>
+      </div>
     </div>
   </section>
 
   <section class="section">
     <div class="table-shell">
       <div class="table-toolbar">
-        <div><h2>Client profit table</h2><div class="sub">All 11 active clients · March 2026</div></div>
+        <div><h2>Client profit table</h2><div class="sub" id="clientsTableSub">— rows · selected period</div></div>
         <div class="right">Sorted by client profit desc</div>
       </div>
       <div class="table-scroll">
@@ -1402,16 +1419,19 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
           <thead><tr>
             <th class="sticky-left">Client</th>
             <th>Service</th>
+            <th>Team</th>
+            <th>AM</th>
+            <th>Source</th>
             <th>Pod</th>
             <th class="num">Revenue</th>
             <th class="num">People Cost</th>
-            <th class="num">Referral</th>
-            <th class="num">Other</th>
-            <th class="num">Profit</th>
+            <th class="num">Referral Fees</th>
+            <th class="num">Other Costs</th>
+            <th class="num">Client Profit</th>
             <th>Margin</th>
           </tr></thead>
           <tbody id="clientRows"></tbody>
-          <tr class="total"><td class="sticky-left">Total (11)</td><td>—</td><td>—</td><td class="num">$114,928</td><td class="num">$36,200</td><td class="num">$8,400</td><td class="num">$8,200</td><td class="num"><b>$62,128</b></td><td><span class="badge ok">54.1%</span></td></tr>
+          <tr class="total"></tr>
         </table>
       </div>
     </div>
@@ -3094,7 +3114,11 @@ function applyLiveClients(parsed) {
       const mCls = m >= 60 ? 'ok' : m >= 40 ? 'warn' : m > 0 ? 'bad' : 'muted';
       return `<tr>
         <td class="sticky-left truncate" title="${c.name}">${c.name}</td>
-        <td>${c.svc}</td><td>${c.pod}</td>
+        <td>${c.svc}</td>
+        <td class="truncate" title="${c.team||''}">${c.team||'—'}</td>
+        <td class="truncate" title="${c.am||''}">${c.am||'—'}</td>
+        <td class="truncate" title="${c.source||''}">${c.source||'—'}</td>
+        <td>${c.pod||'—'}</td>
         ${barCell(c.rev, maxRev, 'b-sky')}
         ${barCell(c.ppl, maxPpl, 'b-rose')}
         <td class="num">${c.ref === 0 ? '<span class="dim">—</span>' : fmtCompactCur(c.ref)}</td>
@@ -3254,7 +3278,7 @@ function applyLiveClients(parsed) {
   const totalRow = document.querySelector('#tab-clients tr.total');
   if (totalRow) {
     totalRow.innerHTML = `<td class="sticky-left">Total (${sorted.length})</td>
-      <td>—</td><td>—</td>
+      <td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>
       <td class="num">${fmtFullCur(totalRev)}</td>
       <td class="num">${fmtFullCur(sorted.reduce((a,c)=>a+c.ppl,0))}</td>
       <td class="num">${fmtFullCur(sorted.reduce((a,c)=>a+c.ref,0))}</td>
@@ -3277,18 +3301,23 @@ function _monthKey(s) {
 }
 
 /* Compute Clients-tab rows from the Services tab for a given month +
-   view mode. Returns the same shape applyLiveClients expects (name, svc,
-   pod, rev, ppl, ref, oth, profit, margin) so we can reuse its render. */
-function clientsFromServices(svcParsed, monthLabel, viewMode) {
+   view mode + optional filters. Returns the same shape applyLiveClients
+   expects (name, svc, pod, team, am, source, rev, ppl, ref, oth, profit,
+   margin) so we can reuse its render. */
+function clientsFromServices(svcParsed, monthLabel, viewMode, filters) {
   if (!svcParsed || !svcParsed.records) return null;
   const target = _monthKey(monthLabel);
   if (!target) return null;
   const pi = svcParsed.monthCols.findIndex(m => _monthKey(m.label) === target);
   if (pi < 0) return null;
+  const f = filters || {};
 
   const rows = [];
   svcParsed.records.forEach(r => {
     if (!(r.monthly[pi] > 0) || r.retainer <= 0) return;
+    if (f.team   && r.teamMember     !== f.team)   return;
+    if (f.am     && r.accountManager !== f.am)     return;
+    if (f.source && r.source         !== f.source) return;
     const rev = r.retainer;
     const ppl = r.varLab + r.amPay;
     const ref = r.ref.kind === 'pct'  ? rev * r.ref.val
@@ -3297,9 +3326,12 @@ function clientsFromServices(svcParsed, monthLabel, viewMode) {
     const oth = r.fee || 0; // Stripe / processing fee
     const profit = rev - ppl - ref - oth;
     rows.push({
-      name: r.client,
-      svc:  r.service || '—',
-      pod:  '—', // not exposed by Services tab today
+      name:   r.client,
+      svc:    r.service || '—',
+      team:   r.teamMember     || '—',
+      am:     r.accountManager || '—',
+      source: r.source         || '—',
+      pod:    r.pod            || '—',
       rev, ppl, ref, oth, profit,
       margin: rev > 0 ? profit / rev * 100 : 0,
     });
@@ -3308,21 +3340,44 @@ function clientsFromServices(svcParsed, monthLabel, viewMode) {
 
   if (viewMode === 'service') return rows;
 
-  // Aggregate by client
+  // Aggregate by client (collapse a client's engagements into one row,
+  // but keep arrays of distinct values for the secondary dimensions).
+  const distinct = (arr) => Array.from(new Set(arr.filter(Boolean).filter(v => v !== '—')));
+  const labelMulti = (vals, fallback) => {
+    if (!vals.length) return '—';
+    if (vals.length === 1) return vals[0];
+    return `${vals.length} ${fallback}`;
+  };
   const byClient = new Map();
   rows.forEach(r => {
     if (!byClient.has(r.name)) {
-      byClient.set(r.name, { name: r.name, pod: r.pod, rev: 0, ppl: 0, ref: 0, oth: 0, profit: 0, services: [] });
+      byClient.set(r.name, { name: r.name, rev: 0, ppl: 0, ref: 0, oth: 0, profit: 0,
+                              services: [], teams: [], ams: [], sources: [], pods: [] });
     }
     const c = byClient.get(r.name);
     c.rev += r.rev; c.ppl += r.ppl; c.ref += r.ref; c.oth += r.oth; c.profit += r.profit;
     c.services.push(r.svc);
+    c.teams.push(r.team);
+    c.ams.push(r.am);
+    c.sources.push(r.source);
+    c.pods.push(r.pod);
   });
-  return Array.from(byClient.values()).map(c => ({
-    ...c,
-    svc: c.services.length === 1 ? c.services[0] : `${c.services.length} services`,
-    margin: c.rev > 0 ? c.profit / c.rev * 100 : 0,
-  }));
+  return Array.from(byClient.values()).map(c => {
+    const svcs = distinct(c.services);
+    const tms  = distinct(c.teams);
+    const ams  = distinct(c.ams);
+    const srcs = distinct(c.sources);
+    const pods = distinct(c.pods);
+    return {
+      ...c,
+      svc:    svcs.length === 1 ? svcs[0] : `${svcs.length} services`,
+      team:   labelMulti(tms,  'people'),
+      am:     labelMulti(ams,  'AMs'),
+      source: labelMulti(srcs, 'sources'),
+      pod:    labelMulti(pods, 'pods'),
+      margin: c.rev > 0 ? c.profit / c.rev * 100 : 0,
+    };
+  });
 }
 
 /* tabs.md Phase 3 / Clients spec — five-branch insight generator. Takes
@@ -3397,61 +3452,241 @@ function buildClientsInsights(curRows, priorRows, monthLabel) {
   return ins;
 }
 
-/* Top-level Clients-tab refresher. Reads the global Period chip for the
-   month and window._clientsViewMode for the toggle, then hands off to
-   applyLiveClients which does the rendering. */
+/* Populate the Team / AM / Source filter dropdowns once we have svcParsed.
+   Distinct values across all engagements (any month), sorted alphabetically. */
+function _populateClientsFilters(svcParsed) {
+  if (!svcParsed || !svcParsed.records) return;
+  const distinct = (key) => {
+    const set = new Set();
+    svcParsed.records.forEach(r => { if (r[key]) set.add(r[key]); });
+    return Array.from(set).sort();
+  };
+  const fill = (id, values, allLabel) => {
+    const sel = $(id);
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = `<option value="">${allLabel}</option>` +
+      values.map(v => `<option value="${v}">${v}</option>`).join('');
+    if (values.includes(cur)) sel.value = cur;
+  };
+  fill('clientsTeamFilter',   distinct('teamMember'),     'All Team Members');
+  fill('clientsAMFilter',     distinct('accountManager'), 'All Account Managers');
+  fill('clientsSourceFilter', distinct('source'),         'All Sources');
+}
+
+function _readClientsFilters() {
+  return {
+    team:   ($('clientsTeamFilter')   || {}).value || '',
+    am:     ($('clientsAMFilter')     || {}).value || '',
+    source: ($('clientsSourceFilter') || {}).value || '',
+  };
+}
+
+/* Top-level Clients-tab refresher. Reads the global Period chip, the
+   view-mode toggle, and the three filter dropdowns, then hands off to
+   applyLiveClients + the by-month chart renderers. */
 function refreshClientsTab() {
   const svcParsed = window._live && window._live.svcParsed;
   if (!svcParsed) return false;
+  _populateClientsFilters(svcParsed);
   const monthLabel = ($('periodVal').textContent || '').trim();
-  const viewMode = window._clientsViewMode || 'client';
+  const viewMode   = window._clientsViewMode || 'service';
+  const filters    = _readClientsFilters();
+  const anyFilter  = filters.team || filters.am || filters.source;
 
-  // Mirror the month + view mode in the Clients tab UI
+  // Mirror the month + filter state in the Clients tab UI
   const sub = $('clientsSubline');
   if (sub) {
     const linkM = sub.querySelector('a');
     const linkHTML = linkM ? linkM.outerHTML : 'Jumpstart ROI';
-    sub.innerHTML = `${monthLabel} · live from ${linkHTML} — Services`;
+    const filterBits = [filters.team && `Team: ${filters.team}`,
+                        filters.am   && `AM: ${filters.am}`,
+                        filters.source && `Source: ${filters.source}`].filter(Boolean).join(' · ');
+    sub.innerHTML = `${monthLabel} · live from ${linkHTML} — Services${filterBits?` · ${filterBits}`:''}`;
   }
   const monthChip = $('clientsMonthChip');
   if (monthChip) monthChip.textContent = monthLabel || '—';
 
-  const rows = clientsFromServices(svcParsed, monthLabel, viewMode);
-  // Average margin by month — loops over the currently-active label range
-  // (fin.labels, which is the slice when a date range is applied), so it
-  // automatically respects the global Range chip.
-  renderAvgMarginByMonth(svcParsed, fin && fin.labels);
+  const rows = clientsFromServices(svcParsed, monthLabel, viewMode, filters);
+
+  // By-month trend charts — both respect the global Range chip + the active filters.
+  renderAvgMarginByMonth(svcParsed, fin && fin.labels, filters);
+  renderTotalProfitByMonth(svcParsed, fin && fin.labels, filters);
 
   // WhatToDoNext insights — always built from per-engagement (service-level)
   // rows so the math is consistent regardless of the table's view mode.
-  // Prior period = the month immediately before monthLabel in the parsed
-  // Services monthCols list.
   const targetKey = _monthKey(monthLabel);
   const curIdx = targetKey ? svcParsed.monthCols.findIndex(m => _monthKey(m.label) === targetKey) : -1;
   const priorLabel = (curIdx > 0) ? svcParsed.monthCols[curIdx - 1].label : null;
-  const curRowsForInsights   = clientsFromServices(svcParsed, monthLabel,  'service') || [];
+  const curRowsForInsights   = clientsFromServices(svcParsed, monthLabel, 'service', filters) || [];
   const priorRowsForInsights = priorLabel
-    ? (clientsFromServices(svcParsed, priorLabel, 'service') || [])
+    ? (clientsFromServices(svcParsed, priorLabel, 'service', filters) || [])
     : null;
   const insights = buildClientsInsights(curRowsForInsights, priorRowsForInsights, monthLabel);
   _renderInsights('tab-clients', insights, monthLabel);
 
+  // Table subtitle reflects row count + filter state
+  const tableSub = $('clientsTableSub');
+  if (tableSub) {
+    const n = (rows && rows.length) || 0;
+    const noun = viewMode === 'service' ? 'engagement' : 'client';
+    tableSub.textContent = `${n} ${noun}${n===1?'':'s'}${anyFilter?' (filtered)':''} · ${monthLabel}`;
+  }
+
   if (!rows || !rows.length) {
     const tbody = $('clientRows');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="9" style="padding:20px;text-align:center;color:var(--muted)">No active engagements for ${monthLabel}</td></tr>`;
-    Chart.getChart('clientProfitChart')?.destroy();
+    if (tbody) tbody.innerHTML = `<tr><td colspan="12" style="padding:20px;text-align:center;color:var(--muted)">No engagements${anyFilter?' matching the filters':''} for ${monthLabel}</td></tr>`;
     Chart.getChart('clientMarginChart')?.destroy();
+    Chart.getChart('clientMarginBySourceChart')?.destroy();
     return false;
   }
-  return applyLiveClients(rows);
+  applyLiveClients(rows);
+
+  // Margin-by-source mirrors the margin-by-service chart but aggregates on `source`.
+  renderMarginBySource(rows);
+  return true;
+}
+
+/* Vertical bar chart: weighted margin per acquisition source for the
+   selected period (post-filter). */
+function renderMarginBySource(rows) {
+  Chart.getChart('clientMarginBySourceChart')?.destroy();
+  const canvas = $('clientMarginBySourceChart');
+  if (!canvas || !rows || !rows.length) return;
+  // rows can be either by-client-aggregated (sources is "N sources" string)
+  // or per-engagement. Re-bucket from `source` field, splitting aggregated
+  // clients evenly across distinct sources they touch via the `sources` array.
+  const bucket = new Map();
+  rows.forEach(c => {
+    const sourcesArr = (Array.isArray(c.sources) && c.sources.length)
+      ? Array.from(new Set(c.sources.filter(s => s && s !== '—')))
+      : (c.source && c.source !== '—' && !/sources$/.test(c.source) ? [c.source] : []);
+    if (!sourcesArr.length) return;
+    const share = 1 / sourcesArr.length;
+    sourcesArr.forEach(src => {
+      if (!bucket.has(src)) bucket.set(src, { src, rev: 0, profit: 0 });
+      const b = bucket.get(src);
+      b.rev    += (c.rev    || 0) * share;
+      b.profit += (c.profit || 0) * share;
+    });
+  });
+  const plotted = Array.from(bucket.values())
+    .map(b => ({ ...b, margin: b.rev > 0 ? b.profit / b.rev * 100 : 0 }))
+    .filter(b => b.rev > 0)
+    .sort((a,b) => b.margin - a.margin);
+  const sub = $('clientMarginBySourceSub');
+  if (sub) sub.textContent = `Weighted margin across ${plotted.length} source${plotted.length===1?'':'s'} · selected period`;
+  if (!plotted.length) return;
+
+  new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: plotted.map(b => b.src),
+      datasets: [{
+        data: plotted.map(b => b.margin),
+        backgroundColor: plotted.map(b => b.margin < 0 ? 'rgba(248,113,113,0.85)' : 'rgba(34,197,94,0.85)'),
+        borderRadius: [4,4,0,0],
+        barThickness: 42,
+      }],
+    },
+    plugins: [ChartDataLabels],
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 30, right: 14, bottom: 4, left: 6 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: { ...TOOLTIP, callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw.toFixed(1)}% margin` } },
+        datalabels: {
+          align: 'top', anchor: 'end', offset: 4,
+          color: 'rgba(255,255,255,.92)',
+          font: { size: 12, weight: '700' },
+          formatter: v => v.toFixed(1) + '%',
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 12, weight: '500' }, color: 'rgba(255,255,255,.9)' } },
+        y: { beginAtZero: true,
+             grid: { color: 'rgba(120,120,120,.10)', drawBorder: false },
+             ticks: { font: { size: 11 }, color: 'rgba(255,255,255,.55)', callback: v => v.toFixed(0) + '%' } },
+      }
+    }
+  });
+}
+
+/* Vertical bar chart: total client profit per month, looping over the
+   currently-active label range, respecting active filters. */
+function renderTotalProfitByMonth(svcParsed, labels, filters) {
+  Chart.getChart('clientTotalProfitByMonthChart')?.destroy();
+  const canvas = $('clientTotalProfitByMonthChart');
+  if (!canvas || !svcParsed || !svcParsed.records || !labels || !labels.length) return;
+  const f = filters || {};
+  const series = labels.map(lbl => {
+    const target = _monthKey(lbl);
+    const pi = target ? svcParsed.monthCols.findIndex(m => _monthKey(m.label) === target) : -1;
+    if (pi < 0) return null;
+    let profit = 0, hadAny = false;
+    svcParsed.records.forEach(r => {
+      if (!(r.monthly[pi] > 0) || r.retainer <= 0) return;
+      if (f.team   && r.teamMember     !== f.team)   return;
+      if (f.am     && r.accountManager !== f.am)     return;
+      if (f.source && r.source         !== f.source) return;
+      hadAny = true;
+      const ppl = r.varLab + r.amPay;
+      const refF = r.ref.kind === 'pct'  ? r.retainer * r.ref.val
+                 : r.ref.kind === 'flat' ? r.ref.val : 0;
+      const oth = r.fee || 0;
+      profit += r.retainer - ppl - refF - oth;
+    });
+    return hadAny ? profit : null;
+  });
+
+  const sub = $('clientTotalProfitByMonthSub');
+  if (sub) sub.textContent = `Sum of per-engagement client profit · ${labels.length} month${labels.length===1?'':'s'} in range`;
+
+  new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Total profit',
+        data: series,
+        backgroundColor: 'rgba(34,197,94,0.85)',
+        borderRadius: [4,4,0,0],
+        barThickness: 36,
+      }],
+    },
+    plugins: [ChartDataLabels],
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 30, right: 14, bottom: 4, left: 6 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: { ...TOOLTIP, callbacks: { label: ctx => ` Total profit: ${ctx.raw == null ? '—' : fmtFullCur(ctx.raw)}` } },
+        datalabels: {
+          align: 'top', anchor: 'end', offset: 4,
+          color: 'rgba(255,255,255,.92)',
+          font: { size: 11, weight: '700' },
+          formatter: v => v == null ? '—' : fmtCompactCur(v),
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 12, weight: '500' }, color: 'rgba(255,255,255,.9)' } },
+        y: { beginAtZero: true,
+             grid: { color: 'rgba(120,120,120,.10)', drawBorder: false },
+             ticks: { font: { size: 11 }, color: 'rgba(255,255,255,.55)', callback: v => fmtCompactCur(v) } },
+      }
+    }
+  });
 }
 
 /* Average client margin per month, over the currently-active label range.
-   Total client profit ÷ total revenue, computed from per-engagement rows. */
-function renderAvgMarginByMonth(svcParsed, labels) {
+   Total client profit ÷ total revenue, computed from per-engagement rows.
+   Respects the same Team/AM/Source filters used by the rest of the tab. */
+function renderAvgMarginByMonth(svcParsed, labels, filters) {
   Chart.getChart('clientMarginByMonthChart')?.destroy();
   const canvas = $('clientMarginByMonthChart');
   if (!canvas || !svcParsed || !svcParsed.records || !labels || !labels.length) return;
+  const f = filters || {};
 
   const series = labels.map(lbl => {
     const target = _monthKey(lbl);
@@ -3460,6 +3695,9 @@ function renderAvgMarginByMonth(svcParsed, labels) {
     let rev = 0, profit = 0;
     svcParsed.records.forEach(r => {
       if (!(r.monthly[pi] > 0) || r.retainer <= 0) return;
+      if (f.team   && r.teamMember     !== f.team)   return;
+      if (f.am     && r.accountManager !== f.am)     return;
+      if (f.source && r.source         !== f.source) return;
       const v = r.retainer;
       const ppl = r.varLab + r.amPay;
       const refF = r.ref.kind === 'pct'  ? v * r.ref.val
@@ -3735,11 +3973,14 @@ function parseServicesTab(rows) {
   if (iClient < 0 || iService < 0) return null;
   const iStatus    = findCol('Status');
   const iTeam      = findCol('Team Member');
+  const iAM        = findCol('Account Manager');
   const iRetainer  = findCol('Retainer Value');
   const iVarLab    = findCol('Variable Labour Costs');
   const iAMPay     = findCol('AM Pay');
   const iRef       = findCol('Referral Costs');
+  const iPod       = findCol('Pod');
   const iFee       = findCol('Fee');
+  const iSource    = findCol('Source');
 
   // Detect month columns by header pattern "MMM YYYY".
   const monthCols = [];
@@ -3767,14 +4008,17 @@ function parseServicesTab(rows) {
     if (!client || !service) continue;
     records.push({
       client, service,
-      status:     String(row[iStatus] || '').trim(),
-      teamMember: String(row[iTeam] || '').trim(),
-      retainer:   num(row[iRetainer]),
-      varLab:     num(row[iVarLab]),
-      amPay:      num(row[iAMPay]),
-      ref:        parsePctOrFlat(row[iRef]),
-      fee:        num(row[iFee]),
-      monthly:    monthCols.map(m => num(row[m.col])),
+      status:         String(row[iStatus] || '').trim(),
+      teamMember:     String(row[iTeam]   || '').trim(),
+      accountManager: String(row[iAM]     || '').trim(),
+      pod:            String(row[iPod]    || '').trim(),
+      source:         String(row[iSource] || '').trim(),
+      retainer:       num(row[iRetainer]),
+      varLab:         num(row[iVarLab]),
+      amPay:          num(row[iAMPay]),
+      ref:            parsePctOrFlat(row[iRef]),
+      fee:            num(row[iFee]),
+      monthly:        monthCols.map(m => num(row[m.col])),
     });
   }
   return { monthCols, records };
@@ -6989,7 +7233,7 @@ renderFinMeta();
 renderServiceLineCards();
 _applyHashTab();
 // Clients tab view-mode toggle (by-client vs by-client × service)
-window._clientsViewMode = 'client';
+window._clientsViewMode = 'service';
 document.querySelectorAll('#clientsViewToggle .seg-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const mode = btn.dataset.mode;
@@ -7000,6 +7244,19 @@ document.querySelectorAll('#clientsViewToggle .seg-btn').forEach(btn => {
     });
     try { refreshClientsTab(); } catch(e) {}
   });
+});
+// Clients tab filter dropdowns + clear button
+['clientsTeamFilter','clientsAMFilter','clientsSourceFilter'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('change', () => { try { refreshClientsTab(); } catch(e) {} });
+});
+const _clientsClearBtn = document.getElementById('clientsClearFilters');
+if (_clientsClearBtn) _clientsClearBtn.addEventListener('click', () => {
+  ['clientsTeamFilter','clientsAMFilter','clientsSourceFilter'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  try { refreshClientsTab(); } catch(e) {}
 });
 // Analytics tab view-mode toggle (engagement vs unique client)
 window._analyticsViewMode = 'unique';
