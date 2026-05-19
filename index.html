@@ -1689,7 +1689,12 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
 
   <section class="section tight">
     <div class="row-flex" style="gap:14px;align-items:center;flex-wrap:wrap;">
-      <span class="sub-eyebrow">Service</span>
+      <span class="sub-eyebrow">Scope</span>
+      <div class="seg-toggle" id="churnScopeToggle" role="tablist">
+        <button class="seg-btn active" data-scope="churned" role="tab">Churned only</button>
+        <button class="seg-btn" data-scope="all" role="tab">All contracts</button>
+      </div>
+      <span class="sub-eyebrow" style="margin-left:18px;">Service</span>
       <select id="churnSvcFilter"    class="filter-select"><option value="">All Services</option></select>
       <span class="sub-eyebrow" style="margin-left:8px;">Source</span>
       <select id="churnSourceFilter" class="filter-select"><option value="">All Sources</option></select>
@@ -1734,29 +1739,12 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   <section class="section">
     <div class="grid-21">
       <div class="shell">
-        <div class="shell-head"><div><h2>Monthly churn volume &amp; early churn rate</h2><div class="sub">Contracts ended per month with early-churn % overlay</div></div></div>
+        <div class="shell-head"><div><h2>Monthly churn volume</h2><div class="sub">Contracts ended per month</div></div></div>
         <div class="chart-wrap tall"><canvas id="churnMonthlyChart"></canvas></div>
       </div>
       <div class="shell">
         <div class="shell-head"><div><h2>Speed to churn</h2><div class="sub">Distribution of contract lifetimes</div></div></div>
         <div id="churnSpeedList" class="bar-list"></div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="grid-3">
-      <div class="shell">
-        <div class="shell-head"><div><h2>Early churn rate by source</h2><div class="sub">% churned ≤3 mo · avg lifetime overlay</div></div></div>
-        <div class="chart-wrap"><canvas id="churnBySourceChart"></canvas></div>
-      </div>
-      <div class="shell">
-        <div class="shell-head"><div><h2>Early churn rate by service</h2><div class="sub">Ranked highest to lowest</div></div></div>
-        <div class="chart-wrap"><canvas id="churnByServiceChart"></canvas></div>
-      </div>
-      <div class="shell">
-        <div class="shell-head"><div><h2>Revenue by churn timing</h2><div class="sub">Share of retainer revenue by how quickly clients left</div></div></div>
-        <div class="chart-wrap"><canvas id="churnRevTimingChart"></canvas></div>
       </div>
     </div>
   </section>
@@ -4314,6 +4302,8 @@ function parseServicesTab(rows) {
   const iService = findCol('Service');
   if (iClient < 0 || iService < 0) return null;
   const iStatus    = findCol('Status');
+  const iStart     = findCol('Start Date');
+  const iEnd       = findCol('End Date');
   const iTeam      = findCol('Team Member');
   const iAM        = findCol('Account Manager');
   const iRetainer  = findCol('Retainer Value');
@@ -4351,6 +4341,8 @@ function parseServicesTab(rows) {
     records.push({
       client, service,
       status:         String(row[iStatus] || '').trim(),
+      startDate:      iStart >= 0 ? parseDateLoose(row[iStart]) : null,
+      endDate:        iEnd   >= 0 ? parseDateLoose(row[iEnd])   : null,
       teamMember:     String(row[iTeam]   || '').trim(),
       accountManager: String(row[iAM]     || '').trim(),
       pod:            String(row[iPod]    || '').trim(),
@@ -5562,21 +5554,32 @@ function _applyChurnFilters(records, f) {
   );
 }
 
-/* Top-level Churn tab refresher */
-function refreshChurnTab() {
-  const all = window._live && window._live.churnParsed;
-  if (!all || !all.length) return false;
-  _populateChurnFilters(all);
-  const filters = _readChurnFilters();
-  const rows = _applyChurnFilters(all, filters);
+/* Combined unfiltered source — churned + active. Active list is derived
+   on every call so it picks up Services data even if Services arrived
+   after Churn Analysis (load order in loadOtherLive). */
+function _allChurnRows() {
+  const live = window._live || {};
+  const active = buildActiveContractsFromServices(live.svcParsed);
+  return (live.churnParsed || []).concat(active);
+}
 
-  _renderChurnHeader(rows);
+/* Top-level Churn tab refresher. Scope = 'churned' (default) shows the
+   original churn-only view; 'all' includes active engagements so rates are
+   computed against the full contract base. Reason-based renderers always
+   filter to the churned subset internally — actives have no reason. */
+function refreshChurnTab() {
+  const combined = _allChurnRows();
+  if (!combined.length) return false;
+  const scope = window._churnScope || 'churned';
+  const scoped = scope === 'all' ? combined : combined.filter(r => !r.isActive);
+  _populateChurnFilters(scoped);
+  const filters = _readChurnFilters();
+  const rows = _applyChurnFilters(scoped, filters);
+
+  _renderChurnHeader(rows, scope);
   _renderChurnKpis(rows);
   _renderChurnMonthlyChart(rows);
   _renderSpeedToChurn(rows);
-  _renderChurnBySource(rows);
-  _renderChurnByService(rows);
-  _renderRevByChurnTiming(rows);
   _renderAMPerformance(rows);
   _renderTeamPerformance(rows);
   _renderChurnHeatmap(rows);
@@ -5593,46 +5596,59 @@ function refreshChurnTab() {
   return true;
 }
 
+/* Helper used by reason-based renderers — they only ever look at churned rows. */
+function _churnedOnly(rows) { return rows.filter(r => !r.isActive); }
+
 /* Header chips: total contracts · date range · early-churn rate · avg lifetime */
-function _renderChurnHeader(rows) {
+function _renderChurnHeader(rows, scope) {
   const host = $('churnHeaderChips');
   if (!host) return;
   if (!rows.length) { host.innerHTML = ''; return; }
-  const dates = rows.map(r => r.endDate).filter(Boolean).sort((a,b) => a - b);
+  const churned = rows.filter(r => !r.isActive);
+  const active  = rows.filter(r =>  r.isActive);
+  const dates = rows.map(r => r.endDate || r.startDate).filter(Boolean).sort((a,b) => a - b);
   const minD = dates[0], maxD = dates[dates.length-1];
   const fmtMo = (d) => d ? d.toLocaleDateString('en-US',{month:'short',year:'numeric'}) : '—';
-  const earlyCount = rows.filter(r => r.lifetime <= 3).length;
-  const earlyRate = rows.length ? earlyCount / rows.length * 100 : 0;
-  const avgLife = rows.length ? rows.reduce((a,r) => a + r.lifetime, 0) / rows.length : 0;
+  const earlyCount = churned.filter(r => r.lifetime <= 3).length;
+  const earlyRate  = rows.length ? earlyCount / rows.length * 100 : 0;
+  const avgLifeChurned = churned.length ? churned.reduce((a,r) => a + r.lifetime, 0) / churned.length : 0;
+  const countChip = scope === 'all'
+    ? `<span class="churn-chip blue">${rows.length} contracts · ${churned.length} churned / ${active.length} active</span>`
+    : `<span class="churn-chip blue">${rows.length} contracts · ${fmtMo(minD)} – ${fmtMo(maxD)}</span>`;
   host.innerHTML = `
     <span class="churn-chip red">${earlyRate.toFixed(1)}% early churn ≤3 mo</span>
-    <span class="churn-chip amber">Avg lifetime ${avgLife.toFixed(1)} mo</span>
-    <span class="churn-chip blue">${rows.length} contracts · ${fmtMo(minD)} – ${fmtMo(maxD)}</span>
+    <span class="churn-chip amber">Avg lifetime ${avgLifeChurned.toFixed(1)} mo</span>
+    ${countChip}
   `;
   const sub = $('churnSubline');
   if (sub) {
     const linkM = sub.querySelector('a');
     const linkHTML = linkM ? linkM.outerHTML : 'Jumpstart ROI';
-    sub.innerHTML = `${rows.length} churned contracts · live from ${linkHTML} — Churn Analysis`;
+    const scopeLbl = scope === 'all'
+      ? `${rows.length} contracts (${churned.length} churned + ${active.length} active)`
+      : `${rows.length} churned contracts`;
+    sub.innerHTML = `${scopeLbl} · live from ${linkHTML} — Churn Analysis + Services`;
   }
 }
 
-/* KPI strip */
+/* KPI strip. Numerator-counts treat "churn event" semantics (lifetime<=3,
+   lifetime===0) as only counting churned rows; denominators reflect scope. */
 function _renderChurnKpis(rows) {
   const n = rows.length;
-  const earlyCount = rows.filter(r => r.lifetime <= 3).length;
+  const churned = rows.filter(r => !r.isActive);
+  const earlyCount = churned.filter(r => r.lifetime <= 3).length;
   const earlyRate  = n ? earlyCount / n * 100 : 0;
-  const lifetimes  = rows.map(r => r.lifetime).sort((a,b) => a - b);
-  const avgLife    = n ? lifetimes.reduce((a,b) => a + b, 0) / n : 0;
-  const medianLife = n ? lifetimes[Math.floor(n/2)] : 0;
-  const immRows    = rows.filter(r => r.lifetime === 0);
+  const churnedLifetimes = churned.map(r => r.lifetime).sort((a,b) => a - b);
+  const avgLife    = churnedLifetimes.length ? churnedLifetimes.reduce((a,b) => a + b, 0) / churnedLifetimes.length : 0;
+  const medianLife = churnedLifetimes.length ? churnedLifetimes[Math.floor(churnedLifetimes.length/2)] : 0;
+  const immRows    = churned.filter(r => r.lifetime === 0);
   const immRate    = n ? immRows.length / n * 100 : 0;
   const immRev     = immRows.reduce((a,r) => a + (r.retainer||0), 0);
   const longRows   = rows.filter(r => r.lifetime >= 7);
   const longRate   = n ? longRows.length / n * 100 : 0;
   const longRev    = longRows.reduce((a,r) => a + (r.retainer||0), 0);
   const totalRev   = rows.reduce((a,r) => a + (r.retainer||0), 0);
-  const earlyRev   = rows.filter(r => r.lifetime <= 3).reduce((a,r) => a + (r.retainer||0), 0);
+  const earlyRev   = churned.filter(r => r.lifetime <= 3).reduce((a,r) => a + (r.retainer||0), 0);
   const earlyRevPct= totalRev > 0 ? earlyRev / totalRev * 100 : 0;
 
   $('churnKpiEarlyRate').textContent     = earlyRate.toFixed(1) + '%';
@@ -5647,57 +5663,48 @@ function _renderChurnKpis(rows) {
   $('churnKpiRevMeta').textContent       = `${fmtCompactCur(earlyRev)} of ${fmtCompactCur(totalRev)}`;
 }
 
-/* Monthly churn volume (bars) + early churn rate (line, right axis) */
+/* Monthly churn volume (bars only). Actives have no endDate so are
+   naturally excluded — this is purely about churn events per month. */
 function _renderChurnMonthlyChart(rows) {
+  rows = _churnedOnly(rows);
   Chart.getChart('churnMonthlyChart')?.destroy();
   const canvas = $('churnMonthlyChart');
   if (!canvas) return;
-  // Bucket by month of endDate (YYYY-MM)
   const months = new Map();
   rows.forEach(r => {
     if (!r.endDate) return;
     const key = `${r.endDate.getFullYear()}-${String(r.endDate.getMonth()+1).padStart(2,'0')}`;
-    if (!months.has(key)) months.set(key, { iso: key, date: new Date(r.endDate.getFullYear(), r.endDate.getMonth(), 1), total: 0, early: 0 });
-    const m = months.get(key);
-    m.total += 1;
-    if (r.lifetime <= 3) m.early += 1;
+    if (!months.has(key)) months.set(key, { iso: key, date: new Date(r.endDate.getFullYear(), r.endDate.getMonth(), 1), total: 0 });
+    months.get(key).total += 1;
   });
   const ordered = Array.from(months.values()).sort((a,b) => a.date - b.date);
   const labels = ordered.map(m => m.date.toLocaleDateString('en-US',{month:'short',year:'2-digit'}));
   const counts = ordered.map(m => m.total);
-  const rates  = ordered.map(m => m.total ? (m.early / m.total * 100) : 0);
 
   new Chart(canvas, {
-    data: { labels, datasets: [
-      {
-        type: 'bar', label: 'Contracts', data: counts, yAxisID: 'y',
-        backgroundColor: 'rgba(19,144,235,0.85)',
-        borderRadius: [3,3,0,0], barPercentage: 0.7, categoryPercentage: 0.85, order: 1,
-      },
-      {
-        type: 'line', label: 'Early Churn %', data: rates, yAxisID: 'yPct',
-        borderColor: '#ef4444', backgroundColor: 'transparent',
-        fill: false, tension: .25, pointRadius: 3, borderWidth: 2, order: 0,
-      }
-    ]},
+    type: 'bar',
+    data: { labels, datasets: [{
+      label: 'Contracts ended', data: counts,
+      backgroundColor: 'rgba(19,144,235,0.85)',
+      borderRadius: [3,3,0,0], barPercentage: 0.7, categoryPercentage: 0.85,
+    }]},
     plugins: [ChartDataLabels],
     options: {
-      responsive: true, maintainAspectRatio: false, interaction: { mode:'index', intersect:false },
+      responsive: true, maintainAspectRatio: false,
       layout: { padding: { top: 24, right: 14, bottom: 4, left: 6 } },
       plugins: {
-        legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 9, boxHeight: 9, padding: 14, font: { size: 11 }, color: 'rgba(255,255,255,.85)' } },
-        tooltip: { ...TOOLTIP, callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.dataset.type === 'line' ? ctx.raw.toFixed(1) + '%' : ctx.raw}` } },
+        legend: { display: false },
+        tooltip: { ...TOOLTIP, callbacks: { label: ctx => ` Contracts ended: ${ctx.raw}` } },
         datalabels: {
           align: 'top', anchor: 'end', offset: 4,
-          color: ctx => ctx.dataset.type === 'line' ? '#fca5a5' : 'rgba(255,255,255,.85)',
-          font: { size: 10, weight: '600' },
-          formatter: (v, ctx) => ctx.dataset.type === 'line' ? Math.round(v) + '%' : v,
+          color: 'rgba(255,255,255,.92)',
+          font: { size: 11, weight: '700' },
+          formatter: v => v,
         }
       },
       scales: {
         x: { grid: { display: false }, ticks: { font: { size: 10 }, color: 'rgba(255,255,255,.7)', maxRotation: 45, minRotation: 45 } },
         y: { beginAtZero: true, grid: { color: 'rgba(120,120,120,.10)', drawBorder: false }, ticks: { font: { size: 11 }, color: 'rgba(255,255,255,.55)' } },
-        yPct: { position: 'right', beginAtZero: true, max: 100, grid: { drawOnChartArea: false }, ticks: { font: { size: 11 }, color: 'rgba(239,68,68,.75)', callback: v => v + '%' } },
       }
     }
   });
@@ -5727,125 +5734,6 @@ function _renderSpeedToChurn(rows) {
       <div class="n">${n}</div>
     </div>`;
   }).join('');
-}
-
-/* Early churn rate by source — mixed: bars (rate) + line (avg lifetime) */
-function _renderChurnBySource(rows) {
-  Chart.getChart('churnBySourceChart')?.destroy();
-  const canvas = $('churnBySourceChart');
-  if (!canvas) return;
-  const map = new Map();
-  rows.forEach(r => {
-    if (!r.source) return;
-    if (!map.has(r.source)) map.set(r.source, { source: r.source, n: 0, early: 0, lifeSum: 0 });
-    const m = map.get(r.source);
-    m.n += 1; m.lifeSum += r.lifetime; if (r.lifetime <= 3) m.early += 1;
-  });
-  const data = Array.from(map.values())
-    .map(m => ({ source: m.source, rate: m.n ? m.early / m.n * 100 : 0, life: m.n ? m.lifeSum / m.n : 0, n: m.n }))
-    .sort((a,b) => b.n - a.n)
-    .slice(0, 6);
-  const colors = data.map(d => d.rate >= 70 ? '#ef4444' : d.rate >= 50 ? '#f59e0b' : d.rate >= 35 ? '#1390eb' : '#22c55e');
-  new Chart(canvas, {
-    data: { labels: data.map(d => d.source), datasets: [
-      { type: 'bar', label: 'Early Churn %', data: data.map(d => d.rate), yAxisID: 'y',
-        backgroundColor: colors, borderRadius: [3,3,0,0], barPercentage: 0.6, categoryPercentage: 0.85, order: 1 },
-      { type: 'line', label: 'Avg Lifetime (mo)', data: data.map(d => d.life), yAxisID: 'yRight',
-        borderColor: '#7dd3fc', backgroundColor: 'transparent', fill: false, tension: .35, pointRadius: 4, borderWidth: 2, order: 0 },
-    ]},
-    plugins: [ChartDataLabels],
-    options: {
-      responsive: true, maintainAspectRatio: false, interaction: { mode:'index', intersect:false },
-      layout: { padding: { top: 24, right: 14, bottom: 4, left: 6 } },
-      plugins: {
-        legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 9, boxHeight: 9, padding: 12, font: { size: 11 }, color: 'rgba(255,255,255,.85)' } },
-        tooltip: { ...TOOLTIP, callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.dataset.type === 'line' ? ctx.raw.toFixed(1) + ' mo' : ctx.raw.toFixed(1) + '%'}` } },
-        datalabels: {
-          align: 'top', anchor: 'end', offset: 4,
-          color: ctx => ctx.dataset.type === 'line' ? '#7dd3fc' : 'rgba(255,255,255,.9)',
-          font: { size: 10, weight: '600' },
-          formatter: (v, ctx) => ctx.dataset.type === 'line' ? v.toFixed(1) + 'mo' : Math.round(v) + '%',
-        }
-      },
-      scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 11 }, color: 'rgba(255,255,255,.85)' } },
-        y: { beginAtZero: true, max: 100, grid: { color: 'rgba(120,120,120,.10)', drawBorder: false }, ticks: { font: { size: 11 }, color: 'rgba(255,255,255,.55)', callback: v => v + '%' } },
-        yRight: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, ticks: { font: { size: 11 }, color: 'rgba(125,211,252,.75)', callback: v => v + 'mo' } },
-      }
-    }
-  });
-}
-
-/* Early churn rate by service — horizontal bars */
-function _renderChurnByService(rows) {
-  Chart.getChart('churnByServiceChart')?.destroy();
-  const canvas = $('churnByServiceChart');
-  if (!canvas) return;
-  const map = new Map();
-  rows.forEach(r => {
-    const key = r.svcShort || '—';
-    if (key === '—') return;
-    if (!map.has(key)) map.set(key, { svc: key, n: 0, early: 0 });
-    const m = map.get(key);
-    m.n += 1; if (r.lifetime <= 3) m.early += 1;
-  });
-  const data = Array.from(map.values())
-    .map(m => ({ svc: m.svc, rate: m.n ? m.early / m.n * 100 : 0, n: m.n }))
-    .filter(d => d.n >= 1)
-    .sort((a,b) => b.rate - a.rate)
-    .slice(0, 8);
-  const colors = data.map(d => d.rate >= 80 ? '#b91c1c' : d.rate >= 65 ? '#f59e0b' : '#1390eb');
-  new Chart(canvas, {
-    type: 'bar',
-    data: { labels: data.map(d => d.svc), datasets: [{
-      data: data.map(d => d.rate),
-      backgroundColor: colors,
-      borderRadius: 3, barThickness: 18,
-    }]},
-    plugins: [ChartDataLabels],
-    options: {
-      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-      layout: { padding: { top: 4, right: 60, bottom: 4, left: 6 } },
-      plugins: {
-        legend: { display: false },
-        tooltip: { ...TOOLTIP, callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw.toFixed(1)}% early churn` } },
-        datalabels: { anchor: 'end', align: 'right', offset: 6, color: 'rgba(255,255,255,.95)', font: { size: 12, weight: '700' }, formatter: v => v.toFixed(1) + '%' }
-      },
-      scales: {
-        x: { grid: { color: 'rgba(120,120,120,.10)', drawBorder: false }, max: 100, ticks: { font: { size: 11 }, color: 'rgba(255,255,255,.55)', callback: v => v + '%' } },
-        y: { grid: { display: false }, ticks: { font: { size: 12, weight: '500' }, color: 'rgba(255,255,255,.9)' } }
-      }
-    }
-  });
-}
-
-/* Revenue by churn timing — donut */
-function _renderRevByChurnTiming(rows) {
-  Chart.getChart('churnRevTimingChart')?.destroy();
-  const canvas = $('churnRevTimingChart');
-  if (!canvas) return;
-  const buckets = [
-    { label: 'Immediate (0-1 mo)', test: (l) => l <= 1,         color: '#ef4444' },
-    { label: 'Short (2-3 mo)',     test: (l) => l >= 2 && l <= 3, color: '#f59e0b' },
-    { label: 'Medium (4-6 mo)',    test: (l) => l >= 4 && l <= 6, color: '#1390eb' },
-    { label: 'Long (7+ mo)',       test: (l) => l >= 7,         color: '#22c55e' },
-  ];
-  const totals = buckets.map(b => rows.filter(r => b.test(r.lifetime)).reduce((a,r) => a + (r.retainer||0), 0));
-  const grand = totals.reduce((a,b) => a + b, 0);
-  new Chart(canvas, {
-    type: 'doughnut',
-    data: { labels: buckets.map(b => b.label), datasets: [{ data: totals, backgroundColor: buckets.map(b => b.color), borderWidth: 0 }] },
-    plugins: [ChartDataLabels],
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      cutout: '60%',
-      plugins: {
-        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 9, boxHeight: 9, padding: 12, font: { size: 11 }, color: 'rgba(255,255,255,.85)' } },
-        tooltip: { ...TOOLTIP, callbacks: { label: ctx => ` ${ctx.label}: ${fmtCompactCur(ctx.raw)} (${grand ? (ctx.raw/grand*100).toFixed(0) : 0}%)` } },
-        datalabels: { color: '#fff', font: { size: 13, weight: '700' }, formatter: (v, ctx) => grand ? Math.round(v/grand*100) + '%' : '' }
-      }
-    }
-  });
 }
 
 /* AM/Team performance — early churn rate + avg months, worst first */
@@ -5911,8 +5799,9 @@ function _renderChurnHeatmap(rows) {
   host.innerHTML = html;
 }
 
-/* Reason analysis tiles (5 across) */
+/* Reason analysis tiles (5 across) — always on churned subset. */
 function _renderReasonTiles(rows) {
+  rows = _churnedOnly(rows);
   const host = $('churnReasonTiles');
   if (!host) return;
   const reasons = CHURN_REASONS.filter(r => r !== 'Not Categorized');
@@ -5931,8 +5820,9 @@ function _renderReasonTiles(rows) {
   host.innerHTML = cards;
 }
 
-/* Reason split donut */
+/* Reason split donut — always on churned subset. */
 function _renderReasonSplit(rows) {
+  rows = _churnedOnly(rows);
   Chart.getChart('churnReasonDonut')?.destroy();
   const canvas = $('churnReasonDonut');
   if (!canvas) return;
@@ -5955,8 +5845,9 @@ function _renderReasonSplit(rows) {
   });
 }
 
-/* Reason × Source / Reason × Service stacked bars */
+/* Reason × Source / Reason × Service stacked bars — churned subset only. */
 function _renderStackedReasonBy(canvasId, rows, dimensionKey, labelMapper) {
+  rows = _churnedOnly(rows);
   Chart.getChart(canvasId)?.destroy();
   const canvas = $(canvasId);
   if (!canvas) return;
@@ -6004,8 +5895,9 @@ function _renderStackedReasonBy(canvasId, rows, dimensionKey, labelMapper) {
 function _renderReasonBySource(rows)  { _renderStackedReasonBy('churnReasonBySourceChart',  rows, 'source',  null); }
 function _renderReasonByService(rows) { _renderStackedReasonBy('churnReasonByServiceChart', rows, 'service', null); }
 
-/* Controllable vs Uncontrollable cards */
+/* Controllable vs Uncontrollable cards — churned subset only. */
 function _renderControllable(rows) {
+  rows = _churnedOnly(rows);
   const host = $('churnCtrlGrid');
   if (!host) return;
   const total = rows.length;
@@ -6032,8 +5924,9 @@ function _renderControllable(rows) {
   `;
 }
 
-/* Avg lifetime by reason — vertical bar */
+/* Avg lifetime by reason — vertical bar; churned subset only. */
 function _renderAvgLifetimeByReason(rows) {
+  rows = _churnedOnly(rows);
   Chart.getChart('churnLifetimeByReasonChart')?.destroy();
   const canvas = $('churnLifetimeByReasonChart');
   if (!canvas) return;
@@ -6063,8 +5956,9 @@ function _renderAvgLifetimeByReason(rows) {
   });
 }
 
-/* Service/Comms churn by team + Low ROAS churn by team — perf-list */
+/* Service/Comms churn by team + Low ROAS churn by team — churned subset only. */
 function _renderReasonByTeam(targetId, rows, reason) {
+  rows = _churnedOnly(rows);
   const host = $(targetId);
   if (!host) return;
   const map = new Map();
@@ -6096,8 +5990,9 @@ function _renderReasonByTeam(targetId, rows, reason) {
 function _renderSvcCommsByTeam(rows) { _renderReasonByTeam('churnSvcCommsByTeam', rows, 'Service / Comms'); }
 function _renderLowRoasByTeam(rows)  { _renderReasonByTeam('churnLowRoasByTeam',  rows, 'Low ROAS / Lead Quality'); }
 
-/* Reason breakdown by AM — stacked bar (100%) */
+/* Reason breakdown by AM — stacked bar (100%) — churned subset only. */
 function _renderReasonByAM(rows) {
+  rows = _churnedOnly(rows);
   Chart.getChart('churnReasonByAMChart')?.destroy();
   const canvas = $('churnReasonByAMChart');
   if (!canvas) return;
@@ -6177,19 +6072,23 @@ function _renderChurnDetail(rows) {
     if (/tiktok|snap/.test(x)) return 'tiktok';
     return 'other';
   };
-  const reasonBadgeClass = (reason) => CHURN_REASON_BADGES[reason] || '';
+  const reasonBadgeClass = (reason) => r => CHURN_REASON_BADGES[reason] || '';
+  const badgeFor = (r) => r.isActive ? 'green' : (CHURN_REASON_BADGES[r.reason] || '');
+  const labelFor = (r) => r.isActive ? 'Active' : r.reason;
   tbody.innerHTML = sorted.map(r => {
-    const fmtEnd = r.endDate ? r.endDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: '2-digit' }).replace(/ /g,'-') : '—';
-    const imm = r.lifetime === 0 ? `<span class="imm-pill">IMMEDIATE</span>` : '';
-    return `<tr>
+    const fmtEnd = r.endDate
+      ? r.endDate.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: '2-digit' }).replace(/ /g,'-')
+      : (r.isActive ? '—' : '—');
+    const imm = (!r.isActive && r.lifetime === 0) ? `<span class="imm-pill">IMMEDIATE</span>` : '';
+    return `<tr${r.isActive ? ' style="opacity:.85;"' : ''}>
       <td>${r.client}</td>
       <td><span class="svc-pill ${svcPillClass(r.service)}">${r.svcShort}</span></td>
       <td class="num">${r.lifetime} mo ${imm}</td>
-      <td><span class="reason-pill kpi-badge ${reasonBadgeClass(r.reason)}">${r.reason}</span></td>
+      <td><span class="reason-pill kpi-badge ${badgeFor(r)}">${labelFor(r)}</span></td>
       <td>${r.source || '—'}</td>
       <td>${r.teamMember || '—'}</td>
       <td>${r.am || '—'}</td>
-      <td class="num">${r.retainer ? fmtCompactCur(r.retainer).replace('$','$') : '—'}</td>
+      <td class="num">${r.retainer ? fmtCompactCur(r.retainer) : '—'}</td>
       <td class="num">${fmtEnd}</td>
     </tr>`;
   }).join('');
@@ -6197,11 +6096,43 @@ function _renderChurnDetail(rows) {
   if (sub) sub.textContent = `${sorted.length} of ${rows.length} churned contracts — click headers to sort`;
 }
 
+/* Project the active engagements from the Services tab into the same shape
+   the Churn renderers expect — so the "All contracts" scope toggle can union
+   them with the churned records seamlessly. */
+function buildActiveContractsFromServices(svcParsed) {
+  if (!svcParsed || !svcParsed.records) return [];
+  const today = new Date();
+  const out = [];
+  svcParsed.records.forEach(r => {
+    if (!/active/i.test(r.status || '')) return;
+    if (r.endDate) return; // already ended → counted via Churn Analysis
+    const start = r.startDate;
+    const months = start ? Math.max(0, Math.round((today - start) / (1000*60*60*24*30))) : 0;
+    out.push({
+      client:     r.client,
+      service:    r.service,
+      svcShort:   shortenService(r.service),
+      startDate:  start,
+      endDate:    null,
+      lifetime:   months,
+      teamMember: r.teamMember     || '',
+      am:         r.accountManager || '',
+      source:     r.source         || '',
+      retainer:   r.retainer       || 0,
+      reasonRaw:  '',
+      reason:     'Active',
+      isActive:   true,
+    });
+  });
+  return out;
+}
+
 /* Entry point — called from loadOtherLive after fetching the Churn Analysis tab. */
 function applyLiveChurn(parsed) {
   if (!parsed || !parsed.length) return false;
   window._live = window._live || {};
-  window._live.churnParsed = parsed;
+  window._live.churnParsed = parsed.map(r => ({ ...r, isActive: false }));
+  window._live.activeFromServices = buildActiveContractsFromServices(window._live.svcParsed);
   return refreshChurnTab();
 }
 
@@ -8251,6 +8182,11 @@ async function loadOtherLive(tabs) {
   if (refreshClientsTab()) {
     status.Clients = 'live (Services)';
   }
+  // Churn tab depends on Services for the "All contracts" scope — refresh
+  // it now so active engagements show up after Services finishes loading.
+  if (window._live && window._live.churnParsed) {
+    try { refreshChurnTab(); } catch(e) {}
+  }
 
   // Transactions Database — feeds Revenue / Expenses / P&L drilldown
   status.Revenue  = status.Revenue  || 'demo';
@@ -8394,6 +8330,19 @@ if (_clientsClearBtn) _clientsClearBtn.addEventListener('click', () => {
   });
   try { refreshClientsTab(); } catch(e) {}
 });
+// Churn tab scope toggle (churned only vs all contracts incl. active)
+window._churnScope = 'churned';
+document.querySelectorAll('#churnScopeToggle .seg-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const scope = btn.dataset.scope;
+    if (!scope || scope === window._churnScope) return;
+    window._churnScope = scope;
+    document.querySelectorAll('#churnScopeToggle .seg-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.scope === scope);
+    });
+    try { refreshChurnTab(); } catch(e) {}
+  });
+});
 // Churn tab filters
 ['churnSvcFilter','churnSourceFilter','churnAMFilter','churnTeamFilter'].forEach(id => {
   const el = document.getElementById(id);
@@ -8408,11 +8357,14 @@ if (_churnResetBtn) _churnResetBtn.addEventListener('click', () => {
   try { refreshChurnTab(); } catch(e) {}
 });
 const _churnSearchEl = document.getElementById('churnDetailSearch');
+function _churnVisibleRows() {
+  const combined = _allChurnRows();
+  const scope = window._churnScope || 'churned';
+  const scoped = scope === 'all' ? combined : combined.filter(r => !r.isActive);
+  return _applyChurnFilters(scoped, _readChurnFilters());
+}
 if (_churnSearchEl) _churnSearchEl.addEventListener('input', () => {
-  try {
-    const rows = _applyChurnFilters(window._live.churnParsed || [], _readChurnFilters());
-    _renderChurnDetail(rows);
-  } catch(e) {}
+  try { _renderChurnDetail(_churnVisibleRows()); } catch(e) {}
 });
 const _churnTable = document.getElementById('churnDetailTable');
 if (_churnTable) _churnTable.querySelectorAll('thead th[data-sort]').forEach(th => {
@@ -8424,10 +8376,7 @@ if (_churnTable) _churnTable.querySelectorAll('thead th[data-sort]').forEach(th 
       _churnDetailSort.key = k;
       _churnDetailSort.dir = (k === 'lifetime' || k === 'retainer' || k === 'end') ? 'desc' : 'asc';
     }
-    try {
-      const rows = _applyChurnFilters(window._live.churnParsed || [], _readChurnFilters());
-      _renderChurnDetail(rows);
-    } catch(e) {}
+    try { _renderChurnDetail(_churnVisibleRows()); } catch(e) {}
   });
 });
 
