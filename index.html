@@ -1418,8 +1418,8 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
 
   <section class="section">
     <div class="shell">
-      <div class="shell-head"><div><h2>Team vs annualized revenue per employee</h2><div class="sub">Bars: headcount · line: revenue per employee × 12</div></div></div>
-      <div class="chart-wrap tall"><canvas id="teamRevChart"></canvas></div>
+      <div class="shell-head"><div><h2>Average MRR per client</h2><div class="sub">Monthly trend · live from the Metrics tab</div></div></div>
+      <div class="chart-wrap tall"><canvas id="avgMrrPerClientChart"></canvas></div>
     </div>
   </section>
 
@@ -4802,62 +4802,38 @@ function applyLiveAnalytics(parsed, fin) {
     });
   }
 
-  /* ── Chart 4 · Team vs annualized revenue per employee ──────────────
-     This chart is mode-agnostic — Team Members and Revenue/Employee are
-     headcount metrics, not unit-economics metrics, so they don't change
-     when the user toggles unique-client view. Same goes for the
-     all-metrics-by-month table at the bottom: it always shows every
-     column the sheet exposes. */
-  Chart.getChart('teamRevChart')?.destroy();
+  /* ── Chart 4 · Average MRR per client (line trend) ──────────────────
+     Mode-agnostic — pulls directly from the "Average MRR Per Client"
+     column on the Metrics tab. */
+  Chart.getChart('avgMrrPerClientChart')?.destroy();
   const findMetricRx = (rx) => live.find(m => rx.test(m.header)) || null;
-  const team   = findMetricRx(/team\s*members|^headcount\b|^team$/i);
-  const revPer = findMetricRx(/revenue\s*(per|\/)\s*employee|rev\s*\/\s*employee|revenue\s*per\s*fte/i);
-  if (team || revPer) {
-    // Sheet's Revenue per Employee column is already annualized — use as-is.
-    const annualized = revPer ? revPer.series.slice() : null;
-    const datasets = [];
-    if (team) datasets.push({
-      type: 'bar', label: 'Team members', data: team.series, yAxisID: 'y',
-      backgroundColor: ctx => ctx.dataIndex >= fin.fcstFrom ? 'rgba(192,132,252,0.42)' : 'rgba(192,132,252,0.88)',
-      borderRadius: [3,3,0,0], barThickness: 18, order: 1,
-    });
-    if (annualized) datasets.push({
-      type: 'line', label: 'Revenue / employee (annualized)', data: annualized, yAxisID: 'yRight',
-      borderColor: '#22c55e', backgroundColor: 'transparent',
-      fill: false, tension: .35, pointRadius: 4, borderWidth: 2,
-      segment: { borderDash: ctx => ctx.p0DataIndex >= fin.fcstFrom - 1 ? [4,4] : undefined },
-      order: 0,
-    });
-    new Chart($('teamRevChart'), {
-      data: { labels: L, datasets },
+  const mrrPer = findMetricRx(/^average\s*mrr\s*per\s*client|^avg\s*mrr\s*per\s*client|mrr\s*\/\s*client|arpa|arpu/i);
+  if (mrrPer) {
+    new Chart($('avgMrrPerClientChart'), {
+      type: 'line',
+      data: { labels: L, datasets: [{
+        label: 'Avg MRR per client',
+        data: mrrPer.series,
+        borderColor: '#22c55e', backgroundColor: 'transparent',
+        fill: false, tension: .35, pointRadius: 4, borderWidth: 2,
+        segment: { borderDash: ctx => ctx.p0DataIndex >= fin.fcstFrom - 1 ? [4,4] : undefined },
+      }]},
       plugins: [ChartDataLabels],
       options: {
-        responsive:true, maintainAspectRatio:false, interaction:{ mode:'index', intersect:false },
-        layout:{ padding:{ top:30, right:14, bottom:4, left:6 } },
-        plugins:{
-          legend:{ position:'top', align:'end', labels:{ usePointStyle:true, boxWidth:9, boxHeight:9, padding:14, font:{size:11}, color:'rgba(255,255,255,.85)' } },
-          tooltip:{ ...TOOLTIP, callbacks:{ label: ctx => {
-            const isLine = ctx.dataset.type === 'line';
-            return ` ${ctx.dataset.label}: ${isLine ? fmtCompactCur(ctx.raw||0) : Math.round(ctx.raw||0)}`;
-          } } },
-          datalabels:{
-            align: 'top', anchor: 'end', offset: 4,
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 30, right: 14, bottom: 4, left: 6 } },
+        plugins: {
+          legend: { display: false },
+          tooltip: { ...TOOLTIP, callbacks: { label: ctx => ` Avg MRR / client: ${fmtCompactCur(ctx.raw||0)}` } },
+          datalabels: {
+            align: 'top', anchor: 'end', offset: 6,
             color: 'rgba(255,255,255,.92)',
             font: { size: 11, weight: '700' },
-            formatter: (v, ctx) => ctx.dataset.type === 'line' ? fmtCompactCur(v||0) : Math.round(v||0),
+            formatter: v => fmtCompactCur(v||0),
           },
-          forecastDivider:{ fromIndex: fin.fcstFrom },
+          forecastDivider: { fromIndex: fin.fcstFrom },
         },
-        scales:{
-          x: xAxis,
-          y: { ...yCurAxis, beginAtZero: true, position: 'left', ticks:{ font:{size:11}, color:'rgba(255,255,255,.65)', callback:v=>v } },
-          ...(annualized ? { yRight: {
-            position: 'right',
-            beginAtZero: true,
-            grid: { drawOnChartArea: false },
-            ticks: { font:{size:11}, color:'rgba(34,197,94,.75)', callback: v => fmtCompactCur(v) },
-          } } : {}),
-        },
+        scales: { x: xAxis, y: { ...yCurAxis, beginAtZero: true } },
       }
     });
   }
@@ -4890,8 +4866,15 @@ function renderAllMetricsTable(liveMetrics, fin) {
     table.innerHTML = '<tbody><tr><td style="padding:20px;text-align:center;color:var(--muted)">No metrics available</td></tr></tbody>';
     return;
   }
-  const fmtVal = (v, kind) => {
+  const fmtVal = (v, kind, header) => {
     if (v == null || !isFinite(v) || v === 0) return '<span class="dim">—</span>';
+    const h = (header || '').toLowerCase();
+    // Burn Rate — display as a ratio (50% → 0.5, 200% → 2). The parser
+    // normalises percent-form values so they arrive here as the percent
+    // number (e.g. 50), so we just divide by 100.
+    if (/burn\s*rate/.test(h)) return (v / 100).toFixed(2);
+    // LTV/CAC — display as a plain ratio (3.3) instead of currency.
+    if (/ltv\s*\/?\s*cac|ltv:cac/.test(h)) return v.toFixed(1);
     if (kind === 'percent')  return v.toFixed(1) + '%';
     if (kind === 'currency') return fmtCompactCur(v);
     return Math.abs(v) < 10 ? v.toFixed(1) : Math.round(v).toLocaleString('en-US');
@@ -4904,7 +4887,7 @@ function renderAllMetricsTable(liveMetrics, fin) {
     const cells = m.series.map((v,i) => {
       const fcst = i >= fin.fcstFrom;
       const isZero = v === 0 || v == null || !isFinite(v);
-      return `<td class="num ${fcst?'fcst':''} ${isZero?'zero':''}">${fmtVal(v, m.kind)}</td>`;
+      return `<td class="num ${fcst?'fcst':''} ${isZero?'zero':''}">${fmtVal(v, m.kind, m.header)}</td>`;
     }).join('');
     return `<tr><td class="sticky-left">${m.header}</td>${cells}</tr>`;
   }).join('');
