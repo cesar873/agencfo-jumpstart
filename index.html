@@ -1769,15 +1769,6 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
     </div>
   </section>
 
-  <section class="section">
-    <div class="shell">
-      <div class="shell-head"><div><h2>Early churn heatmap</h2><div class="sub">% of contracts churned ≤3 months — by Service × Source</div></div></div>
-      <div class="table-scroll" style="padding:6px 8px 14px;">
-        <table class="heatmap-table" id="churnHeatmap"></table>
-      </div>
-    </div>
-  </section>
-
   <h2 style="font-family:'Anton',sans-serif;font-size:18px;letter-spacing:.04em;color:rgba(255,255,255,.5);margin:8px 6px 0;">CHURN REASON ANALYSIS</h2>
 
   <section class="section tight">
@@ -5529,7 +5520,6 @@ function refreshChurnTab() {
   _renderSpeedToChurn(rows);
   _renderAMPerformance(rows);
   _renderTeamPerformance(rows);
-  _renderChurnHeatmap(rows);
   _renderReasonTiles(rows);
   _renderReasonByAM(rows);
   _renderChurnDetail(rows);
@@ -5709,37 +5699,6 @@ function _renderPerfList(targetId, rows, key, minN) {
 }
 function _renderAMPerformance(rows)   { _renderPerfList('churnAMPerfList',   rows, 'am',         1); }
 function _renderTeamPerformance(rows) { _renderPerfList('churnTeamPerfList', rows, 'teamMember', 1); }
-
-/* Service × Source heatmap */
-function _renderChurnHeatmap(rows) {
-  const host = $('churnHeatmap');
-  if (!host) return;
-  // Pick top-3 services + top-3 sources by volume to keep it compact
-  const svcCounts = new Map(), srcCounts = new Map();
-  rows.forEach(r => {
-    if (r.svcShort && r.svcShort !== '—') svcCounts.set(r.svcShort, (svcCounts.get(r.svcShort)||0)+1);
-    if (r.source) srcCounts.set(r.source, (srcCounts.get(r.source)||0)+1);
-  });
-  const topSvcs = Array.from(svcCounts.entries()).sort((a,b) => b[1]-a[1]).slice(0, 5).map(e => e[0]);
-  const topSrcs = Array.from(srcCounts.entries()).sort((a,b) => b[1]-a[1]).slice(0, 4).map(e => e[0]);
-  const heatClass = (pct) => pct >= 70 ? 'heat-high' : pct >= 55 ? 'heat-mid' : 'heat-low';
-  const cellHTML = (svc, src) => {
-    let rs = rows;
-    if (svc) rs = rs.filter(r => r.svcShort === svc);
-    if (src) rs = rs.filter(r => r.source   === src);
-    const n = rs.length;
-    if (!n) return `<td class="num"><div class="cell"><span class="pill heat-low">—</span><span class="n">0</span></div></td>`;
-    const earlyN = rs.filter(r => r.lifetime <= 3).length;
-    const pct = earlyN / n * 100;
-    return `<td class="num"><div class="cell"><span class="pill ${heatClass(pct)}">${pct.toFixed(0)}%</span><span class="n">${n}</span></div></td>`;
-  };
-  let html = `<thead><tr><th>Service / Source</th>${topSrcs.map(s => `<th class="num">${s}</th>`).join('')}<th class="num">Total</th></tr></thead><tbody>`;
-  topSvcs.forEach(svc => {
-    html += `<tr><td>${svc}</td>${topSrcs.map(src => cellHTML(svc, src)).join('')}${cellHTML(svc, null)}</tr>`;
-  });
-  html += `<tr class="overall"><td>Overall</td>${topSrcs.map(src => cellHTML(null, src)).join('')}${cellHTML(null, null)}</tr></tbody>`;
-  host.innerHTML = html;
-}
 
 /* Reason analysis tiles (5 across) — always on churned subset. */
 function _renderReasonTiles(rows) {
