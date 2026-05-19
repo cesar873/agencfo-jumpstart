@@ -1750,6 +1750,13 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   </section>
 
   <section class="section">
+    <div class="shell">
+      <div class="shell-head"><div><h2>Churn reason breakdown by account manager</h2><div class="sub">One pie per AM · share of that AM's churn by reason</div></div></div>
+      <div id="churnReasonByAMGrid" class="grid-3" style="gap:14px;margin-top:8px;"></div>
+    </div>
+  </section>
+
+  <section class="section">
     <div class="grid-2">
       <div class="shell">
         <div class="shell-head"><div><h2>Account Manager performance</h2><div class="sub">Early churn rate &amp; avg months retained — ranked worst to best</div></div></div>
@@ -1775,13 +1782,6 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
 
   <section class="section tight">
     <div class="grid-3" id="churnReasonTiles" style="grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;"></div>
-  </section>
-
-  <section class="section">
-    <div class="shell">
-      <div class="shell-head"><div><h2>Churn reason breakdown by account manager</h2><div class="sub">One pie per AM · share of that AM's churn by reason</div></div></div>
-      <div id="churnReasonByAMGrid" class="grid-3" style="gap:14px;margin-top:8px;"></div>
-    </div>
   </section>
 
   <section class="section">
