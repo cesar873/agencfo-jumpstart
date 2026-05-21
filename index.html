@@ -6940,16 +6940,7 @@ function applyTxnExpenses(agg, fin, allTxns) {
         ${cells}
       </tr>`;
     }).join('');
-    if (foot) {
-      const monthTotalsFiltered = L.map((_,i) => filtered.reduce((a,r)=>a+r.vals[i],0));
-      const grand = filtered.reduce((a,r)=>a+r.total,0);
-      foot.innerHTML = `<tr class="total">
-        <td class="sticky-left">Total</td>
-        <td>—</td>
-        <td class="num"><b>${fmtCompactCur(grand)}</b></td>
-        ${monthTotalsFiltered.map((v,i) => `<td class="num ${i>=fin.fcstFrom?'fcst':''}"><b>${v===0?`<span class="dim">—</span>`:fmtCompactCur(v)}</b></td>`).join('')}
-      </tr>`;
-    }
+    if (foot) foot.innerHTML = '';
     const count = $('vendorMatrixCount');
     if (count) {
       const distinct = new Set(filtered.map(r => r.name)).size;
