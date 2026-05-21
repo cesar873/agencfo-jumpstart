@@ -5611,13 +5611,19 @@ function _renderChurnHeader(rows, scope) {
   const fmtMo = (d) => d ? d.toLocaleDateString('en-US',{month:'short',year:'numeric'}) : '—';
   const earlyCount = churned.filter(r => r.lifetime <= 3).length;
   const earlyRate  = rows.length ? earlyCount / rows.length * 100 : 0;
-  const avgLifeChurned = churned.length ? churned.reduce((a,r) => a + r.lifetime, 0) / churned.length : 0;
+  // Scope-aware lifetime: "Churned only" = avg time-to-churn of churned rows;
+  // "All contracts" = avg tenure across churned (final lifetime) + active
+  // (current tenure today − start). The active mix raises the number because
+  // long-running actives haven't churned yet.
+  const avgLifeRows = scope === 'all' ? rows : churned;
+  const avgLife = avgLifeRows.length ? avgLifeRows.reduce((a,r) => a + r.lifetime, 0) / avgLifeRows.length : 0;
+  const avgLifeLabel = scope === 'all' ? 'Avg tenure' : 'Avg lifetime';
   const countChip = scope === 'all'
     ? `<span class="churn-chip blue">${rows.length} contracts · ${churned.length} churned / ${active.length} active</span>`
     : `<span class="churn-chip blue">${rows.length} contracts · ${fmtMo(minD)} – ${fmtMo(maxD)}</span>`;
   host.innerHTML = `
     <span class="churn-chip red">${earlyRate.toFixed(1)}% early churn ≤3 mo</span>
-    <span class="churn-chip amber">Avg lifetime ${avgLifeChurned.toFixed(1)} mo</span>
+    <span class="churn-chip amber">${avgLifeLabel} ${avgLife.toFixed(1)} mo</span>
     ${countChip}
   `;
   const sub = $('churnSubline');
