@@ -6819,12 +6819,17 @@ function applyTxnExpenses(agg, fin, allTxns) {
 
   // One row per (vendor, category) — matches the reference dashboard.
   // Aggregate by vendor+account using the transactions list directly.
-  // Signed amounts (not |abs|) so reclass pairs net out — otherwise a
-  // payroll original + cancellation + repost would each count separately
-  // and inflate the bucket by 2–3x vs the Finance Model totals.
+  // - Filter on the literal Type column (Expense vs Revenue) instead of
+  //   classifyAccount's keyword heuristic. The signed-sum of Type='Expense'
+  //   matches Finance Model Total Expenses to the dollar; classifyAccount
+  //   can drift on edge cases (refunds, tax-refunds, intercompany, etc.).
+  // - Signed amounts (not |abs|) so reclass pairs net out — otherwise a
+  //   payroll original + cancellation + repost would each count separately
+  //   and inflate the bucket by 2–3x.
   const pairs = {};
   (allTxns || []).forEach(t => {
-    if (t.group === 'revenue') return;
+    if (t.acctType && t.acctType !== 'Expense') return;
+    if (!t.acctType && t.group === 'revenue') return; // fallback if Type col missing
     const idx = agg.monthIsoList.indexOf(t.monthIso);
     if (idx < 0) return;
     const v = (t.vendor && t.vendor !== '(unknown)') ? t.vendor : '(unknown)';
