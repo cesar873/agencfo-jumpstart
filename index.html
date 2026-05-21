@@ -1556,7 +1556,6 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
             <th data-sort="team">Team</th>
             <th data-sort="am">AM</th>
             <th data-sort="source">Source</th>
-            <th data-sort="pod">Pod</th>
             <th class="num" data-sort="rev">Revenue</th>
             <th class="num" data-sort="ppl">People Cost</th>
             <th class="num" data-sort="ref">Referral Fees</th>
@@ -3374,7 +3373,7 @@ function renderClientsTableRows() {
   if (!all.length) { tbody.innerHTML = ''; return; }
   const sort = window._clientsTableSort || { key:'profit', dir:'desc' };
   const q = ($('clientsTableSearch')?.value || '').trim().toLowerCase();
-  let rows = q ? all.filter(c => [c.name, c.svc, c.team, c.am, c.source, c.pod]
+  let rows = q ? all.filter(c => [c.name, c.svc, c.team, c.am, c.source]
                                   .some(v => v && String(v).toLowerCase().includes(q)))
                 : all.slice();
   const dir = sort.dir === 'asc' ? 1 : -1;
@@ -3404,7 +3403,6 @@ function renderClientsTableRows() {
       <td class="truncate" title="${c.team||''}">${c.team||'—'}</td>
       <td class="truncate" title="${c.am||''}">${c.am||'—'}</td>
       <td class="truncate" title="${c.source||''}">${c.source||'—'}</td>
-      <td>${c.pod||'—'}</td>
       ${barCell(c.rev, maxRev, 'b-sky')}
       ${barCell(c.ppl, maxPpl, 'b-rose')}
       <td class="num">${c.ref === 0 ? '<span class="dim">—</span>' : fmtCompactCur(c.ref)}</td>
