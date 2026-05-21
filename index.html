@@ -6443,7 +6443,7 @@ function parseTransactions(rows) {
   const cCredit  = find(/^credit$/);
   const cAccount = find(/^account$|^category$|^class$|^line\s*item|account.?name|gl.?account/);
   const cAcctType= find(/account.?type|^type$/);
-  const cVendor  = find(/^vendor$|^payee$|^name$|^customer$|^client$|supplier|paid.?to|received.?from/);
+  const cVendor  = find(/^vendor$|^payee$|^name$|^customer$|^client$|supplier|paid.?to|received.?from|client\s*\/\s*vendor|vendor\s*\/\s*client|client.?vendor|vendor.?client/);
   const cClass   = find(/^class$|^pod$|service.?line/);
   const cMemo    = find(/memo|description|note/);
   const cType    = find(/transaction.?type|^type$/);
