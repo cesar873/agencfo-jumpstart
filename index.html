@@ -750,6 +750,12 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
 .ctrl-card.blue { border-color:rgba(19,144,235,.4); background:rgba(19,144,235,.04); }
 .ctrl-card.blue .val{ color:#7dd3fc; }
 
+/* Sortable table — applied to any <table.sortable-table>, e.g. Clients */
+.sortable-table thead th[data-sort]{ cursor:pointer; user-select:none; }
+.sortable-table thead th[data-sort]:hover{ color:rgba(255,255,255,.92); }
+.sortable-table thead th[data-sort].sort-asc::after { content:' ↑'; opacity:.75; }
+.sortable-table thead th[data-sort].sort-desc::after{ content:' ↓'; opacity:.75; }
+
 /* Contract detail table */
 .contract-detail{ width:100%; border-collapse:collapse; font-size:13px; }
 .contract-detail th{
@@ -1540,23 +1546,23 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
     <div class="table-shell">
       <div class="table-toolbar">
         <div><h2>Client profit table</h2><div class="sub" id="clientsTableSub">— rows · selected period</div></div>
-        <div class="right">Sorted by client profit desc</div>
+        <input id="clientsTableSearch" type="search" placeholder="Search client, service, team, AM, source, pod…" class="filter-search" style="margin-left:auto;min-width:280px;">
       </div>
       <div class="table-scroll">
-        <table>
+        <table id="clientsProfitTable" class="sortable-table">
           <thead><tr>
-            <th class="sticky-left">Client</th>
-            <th>Service</th>
-            <th>Team</th>
-            <th>AM</th>
-            <th>Source</th>
-            <th>Pod</th>
-            <th class="num">Revenue</th>
-            <th class="num">People Cost</th>
-            <th class="num">Referral Fees</th>
-            <th class="num">Other Costs</th>
-            <th class="num">Client Profit</th>
-            <th>Margin</th>
+            <th class="sticky-left" data-sort="name">Client</th>
+            <th data-sort="svc">Service</th>
+            <th data-sort="team">Team</th>
+            <th data-sort="am">AM</th>
+            <th data-sort="source">Source</th>
+            <th data-sort="pod">Pod</th>
+            <th class="num" data-sort="rev">Revenue</th>
+            <th class="num" data-sort="ppl">People Cost</th>
+            <th class="num" data-sort="ref">Referral Fees</th>
+            <th class="num" data-sort="oth">Other Costs</th>
+            <th class="num" data-sort="profit">Client Profit</th>
+            <th data-sort="margin">Margin</th>
           </tr></thead>
           <tbody id="clientRows"></tbody>
           <tr class="total"></tr>
@@ -3358,37 +3364,74 @@ function parseClientProfit(rows) {
   return out.length ? out : null;
 }
 
+/* Sort+search-aware renderer for the Client Profit table body. Reads the
+   stashed window._clientsTableData and re-paints just the <tbody>, leaving
+   the charts (which use a fixed sort-by-profit-desc array) untouched. */
+function renderClientsTableRows() {
+  const tbody = $('clientRows');
+  if (!tbody) return;
+  const all = window._clientsTableData || [];
+  if (!all.length) { tbody.innerHTML = ''; return; }
+  const sort = window._clientsTableSort || { key:'profit', dir:'desc' };
+  const q = ($('clientsTableSearch')?.value || '').trim().toLowerCase();
+  let rows = q ? all.filter(c => [c.name, c.svc, c.team, c.am, c.source, c.pod]
+                                  .some(v => v && String(v).toLowerCase().includes(q)))
+                : all.slice();
+  const dir = sort.dir === 'asc' ? 1 : -1;
+  const numKeys = new Set(['rev','ppl','ref','oth','profit','margin']);
+  rows.sort((a,b) => {
+    const av = a[sort.key], bv = b[sort.key];
+    if (numKeys.has(sort.key)) {
+      return ((+av || 0) - (+bv || 0)) * dir;
+    }
+    return String(av||'').localeCompare(String(bv||'')) * dir;
+  });
+
+  // Bar maxima always pulled from the unfiltered set so cell bars stay
+  // comparable across filter states.
+  const maxRev = Math.max(...all.map(c => c.rev), 1);
+  const maxPpl = Math.max(...all.map(c => c.ppl), 1);
+  const maxPft = Math.max(...all.map(c => Math.abs(c.profit)), 1);
+  const barCell = (val, max, color) => val === 0
+    ? `<td class="num"><span class="dim">—</span></td>`
+    : `<td class="num"><div class="cb"><span class="v">${fmtCompactCur(val)}</span><span class="bg"><i class="${color}" style="width:${Math.round(Math.abs(val)/max*100)}%"></i></span></div></td>`;
+  tbody.innerHTML = rows.map(c => {
+    const m = c.margin;
+    const mCls = m >= 60 ? 'ok' : m >= 40 ? 'warn' : m > 0 ? 'bad' : 'muted';
+    return `<tr>
+      <td class="sticky-left truncate" title="${c.name}">${c.name}</td>
+      <td>${c.svc}</td>
+      <td class="truncate" title="${c.team||''}">${c.team||'—'}</td>
+      <td class="truncate" title="${c.am||''}">${c.am||'—'}</td>
+      <td class="truncate" title="${c.source||''}">${c.source||'—'}</td>
+      <td>${c.pod||'—'}</td>
+      ${barCell(c.rev, maxRev, 'b-sky')}
+      ${barCell(c.ppl, maxPpl, 'b-rose')}
+      <td class="num">${c.ref === 0 ? '<span class="dim">—</span>' : fmtCompactCur(c.ref)}</td>
+      <td class="num">${c.oth === 0 ? '<span class="dim">—</span>' : fmtCompactCur(c.oth)}</td>
+      ${barCell(c.profit, maxPft, c.profit < 0 ? 'b-rose' : 'b-emerald')}
+      <td><span class="badge ${mCls}">${m.toFixed(1)}%</span></td>
+    </tr>`;
+  }).join('');
+
+  // Update sort indicator on the headers
+  document.querySelectorAll('#clientsProfitTable thead th[data-sort]').forEach(th => {
+    th.classList.remove('sort-asc','sort-desc');
+    if (th.dataset.sort === sort.key) th.classList.add(sort.dir === 'asc' ? 'sort-asc' : 'sort-desc');
+  });
+}
+
 function applyLiveClients(parsed) {
   if (!parsed || !parsed.length) return false;
   const sorted = [...parsed].sort((a,b) => b.profit - a.profit);
 
-  const tbody = $('clientRows');
-  if (tbody) {
-    const maxRev = Math.max(...sorted.map(c => c.rev));
-    const maxPpl = Math.max(...sorted.map(c => c.ppl), 1);
-    const maxPft = Math.max(...sorted.map(c => Math.abs(c.profit)), 1);
-    const barCell = (val, max, color) => val === 0
-      ? `<td class="num"><span class="dim">—</span></td>`
-      : `<td class="num"><div class="cb"><span class="v">${fmtCompactCur(val)}</span><span class="bg"><i class="${color}" style="width:${Math.round(Math.abs(val)/max*100)}%"></i></span></div></td>`;
-    tbody.innerHTML = sorted.map(c => {
-      const m = c.margin;
-      const mCls = m >= 60 ? 'ok' : m >= 40 ? 'warn' : m > 0 ? 'bad' : 'muted';
-      return `<tr>
-        <td class="sticky-left truncate" title="${c.name}">${c.name}</td>
-        <td>${c.svc}</td>
-        <td class="truncate" title="${c.team||''}">${c.team||'—'}</td>
-        <td class="truncate" title="${c.am||''}">${c.am||'—'}</td>
-        <td class="truncate" title="${c.source||''}">${c.source||'—'}</td>
-        <td>${c.pod||'—'}</td>
-        ${barCell(c.rev, maxRev, 'b-sky')}
-        ${barCell(c.ppl, maxPpl, 'b-rose')}
-        <td class="num">${c.ref === 0 ? '<span class="dim">—</span>' : fmtCompactCur(c.ref)}</td>
-        <td class="num">${c.oth === 0 ? '<span class="dim">—</span>' : fmtCompactCur(c.oth)}</td>
-        ${barCell(c.profit, maxPft, c.profit < 0 ? 'b-rose' : 'b-emerald')}
-        <td><span class="badge ${mCls}">${m.toFixed(1)}%</span></td>
-      </tr>`;
-    }).join('');
+  // Stash the full row data so the sort/search handlers can re-render
+  // without recomputing or losing the chart-driving array.
+  window._clientsTableData = parsed.slice();
+  if (!window._clientsTableSort) {
+    window._clientsTableSort = { key: 'profit', dir: 'desc' };
   }
+  renderClientsTableRows();
 
   // Rebuild Clients charts
   Chart.getChart('clientProfitChart')?.destroy();
@@ -8096,6 +8139,24 @@ document.querySelectorAll('#clientsViewToggle .seg-btn').forEach(btn => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('change', () => { try { refreshClientsTab(); } catch(e) {} });
 });
+// Client Profit table — sortable header clicks + live search
+document.querySelectorAll('#clientsProfitTable thead th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.sort;
+    const cur = window._clientsTableSort || { key: 'profit', dir: 'desc' };
+    if (cur.key === key) {
+      cur.dir = cur.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+      cur.key = key;
+      // Numeric columns default to descending; text columns to ascending.
+      cur.dir = ['rev','ppl','ref','oth','profit','margin'].includes(key) ? 'desc' : 'asc';
+    }
+    window._clientsTableSort = cur;
+    try { renderClientsTableRows(); } catch(e) {}
+  });
+});
+const _clientsSearch = document.getElementById('clientsTableSearch');
+if (_clientsSearch) _clientsSearch.addEventListener('input', () => { try { renderClientsTableRows(); } catch(e) {} });
 const _clientsClearBtn = document.getElementById('clientsClearFilters');
 if (_clientsClearBtn) _clientsClearBtn.addEventListener('click', () => {
   ['clientsTeamFilter','clientsAMFilter','clientsSourceFilter'].forEach(id => {
