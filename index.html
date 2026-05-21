@@ -6819,6 +6819,9 @@ function applyTxnExpenses(agg, fin, allTxns) {
 
   // One row per (vendor, category) — matches the reference dashboard.
   // Aggregate by vendor+account using the transactions list directly.
+  // Signed amounts (not |abs|) so reclass pairs net out — otherwise a
+  // payroll original + cancellation + repost would each count separately
+  // and inflate the bucket by 2–3x vs the Finance Model totals.
   const pairs = {};
   (allTxns || []).forEach(t => {
     if (t.group === 'revenue') return;
@@ -6828,7 +6831,7 @@ function applyTxnExpenses(agg, fin, allTxns) {
     const c = t.account || '(uncategorized)';
     const key = v + '||' + c;
     if (!pairs[key]) pairs[key] = { name:v, category:c, group:t.group, vals: new Array(L.length).fill(0) };
-    pairs[key].vals[idx] += Math.abs(t.amount);
+    pairs[key].vals[idx] += t.amount;
   });
   const vendorRows = Object.values(pairs).map(r => ({
     ...r,
