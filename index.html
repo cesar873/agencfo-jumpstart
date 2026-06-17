@@ -6807,9 +6807,14 @@ function applyTxnRevenue(agg, fin, allTxns) {
       prev: vals[prev]    || 0,
       dlt:  (vals[lastAct] || 0) - (vals[prev] || 0),
       pct:  vals[prev] ? ((vals[lastAct] - vals[prev]) / vals[prev]) * 100 : (vals[lastAct] > 0 ? 100 : 0),
-    })).filter(s => s.cur > 0 || s.prev > 0);
-    const grow = [...swings].sort((a,b)=>b.dlt-a.dlt).slice(0,6);
-    const decl = [...swings].sort((a,b)=>a.dlt-b.dlt).slice(0,6).filter(s => s.dlt < 0);
+    }))
+      // Continuing clients only — revenue in BOTH periods. This excludes
+      // brand-new signups ($0 → X) and full churns (X → $0) so the cards
+      // surface genuine expansion / contraction in existing accounts, not
+      // logo adds/drops.
+      .filter(s => s.prev > 0 && s.cur > 0 && s.dlt !== 0);
+    const grow = [...swings].filter(s => s.dlt > 0).sort((a,b)=>b.dlt-a.dlt).slice(0,6);
+    const decl = [...swings].filter(s => s.dlt < 0).sort((a,b)=>a.dlt-b.dlt).slice(0,6);
     const renderMover = m => `
       <div class="mover-row">
         <div><div class="name" title="${m.name}">${m.name.length>34?m.name.slice(0,33)+'…':m.name}</div><div class="meta">${fmtFullCur(m.prev)} → ${fmtFullCur(m.cur)}</div></div>
@@ -6818,7 +6823,7 @@ function applyTxnRevenue(agg, fin, allTxns) {
     if ($('topGrowers'))   $('topGrowers').innerHTML   = grow.length ? grow.map(renderMover).join('') : '<div class="mover-row"><div class="meta">No revenue movements detected.</div></div>';
     if ($('topDecliners')) $('topDecliners').innerHTML = decl.length ? decl.map(renderMover).join('') : '<div class="mover-row"><div class="meta">No declines this period.</div></div>';
     document.querySelectorAll('#tab-revenue .grid-2 .shell .sub').forEach(s => {
-      s.textContent = `Per-client revenue · ${L[lastAct]} vs ${L[prev]} · sourced from Transactions Database (revenue accounts)`;
+      s.textContent = `Continuing clients · ${L[lastAct]} vs ${L[prev]} · excludes new signups & full churns`;
     });
   }
 
