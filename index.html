@@ -960,7 +960,7 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
         <div class="kpi-delta"><span class="d" id="kOmD">—</span><span class="ctx" id="kOmCtx">—</span></div>
       </div>
       <div class="kpi">
-        <div class="kpi-label">Net Profit</div>
+        <div class="kpi-label">Net Income</div>
         <div class="kpi-value" id="kNet">—</div>
         <div class="kpi-delta"><span class="d" id="kNetD">—</span><span class="ctx" id="kNetCtx">—</span></div>
       </div>
@@ -2244,7 +2244,7 @@ function renderPL() {
   rows.push(`<tr><td class="sticky-left">Total OpEx</td>${fin.opex.map(fmtCell).join('')}</tr>`);
   rows.push(`<tr class="subtotal"><td class="sticky-left">Operating Profit</td>${fin.opProf.map(fmtCell).join('')}</tr>`);
   rows.push(`<tr><td class="sticky-left dim" style="padding-left:28px">Operating Margin %</td>${fin.opMarg.map(fmtPctCell).join('')}</tr>`);
-  rows.push(`<tr class="grand"><td class="sticky-left">Net Profit</td>${fin.net.map(fmtCell).join('')}</tr>`);
+  rows.push(`<tr class="grand"><td class="sticky-left">Net Income</td>${fin.net.map(fmtCell).join('')}</tr>`);
   body.innerHTML = rows.join('');
 
   const grand = fin.revenue.reduce((a,b)=>a+b,0);
@@ -3236,7 +3236,13 @@ async function loadPL(tab){
     opex:      get('TOTAL OPERATING EXPENSES'),
     opProf:    get('OPERATING INCOME'),
     opMarg:    get('OPERATING MARGIN'),
-    net:       get('Net Income'),
+    // Prefer the Corrected Net Income row (excludes wages & tax payments
+    // that aren't part of normalised operating profit) — fall back to the
+    // raw Net Income if the corrected row is missing or all-zero.
+    net:       (function(){
+                  const corrected = get('Corrected Net Income');
+                  return corrected.some(v => v) ? corrected : get('Net Income');
+                })(),
     revenueLines, cogsLines, opexLines,
     fcstFrom: fcstFromStatus, // -1 if no Status row found
   };
@@ -7382,7 +7388,7 @@ function applyTxnPLDrilldown(agg, fin) {
   rows.push(expandable('opex',    'Total OpEx',    fin.opex,    ''));
   rows.push(`<tr class="subtotal"><td class="sticky-left">Operating Profit</td>${fin.opProf.map(cellFmt).join('')}</tr>`);
   rows.push(`<tr><td class="sticky-left dim" style="padding-left:28px">Operating Margin %</td>${fin.opMarg.map((v,i)=>`<td class="num ${i>=fin.fcstFrom?'fcst':''}">${(v||0).toFixed(1)}%</td>`).join('')}</tr>`);
-  rows.push(`<tr class="grand"><td class="sticky-left">Net Profit</td>${fin.net.map(cellFmt).join('')}</tr>`);
+  rows.push(`<tr class="grand"><td class="sticky-left">Net Income</td>${fin.net.map(cellFmt).join('')}</tr>`);
   tbody.innerHTML = rows.join('');
 
   // Wire toggles
