@@ -2,7 +2,10 @@ import crypto from 'crypto';
 
 const SHEETS_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
 const TOKEN_URL   = 'https://oauth2.googleapis.com/token';
-const SCOPE       = 'https://www.googleapis.com/auth/spreadsheets.readonly';
+// Read/write — the Bookkeeping clarification queue writes back to columns
+// O (Category) and P (Comments). Requires the service account to have
+// Editor access on the sheet.
+const SCOPE       = 'https://www.googleapis.com/auth/spreadsheets';
 
 // Cache the token for the lifetime of a warm function instance
 let cachedToken = null;
@@ -79,6 +82,8 @@ async function getAccessToken() {
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Cache-Control', 'no-store, max-age=0, must-revalidate');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -86,6 +91,34 @@ export default async function handler(req, res) {
   const email   = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_SERVICE_EMAIL;
   const rawKey  = process.env.GOOGLE_SERVICE_ACCOUNT_KEY   || process.env.GOOGLE_SERVICE_KEY;
   const key     = normalizeKey(rawKey);
+
+  // ── WRITE: POST { range:"Bookkeeping!O5", value:"..." } → updates one cell.
+  //    Used by the Payments / Transactions-clarification queue. Requires the
+  //    service account to be an Editor on the sheet.
+  if (req.method === 'POST') {
+    if (!sheetId) return res.status(500).json({ error: 'GOOGLE_SHEET_ID not set in Vercel env vars.' });
+    try {
+      let body = req.body;
+      if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }
+      const wRange = body && body.range;
+      const wValue = body && body.value != null ? String(body.value) : '';
+      if (!wRange || !/^[^!]+![A-Z]+\d+$/.test(wRange)) {
+        return res.status(400).json({ error: 'POST body needs { range:"Tab!A1", value:"..." } — single cell only.' });
+      }
+      const token = await getAccessToken();
+      const url = `${SHEETS_BASE}/${sheetId}/values/${encodeURIComponent(wRange)}?valueInputOption=USER_ENTERED`;
+      const upstream = await fetch(url, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: [[wValue]] }),
+      });
+      const data = await upstream.json();
+      if (!upstream.ok) return res.status(upstream.status).json({ error: (data.error && data.error.message) || 'Write failed' });
+      return res.status(200).json({ ok: true, updated: data.updatedRange || wRange });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
 
   const { range, meta, diag, peek } = req.query;
 

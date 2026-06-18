@@ -695,6 +695,71 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
 .ms-row:hover .ms-only{ opacity:1; }
 .ms-row .ms-only:hover{ color:#bae6fd; }
 
+/* ── PAYMENTS · transaction clarification queue ─────────────────────── */
+.pay-section{ margin-bottom:22px; }
+.pay-section-head{ display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.pay-section-head h3{
+  font-size:11px; font-weight:600; text-transform:uppercase;
+  letter-spacing:.08em; color:var(--muted);
+}
+.pay-badge{
+  position:relative; display:inline-flex; align-items:center; justify-content:center;
+  min-width:20px; padding:0 6px; height:18px; border-radius:9px;
+  font-size:10px; font-weight:700; font-variant-numeric:tabular-nums;
+  background:rgba(255,255,255,.08); color:rgba(255,255,255,.7);
+}
+.pay-badge.flash{ background:#ef4444; color:#fff; }
+.pay-badge.flash::after{
+  content:''; position:absolute; inset:0; border-radius:9px;
+  background:rgba(239,68,68,.6); animation:payping 1.4s cubic-bezier(0,0,.2,1) infinite; z-index:-1;
+}
+@keyframes payping{ 75%,100%{ transform:scale(1.8); opacity:0; } }
+.pay-table-wrap{ overflow-x:auto; border:1px solid var(--card-border); border-radius:12px; }
+.pay-table{ width:100%; min-width:840px; border-collapse:collapse; font-size:13px; }
+.pay-table th{
+  text-align:left; padding:9px 10px; font-size:10px; font-weight:600;
+  text-transform:uppercase; letter-spacing:.06em; color:var(--muted);
+  border-bottom:1px solid var(--card-border); background:rgba(255,255,255,.02);
+}
+.pay-table th.num{ text-align:right; }
+.pay-table td{ padding:9px 10px; border-top:1px solid rgba(255,255,255,.04); vertical-align:middle; }
+.pay-table td.num{ text-align:right; font-variant-numeric:tabular-nums; }
+.pay-row{ cursor:pointer; }
+.pay-row:hover{ background:rgba(255,255,255,.04); }
+.pay-trunc{ display:block; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pay-chip{
+  display:inline-flex; align-items:center; gap:5px;
+  border:0; border-radius:6px; padding:4px 9px;
+  font-family:'DM Sans',sans-serif; font-size:11px; font-weight:600;
+  cursor:pointer; transition:filter .12s;
+}
+.pay-chip:hover{ filter:brightness(1.12); }
+.pay-chip .ca{ font-size:9px; opacity:.7; }
+.pay-chip.unset{ background:var(--blue); color:#fff; }
+.pay-chip.cat-set{ background:rgba(34,197,94,.16); color:#86efac; }
+.pay-chip.cmt-set{ background:rgba(245,158,11,.16); color:#fcd34d; }
+.pay-chip .pay-chip-label{ max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.pay-expand{ background:rgba(255,255,255,.015); }
+.pay-expand td{ padding:14px 16px; }
+.pay-kv{ font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+.pay-kv + div{ font-size:13px; color:var(--text); margin-top:2px; }
+.pay-raw li{ font-size:12px; color:var(--muted); list-style:none; }
+.pay-raw li b{ color:rgba(255,255,255,.8); font-weight:500; }
+/* comment editor popover textarea */
+.pay-pop textarea{
+  width:100%; min-height:70px; resize:vertical;
+  background:rgba(255,255,255,.04); border:1px solid rgba(19,144,235,.45);
+  border-radius:8px; color:var(--text); font-family:inherit; font-size:13px;
+  padding:8px 10px; outline:none;
+}
+.pay-pop textarea:focus{ border-color:var(--blue); }
+.pay-pop-actions{ display:flex; align-items:center; justify-content:space-between; margin-top:10px; }
+.pay-pop-actions .save{
+  background:var(--blue); border:0; border-radius:7px; color:#fff;
+  font-family:inherit; font-size:12px; font-weight:600; padding:7px 16px; cursor:pointer;
+}
+.pay-pop-actions .clear{ background:transparent; border:0; color:var(--muted); font-size:11px; cursor:pointer; }
+
 /* Segmented toggle (by-client / by-client × service, etc.) */
 .seg-toggle{
   display:inline-flex;
@@ -945,6 +1010,7 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
       <button class="tab-btn active" data-tab="financials" onclick="showTab(this)">Financials</button>
       <button class="tab-btn" data-tab="revenue"    onclick="showTab(this)">Revenue</button>
       <button class="tab-btn" data-tab="expenses"   onclick="showTab(this)">Expenses</button>
+      <button class="tab-btn" data-tab="payments"   onclick="showTab(this)">Payments</button>
       <button class="tab-btn" data-tab="clients"    onclick="showTab(this)">Clients</button>
       <button class="tab-btn" data-tab="churn"      onclick="showTab(this)">Churn</button>
       <button class="tab-btn" data-tab="analytics"  onclick="showTab(this)">Analytics</button>
@@ -1883,6 +1949,29 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   </section>
 
   <p class="page-footer">Live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Churn Analysis · cached 5 minutes</p>
+</div></div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     TAB 8 · PAYMENTS  (Bookkeeping transaction clarification queue)
+═══════════════════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-payments"><div class="page">
+
+  <div class="page-hero">
+    <p class="eyebrow">Bookkeeping</p>
+    <h1>Payments</h1>
+    <p class="subline" id="paymentsSubline">— live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Bookkeeping</p>
+  </div>
+
+  <p style="margin:0 6px 18px;font-size:13px;line-height:1.55;color:rgba(255,255,255,.8);max-width:880px;">
+    Transactions your bookkeeper couldn't categorise. Pick a <b>Category</b> from the chart of accounts
+    or leave a <b>Comment</b> — it writes straight back to the sheet, and the row moves to
+    <span style="color:var(--text)">Clarified</span> once either is filled.
+  </p>
+
+  <div id="paymentsBody"></div>
+
+  <p class="page-footer">Live from <a href="https://docs.google.com/spreadsheets/d/1K8sCTLv8hs6IQI5LLgclWGOIzwpF-5Lz88dxU0QlmWY" target="_blank" rel="noreferrer">Jumpstart ROI</a> — Bookkeeping · writes are instant</p>
 </div></div>
 
 
@@ -6165,6 +6254,232 @@ function applyLiveChurn(parsed) {
   return refreshChurnTab();
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   PAYMENTS — Bookkeeping transaction clarification queue (read + write)
+   Bookkeeping tab columns (0-based): B(1)=CoA category options,
+   F(5)=Date G(6)=Txn ID H(7)=Type I(8)=Account Code J(9)=bookkeeper Category
+   K(10)=Description L(11)=Client/Vendor M(12)=Amount N(13)=Account
+   O(14)=client Category (write) P(15)=client Comments (write).
+   A row is a transaction when any of F–N is non-empty; "clarified" once
+   O or P is filled. Writes go to O{row}/P{row} via POST /api/sheets.
+   ═══════════════════════════════════════════════════════════════════════ */
+const BK = { catSrc:1, date:5, txnId:6, type:7, acctCode:8, bkCat:9, desc:10, vendor:11, amount:12, account:13, category:14, comment:15 };
+
+function parseBookkeeping(rows) {
+  if (!rows || rows.length < 2) return null;
+  // Category options = column B (CoA), rows 2+.
+  const catSet = new Set();
+  for (let i = 1; i < rows.length; i++) {
+    const c = (rows[i] && rows[i][BK.catSrc] || '').trim();
+    if (c) catSet.add(c);
+  }
+  const categories = Array.from(catSet).sort((a,b) => a.localeCompare(b));
+
+  const txns = [];
+  const cellAt = (r,i) => (r && r[i] != null ? String(r[i]).trim() : '');
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i] || [];
+    // transaction present if any of F–N has content
+    let any = false;
+    for (let c = BK.date; c <= BK.account; c++) { if (cellAt(r,c)) { any = true; break; } }
+    if (!any) continue;
+    const category = cellAt(r, BK.category);
+    const comment  = cellAt(r, BK.comment);
+    txns.push({
+      rowIndex: i + 1,                  // 1-based sheet row → write target O{n}/P{n}
+      date:     cellAt(r, BK.date) || null,
+      txnId:    cellAt(r, BK.txnId) || null,
+      type:     cellAt(r, BK.type) || null,
+      acctCode: cellAt(r, BK.acctCode) || null,
+      bkCat:    cellAt(r, BK.bkCat) || null,
+      desc:     cellAt(r, BK.desc) || null,
+      vendor:   cellAt(r, BK.vendor) || null,
+      amount:   cellAt(r, BK.amount) ? num(r[BK.amount]) : null,
+      account:  cellAt(r, BK.account) || null,
+      category, comment,
+      clarified: Boolean(category || comment),
+    });
+  }
+  return { categories, transactions: txns };
+}
+
+/* Write one cell back to the sheet. col: 'O' (category) or 'P' (comment). */
+async function _bkWrite(rowIndex, col, value) {
+  const res = await fetch('/api/sheets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ range: `Bookkeeping!${col}${rowIndex}`, value }),
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.error || res.statusText);
+  }
+  return res.json();
+}
+
+function applyLiveBookkeeping(parsed) {
+  window._live = window._live || {};
+  window._live.bookkeeping = parsed;
+  renderPaymentsTab();
+  return !!(parsed && parsed.transactions);
+}
+
+function renderPaymentsTab() {
+  const host = $('paymentsBody');
+  if (!host) return;
+  const data = window._live && window._live.bookkeeping;
+  if (!data) { host.innerHTML = `<div style="padding:24px;color:var(--muted);text-align:center">Loading…</div>`; return; }
+  const { transactions, categories } = data;
+  if (!transactions || !transactions.length) {
+    host.innerHTML = `<div style="padding:24px;color:var(--muted);text-align:center">No transactions in the Bookkeeping tab yet — rows appear here once your bookkeeper adds unclear transactions.</div>`;
+    _setPaymentsSub(0);
+    return;
+  }
+  const awaiting  = transactions.filter(t => !t.clarified);
+  const clarified = transactions.filter(t => t.clarified);
+  _setPaymentsSub(awaiting.length);
+  host.innerHTML =
+    _paySection('Awaiting clarification', awaiting, true, 'Nothing awaiting — all transactions are clarified.') +
+    `<div style="height:18px"></div>` +
+    _paySection('Clarified', clarified, false, 'No clarified transactions yet.');
+  _wirePaymentRows();
+}
+
+function _setPaymentsSub(awaiting) {
+  const sub = $('paymentsSubline');
+  if (!sub) return;
+  const linkM = sub.querySelector('a');
+  const linkHTML = linkM ? linkM.outerHTML : 'Jumpstart ROI';
+  sub.innerHTML = `${awaiting} awaiting clarification · live from ${linkHTML} — Bookkeeping`;
+}
+
+function _payChip(t, kind) {
+  // kind: 'cat' or 'cmt'
+  const set = kind === 'cat' ? !!t.category : !!t.comment;
+  const label = kind === 'cat' ? (t.category || 'Category') : (t.comment || 'Comment');
+  const cls = !set ? 'unset' : (kind === 'cat' ? 'cat-set' : 'cmt-set');
+  return `<button class="pay-chip ${cls}" data-act="${kind}" data-row="${t.rowIndex}">
+    <span class="pay-chip-label">${_esc(label)}</span><span class="ca">▾</span></button>`;
+}
+function _esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function _paySection(title, txns, flash, emptyText) {
+  const rowsHtml = txns.length ? txns.map(t => {
+    const amt = t.amount == null ? '—' : fmtCompactCur(t.amount);
+    return `<tr class="pay-row" data-row="${t.rowIndex}">
+      <td class="tabular-nums" style="color:rgba(255,255,255,.6);font-size:12px">${_esc(t.date||'—')}</td>
+      <td><span class="pay-trunc" title="${_esc(t.desc||'')}">${_esc(t.desc||'—')}</span></td>
+      <td><span class="pay-trunc" style="max-width:120px" title="${_esc(t.vendor||'')}">${_esc(t.vendor||'—')}</span></td>
+      <td class="num">${amt}</td>
+      <td><span class="pay-trunc" style="max-width:110px" title="${_esc(t.account||'')}">${_esc(t.account||'—')}</span></td>
+      <td onclick="event.stopPropagation()">${_payChip(t,'cat')}</td>
+      <td onclick="event.stopPropagation()">${_payChip(t,'cmt')}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="7" style="padding:26px;text-align:center;color:var(--muted)">${emptyText}</td></tr>`;
+  return `<div class="pay-section">
+    <div class="pay-section-head">
+      <h3>${title}</h3>
+      <span class="pay-badge ${flash && txns.length ? 'flash' : ''}">${txns.length}</span>
+    </div>
+    <div class="pay-table-wrap"><table class="pay-table">
+      <thead><tr>
+        <th>Date</th><th>Description</th><th>Vendor</th><th class="num">Amount</th>
+        <th>Account</th><th>Category</th><th>Comment</th>
+      </tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function _wirePaymentRows() {
+  document.querySelectorAll('#paymentsBody .pay-chip').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const row = +btn.dataset.row, act = btn.dataset.act;
+      const data = window._live.bookkeeping;
+      const t = data.transactions.find(x => x.rowIndex === row);
+      if (!t) return;
+      if (act === 'cat') _openCategoryPicker(btn, t, data.categories);
+      else _openCommentEditor(btn, t);
+    });
+  });
+}
+
+function _payCommit(t) {
+  // recompute clarified + re-render (keeps the two sections in sync)
+  t.clarified = Boolean(t.category || t.comment);
+  renderPaymentsTab();
+}
+
+function _openCategoryPicker(anchor, t, categories) {
+  _mountPopover(anchor, `
+    <input class="ms-search" type="search" placeholder="Search category…">
+    <div class="ms-list" style="margin-top:8px"></div>
+    ${t.category ? '<div style="border-top:1px solid rgba(255,255,255,.06);margin-top:8px;padding-top:8px"><button class="clear-cat" style="background:transparent;border:0;color:var(--muted);font-size:11px;cursor:pointer">Clear category</button></div>' : ''}
+  `, (pop) => {
+    pop.className = 'ms-pop';
+    const listEl = pop.querySelector('.ms-list');
+    const searchEl = pop.querySelector('.ms-search');
+    const draw = () => {
+      const q = (searchEl.value||'').toLowerCase().trim();
+      const opts = categories.filter(c => !q || c.toLowerCase().includes(q));
+      listEl.innerHTML = opts.map(c =>
+        `<div class="ms-row ${t.category===c?'on':''}" data-c="${_esc(c)}">
+          <span class="ms-box">${_MS_CHECK}</span><span class="ms-name">${_esc(c)}</span>
+        </div>`).join('') || `<div style="padding:8px;color:var(--muted);font-size:12px">No match.</div>`;
+    };
+    draw();
+    searchEl.addEventListener('input', draw);
+    searchEl.focus();
+    listEl.addEventListener('click', async (e) => {
+      const r = e.target.closest('.ms-row'); if (!r) return;
+      const c = r.getAttribute('data-c');
+      closeMonthPopover();
+      const prev = t.category;
+      t.category = c;                     // optimistic
+      _payCommit(t);
+      try { await _bkWrite(t.rowIndex, 'O', c); }
+      catch (err) { t.category = prev; _payCommit(t); alert('Save failed: ' + err.message); }
+    });
+    const clr = pop.querySelector('.clear-cat');
+    if (clr) clr.addEventListener('click', async () => {
+      closeMonthPopover();
+      const prev = t.category; t.category = ''; _payCommit(t);
+      try { await _bkWrite(t.rowIndex, 'O', ''); }
+      catch (err) { t.category = prev; _payCommit(t); alert('Save failed: ' + err.message); }
+    });
+  });
+}
+
+function _openCommentEditor(anchor, t) {
+  _mountPopover(anchor, `
+    <textarea placeholder="Add a clarification…">${_esc(t.comment||'')}</textarea>
+    <div class="pay-pop-actions">
+      ${t.comment ? '<button class="clear">Clear</button>' : '<span></span>'}
+      <button class="save">Save</button>
+    </div>
+  `, (pop) => {
+    pop.className = 'ms-pop pay-pop';
+    pop.style.width = '300px';
+    const ta = pop.querySelector('textarea');
+    ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
+    pop.querySelector('.save').addEventListener('click', async () => {
+      const text = ta.value.trim();
+      closeMonthPopover();
+      const prev = t.comment; t.comment = text; _payCommit(t);
+      try { await _bkWrite(t.rowIndex, 'P', text); }
+      catch (err) { t.comment = prev; _payCommit(t); alert('Save failed: ' + err.message); }
+    });
+    const clr = pop.querySelector('.clear');
+    if (clr) clr.addEventListener('click', async () => {
+      closeMonthPopover();
+      const prev = t.comment; t.comment = ''; _payCommit(t);
+      try { await _bkWrite(t.rowIndex, 'P', ''); }
+      catch (err) { t.comment = prev; _payCommit(t); alert('Save failed: ' + err.message); }
+    });
+  });
+}
+
 function _OLD_applyLivePeople(parsed) {
   if (!parsed || !parsed.length) return false;
   const byRev = [...parsed].sort((a,b) => b.rev - a.rev);
@@ -8166,6 +8481,17 @@ async function loadOtherLive(tabs) {
       console.log(`📊 ${churnTab}: parsed ${parsed?parsed.length:0} churn events`);
       if (parsed) applyLiveChurn(parsed);
     } catch(e) { console.warn(`Churn Analysis (${churnTab}) failed:`, e.message); }
+  }
+
+  // Bookkeeping → Payments tab (transaction clarification queue, read+write)
+  const bkTab = tabs.find(t => /^\s*bookkeeping\s*$/i.test(t)) || tabs.find(t => /bookkeep/i.test(t));
+  if (bkTab) {
+    try {
+      const rows = await sheetsGet(`${bkTab}!A1:P3000`);
+      const parsed = parseBookkeeping(rows);
+      console.log(`📊 ${bkTab}: ${parsed?parsed.transactions.length:0} transactions · ${parsed?parsed.categories.length:0} categories`);
+      if (parsed) applyLiveBookkeeping(parsed);
+    } catch(e) { console.warn(`Bookkeeping (${bkTab}) failed:`, e.message); }
   }
 
   // Budget tab → Budget vs Actual view (rendered inside the Financials tab)
