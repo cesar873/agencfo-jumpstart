@@ -7364,13 +7364,18 @@ function applyFinSubRowsRevenue(fin) {
   const L = fin.labels;
   const lastAct = fin.lastAct;
 
-  const lines = lines0.map(l => ({
+  const allLines = lines0.map(l => ({
     name: l.name,
     vals: l.vals.slice(0, L.length),
     total: l.vals.slice(0, L.length).reduce((a,b)=>a+(b||0),0),
     last:  l.vals[lastAct] || 0,
-  })).filter(l => l.total > 0)
-    .sort((a,b) => b.total - a.total);
+  }));
+  // Positive revenue lines drive the visible stack + KPIs. Non-positive
+  // lines (Refunds, Discounts Given) are real adjustments the Finance Model
+  // nets into Total Revenue — fold them into the "Other" bucket so the bar
+  // total equals Total Revenue without drawing a negative sliver.
+  const lines    = allLines.filter(l => l.total > 0).sort((a,b) => b.total - a.total);
+  const adjLines = allLines.filter(l => l.total <= 0 && l.vals.some(v => v));
 
   if (!lines.length) return false;
   const grandTotal    = lines.reduce((a,l)=>a+l.total,0);
@@ -7436,10 +7441,16 @@ function applyFinSubRowsRevenue(fin) {
     borderRadius: 0,
     datalabels: { display: false },
   }));
-  if (tailSeries.length) {
-    const otherVals = L.map((_,i) => tailSeries.reduce((a,l) => a + (l.vals[i] || 0), 0));
+  // "Other" rolls up the positive tail PLUS the refund/discount adjustments,
+  // so the visible stack nets to Total Revenue (no separate negative segment).
+  const otherCount = tailSeries.length + adjLines.length;
+  if (otherCount) {
+    const otherVals = L.map((_,i) =>
+      tailSeries.reduce((a,l) => a + (l.vals[i] || 0), 0) +
+      adjLines.reduce((a,l)  => a + (l.vals[i] || 0), 0)
+    );
     series.push({
-      label: `Other (${tailSeries.length})`,
+      label: `Other (${otherCount})`,
       data: otherVals,
       backgroundColor: ctx => {
         const op = ctx.dataIndex >= fin.fcstFrom ? 0.42 : 0.88;
@@ -7449,8 +7460,11 @@ function applyFinSubRowsRevenue(fin) {
       datalabels: { display: false },
     });
   }
-  // Total label across every line (including the rolled-up tail).
-  const monthlyTotals = L.map((_,i) => lines.reduce((a,l)=>a+(l.vals[i]||0),0));
+  // Total label across every line — positive lines + adjustments — which
+  // equals the Finance Model's Total Revenue row (net of refunds/discounts).
+  const monthlyTotals = L.map((_,i) =>
+    lines.reduce((a,l)=>a+(l.vals[i]||0),0) + adjLines.reduce((a,l)=>a+(l.vals[i]||0),0)
+  );
   series.push({
     type:'line', label:'__total', data: monthlyTotals,
     backgroundColor:'transparent', borderColor:'transparent', pointRadius:0, fill:false,
