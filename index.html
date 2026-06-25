@@ -760,6 +760,62 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
 }
 .pay-pop-actions .clear{ background:transparent; border:0; color:var(--muted); font-size:11px; cursor:pointer; }
 
+/* Clarify-transaction detail panel (opens on row click) */
+.clarify-backdrop{
+  position:fixed; inset:0; z-index:80;
+  background:rgba(3,10,20,.55); -webkit-backdrop-filter:blur(2px); backdrop-filter:blur(2px);
+  display:flex; justify-content:flex-end; align-items:flex-start;
+  padding:90px 48px 40px;
+}
+.clarify-panel{
+  width:440px; max-width:calc(100vw - 48px); max-height:calc(100vh - 130px);
+  overflow-y:auto;
+  background:#0b1f33; border:1px solid rgba(255,255,255,.12); border-radius:16px;
+  box-shadow:0 24px 60px rgba(0,0,0,.6);
+  padding:22px 24px;
+}
+.clarify-panel .cl-eyebrow{
+  display:flex; align-items:center; justify-content:space-between;
+  font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.12em; color:var(--muted);
+}
+.clarify-panel .cl-close{ background:transparent; border:0; color:var(--muted); font-size:18px; cursor:pointer; line-height:1; }
+.clarify-panel .cl-close:hover{ color:var(--text); }
+.clarify-panel h2{ font-family:'Anton',sans-serif; font-size:26px; font-weight:400; letter-spacing:.01em; margin:8px 0 4px; }
+.clarify-panel .cl-meta{ font-size:13px; color:rgba(255,255,255,.65); font-variant-numeric:tabular-nums; }
+.clarify-panel .cl-sec{ margin-top:20px; }
+.clarify-panel .cl-sec > .cl-h{ font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin-bottom:6px; }
+.clarify-panel .cl-desc{ font-size:14px; color:var(--text); line-height:1.5; }
+.clarify-panel .cl-kv{ display:flex; align-items:center; justify-content:space-between; padding:5px 0; font-size:13px; border-bottom:1px solid rgba(255,255,255,.05); }
+.clarify-panel .cl-kv:last-child{ border-bottom:0; }
+.clarify-panel .cl-kv .k{ color:var(--muted); }
+.clarify-panel .cl-kv .v{ color:var(--text); font-variant-numeric:tabular-nums; }
+.clarify-panel .cl-search{
+  width:100%; background:rgba(255,255,255,.04); border:1px solid rgba(19,144,235,.45);
+  border-radius:9px; color:var(--text); font-family:inherit; font-size:13px; padding:10px 12px; outline:none;
+}
+.clarify-panel .cl-search:focus{ border-color:var(--blue); }
+.clarify-panel .cl-catlist{ margin-top:6px; max-height:230px; overflow-y:auto; }
+.clarify-panel .cl-cat{
+  display:flex; align-items:center; gap:9px; width:100%; text-align:left;
+  background:transparent; border:0; border-radius:8px; cursor:pointer;
+  color:var(--text); font-family:inherit; font-size:14px; padding:9px 10px;
+}
+.clarify-panel .cl-cat:hover{ background:rgba(255,255,255,.05); }
+.clarify-panel .cl-cat.on{ color:#86efac; }
+.clarify-panel .cl-cat .cl-check{ width:14px; display:inline-flex; }
+.clarify-panel textarea.cl-comment{
+  width:100%; min-height:80px; resize:vertical;
+  background:rgba(255,255,255,.04); border:1px solid var(--card-border);
+  border-radius:9px; color:var(--text); font-family:inherit; font-size:13px; padding:10px 12px; outline:none;
+}
+.clarify-panel textarea.cl-comment:focus{ border-color:var(--blue); }
+.clarify-panel .cl-save{
+  margin-top:10px; float:right;
+  background:var(--blue); border:0; border-radius:8px; color:#fff;
+  font-family:inherit; font-size:13px; font-weight:600; padding:9px 18px; cursor:pointer;
+}
+.clarify-panel .cl-save:hover{ background:#1a9deb; }
+
 /* Segmented toggle (by-client / by-client × service, etc.) */
 .seg-toggle{
   display:inline-flex;
@@ -6403,6 +6459,93 @@ function _wirePaymentRows() {
       else _openCommentEditor(btn, t);
     });
   });
+  // Click anywhere on the row (outside the chips) → full clarify panel.
+  document.querySelectorAll('#paymentsBody .pay-row').forEach(tr => {
+    tr.addEventListener('click', () => {
+      const data = window._live.bookkeeping;
+      const t = data.transactions.find(x => x.rowIndex === +tr.dataset.row);
+      if (t) _openClarifyPanel(t, data.categories);
+    });
+  });
+}
+
+/* Full-detail Clarify Transaction panel — opens on row click. Category list
+   writes O (panel stays open so they can also comment); Save comment writes
+   P and closes. Backdrop / × / Esc close. */
+function _openClarifyPanel(t, categories) {
+  closeClarifyPanel();
+  const bd = document.createElement('div');
+  bd.className = 'clarify-backdrop';
+  bd.addEventListener('click', (e) => { if (e.target === bd) closeClarifyPanel(); });
+  const amt = t.amount == null ? '—' : ('$' + Math.abs(t.amount).toLocaleString('en-US'));
+  const metaBits = [amt, t.date || null, t.account || null].filter(Boolean).join(' · ');
+  bd.innerHTML = `
+    <div class="clarify-panel" role="dialog" aria-modal="true">
+      <div class="cl-eyebrow"><span>Clarify transaction</span><button class="cl-close" aria-label="Close">✕</button></div>
+      <h2>${_esc(t.vendor || t.desc || 'Transaction')}</h2>
+      <div class="cl-meta">${_esc(metaBits)}</div>
+
+      <div class="cl-sec"><div class="cl-h">Description</div>
+        <div class="cl-desc">${_esc(t.desc || '—')}</div></div>
+
+      <div class="cl-sec"><div class="cl-h">From the bookkeeper</div>
+        <div class="cl-kv"><span class="k">Transaction ID</span><span class="v">${_esc(t.txnId || '—')}</span></div>
+        <div class="cl-kv"><span class="k">Type</span><span class="v">${_esc(t.type || '—')}</span></div>
+        <div class="cl-kv"><span class="k">Account Code</span><span class="v">${_esc(t.acctCode || '—')}</span></div>
+        <div class="cl-kv"><span class="k">Category</span><span class="v">${_esc(t.bkCat || 'Uncategorized')}</span></div>
+      </div>
+
+      <div class="cl-sec"><div class="cl-h">Category</div>
+        <input class="cl-search" type="search" placeholder="Search chart of accounts…">
+        <div class="cl-catlist"></div>
+      </div>
+
+      <div class="cl-sec"><div class="cl-h">Comment for bookkeeper</div>
+        <textarea class="cl-comment" placeholder="e.g. personal — reimburse, or marketing test budget">${_esc(t.comment || '')}</textarea>
+        <button class="cl-save">Save comment</button>
+        <div style="clear:both"></div>
+      </div>
+    </div>`;
+  document.body.appendChild(bd);
+  _clarifyEl = bd;
+
+  const panel = bd.querySelector('.clarify-panel');
+  const searchEl = bd.querySelector('.cl-search');
+  const listEl = bd.querySelector('.cl-catlist');
+  const drawCats = () => {
+    const q = (searchEl.value || '').toLowerCase().trim();
+    const opts = categories.filter(c => !q || c.toLowerCase().includes(q));
+    listEl.innerHTML = opts.map(c =>
+      `<button class="cl-cat ${t.category===c?'on':''}" data-c="${_esc(c)}">
+        <span class="cl-check">${t.category===c ? _MS_CHECK : ''}</span>${_esc(c)}</button>`
+    ).join('') || `<div style="padding:8px;color:var(--muted);font-size:13px">No match.</div>`;
+  };
+  drawCats();
+  searchEl.addEventListener('input', drawCats);
+  listEl.addEventListener('click', async (e) => {
+    const b = e.target.closest('.cl-cat'); if (!b) return;
+    const c = b.getAttribute('data-c');
+    const prev = t.category;
+    t.category = c; drawCats(); _payCommit(t);   // optimistic; keep panel open
+    try { await _bkWrite(t.rowIndex, 'O', c); }
+    catch (err) { t.category = prev; drawCats(); _payCommit(t); alert('Save failed: ' + err.message); }
+  });
+  bd.querySelector('.cl-close').addEventListener('click', closeClarifyPanel);
+  bd.querySelector('.cl-save').addEventListener('click', async () => {
+    const text = bd.querySelector('.cl-comment').value.trim();
+    const prev = t.comment;
+    t.comment = text; _payCommit(t);
+    closeClarifyPanel();
+    try { await _bkWrite(t.rowIndex, 'P', text); }
+    catch (err) { t.comment = prev; _payCommit(t); alert('Save failed: ' + err.message); }
+  });
+  document.addEventListener('keydown', _clarifyEsc);
+}
+let _clarifyEl = null;
+function _clarifyEsc(e) { if (e.key === 'Escape') closeClarifyPanel(); }
+function closeClarifyPanel() {
+  if (_clarifyEl) { _clarifyEl.remove(); _clarifyEl = null; }
+  document.removeEventListener('keydown', _clarifyEsc);
 }
 
 function _payCommit(t) {
