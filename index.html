@@ -1607,7 +1607,7 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
 
   <section class="section">
     <div class="shell">
-      <div class="shell-head"><div><h2><a href="#churn" style="color:inherit;text-decoration:none;border-bottom:1px dashed rgba(255,255,255,.25);">Churn ↗</a></h2><div class="sub">Monthly client churn rate · click title for the full Churn tab</div></div></div>
+      <div class="shell-head"><div><h2><a href="#churn" style="color:inherit;text-decoration:none;border-bottom:1px dashed rgba(255,255,255,.25);">Churn ↗</a></h2><div class="sub">Monthly churn rate &amp; Day-90 renewal (trailing 6-mo) · click title for the full Churn tab</div></div></div>
       <div class="chart-wrap"><canvas id="churnChart"></canvas></div>
     </div>
   </section>
@@ -5094,29 +5094,45 @@ function applyLiveAnalytics(parsed, fin) {
     });
   }
 
-  /* ── Chart 2 · Churn (single line) ────────────────────────────────── */
+  /* ── Chart 2 · Churn + Day-90 Renewal (two lines) ─────────────────────
+     Churn (red, low) and the trailing-6-month Day-90 renewal rate (green,
+     high) share one 0-based percent axis so the two rates are directly
+     comparable. Renewal comes from the "Renewal Rate 6TM" column on the
+     Metrics tab (auto-detected below). Forecast/blank months are nulled so
+     the renewal line stops cleanly instead of dropping to 0%.            */
+  const renewal = live.find(m => /renew/i.test(m.header)) || null;
   Chart.getChart('churnChart')?.destroy();
-  if (churn) {
+  if (churn || renewal) {
+    const churnDatasets = [];
+    if (churn) churnDatasets.push({
+      label: 'Churn', data: churn.series,
+      borderColor: '#ef4444', backgroundColor: 'transparent',
+      fill: false, tension: .35, pointRadius: 4, borderWidth: 2,
+      segment: { borderDash: ctx => ctx.p0DataIndex >= fin.fcstFrom - 1 ? [4,4] : undefined },
+    });
+    if (renewal) churnDatasets.push({
+      label: 'Day-90 renewal (6-mo)',
+      data: renewal.series.map((v, i) => (i <= lastAct && v) ? v : null),
+      borderColor: '#22c55e', backgroundColor: 'transparent',
+      fill: false, tension: .35, pointRadius: 4, borderWidth: 2, spanGaps: false,
+      datalabels: { align: 'bottom', anchor: 'start' },
+    });
     new Chart($('churnChart'), {
       type: 'line',
-      data: { labels: L, datasets: [{
-        label: 'Churn', data: churn.series,
-        borderColor: '#ef4444', backgroundColor: 'transparent',
-        fill: false, tension: .35, pointRadius: 4, borderWidth: 2,
-        segment: { borderDash: ctx => ctx.p0DataIndex >= fin.fcstFrom - 1 ? [4,4] : undefined },
-      }] },
+      data: { labels: L, datasets: churnDatasets },
       plugins: [ChartDataLabels],
       options: {
         responsive: true, maintainAspectRatio: false,
+        interaction: { mode:'index', intersect:false },
         layout: { padding: { top: 32, right: 14, bottom: 4, left: 6 } },
         plugins: {
           legend: { position:'top', align:'end', labels:{ usePointStyle:true, boxWidth:9, boxHeight:9, padding:14, font:{size:11}, color:'rgba(255,255,255,.85)' } },
-          tooltip: { ...TOOLTIP, callbacks:{ label: ctx => ` Churn: ${(ctx.raw||0).toFixed(1)}%` } },
+          tooltip: { ...TOOLTIP, callbacks:{ label: ctx => ` ${ctx.dataset.label}: ${(ctx.raw||0).toFixed(1)}%` } },
           datalabels: {
             align: 'top', anchor: 'end', offset: 6,
             color: 'rgba(255,255,255,.92)',
             font: { size: 11, weight: '700' },
-            formatter: v => Math.round(v||0) + '%',
+            formatter: v => (v == null ? '' : Math.round(v) + '%'),
           },
           forecastDivider: { fromIndex: fin.fcstFrom },
         },
@@ -8571,7 +8587,7 @@ async function loadOtherLive(tabs) {
   const metricsTab = tabs.find(t => /^\s*metrics\s*$/i.test(t)) || tabs.find(t => /^\s*metric\b/i.test(t));
   if (metricsTab) {
     try {
-      const rows = await sheetsGet(`${metricsTab}!A1:Z300`);
+      const rows = await sheetsGet(`${metricsTab}!A1:AZ300`);
       const parsed = parseMetricsTransposed(rows);
       if (parsed) {
         window._live.metrics = parsed;
