@@ -3380,6 +3380,13 @@ function rerenderForRange(fromIdx, toIdx) {
   if (s.budget)  try { applyBudgetVsActual(s.budget, sliced, newLastAct); } catch(e) {}
   try { refreshClientsTab(); } catch(e) {}
   try { refreshPeopleTab(); } catch(e) {}
+  // Churn records are per-contract rows (not a month-indexed series), so they
+  // can't be array-sliced like the financials. Instead publish the selected
+  // window as a date range and let refreshChurnTab filter rows by end date.
+  const rFrom = _labelToDate(full.labels[fromIdx], false);
+  const rTo   = _labelToDate(full.labels[toIdx],   true);
+  window._dateRange = (rFrom && rTo) ? { start: rFrom, end: rTo } : null;
+  try { refreshChurnTab(); } catch(e) {}
   // Keep the Period chip inside the new range
   const pv = $('periodVal');
   if (pv) pv.textContent = sliced.labels[newLastAct] || sliced.labels[0] || '';
@@ -5921,12 +5928,32 @@ function _populateChurnFilters(records) {
   fill('churnAMFilter',     distinct('am'),          'All AMs');
   fill('churnTeamFilter',   distinct('teamMember'),  'All Members');
 }
+/* Convert a month label ("Apr '26", "Apr 2026") to a Date boundary.
+   endOfMonth=false → first instant of the month; true → last instant. */
+function _labelToDate(label, endOfMonth) {
+  if (!label) return null;
+  const m = String(label).match(/([A-Za-z]{3,})\D*'?(\d{2,4})/);
+  if (!m) return null;
+  const MONTHS = { jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11 };
+  const mo = MONTHS[m[1].slice(0,3).toLowerCase()];
+  if (mo == null) return null;
+  let y = +m[2]; if (y < 100) y += 2000;
+  return endOfMonth ? new Date(y, mo + 1, 0, 23, 59, 59, 999)
+                    : new Date(y, mo, 1, 0, 0, 0, 0);
+}
+
 function _applyChurnFilters(records, f) {
+  // Global date range (from the top-of-page range chip) filters by END date:
+  // a contract counts in-window only if it churned within [start, end].
+  // Active rows have no endDate → they never end, so they pass the date gate
+  // and remain visible in the "All contracts" scope.
+  const dr = window._dateRange;
   return records.filter(r =>
     (!f.service || f.service.includes(r.service))    &&
     (!f.source  || f.source.includes(r.source))      &&
     (!f.am      || f.am.includes(r.am))              &&
-    (!f.team    || f.team.includes(r.teamMember))
+    (!f.team    || f.team.includes(r.teamMember))    &&
+    (!dr || !r.endDate || (r.endDate >= dr.start && r.endDate <= dr.end))
   );
 }
 
