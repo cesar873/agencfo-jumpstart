@@ -905,6 +905,10 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
 .perf-list .row .v.amber  { color:#fcd34d; }
 .perf-list .row .v.green  { color:#86efac; }
 .perf-list .row .v.blue   { color:#7dd3fc; }
+/* Pair variant — wider label column for "AM × Team member", ellipsis on overflow. */
+.perf-list.pairs .row{ grid-template-columns: 230px 1fr 60px 80px 36px; }
+.perf-list.pairs .row .lbl{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.perf-list.pairs .row .lbl .x{ color:rgba(255,255,255,.35); font-weight:400; margin:0 6px; }
 
 /* Heatmap table */
 .heatmap-table{ width:100%; border-collapse:collapse; font-size:13px; }
@@ -2001,6 +2005,28 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
           <tbody id="churnDetailRows"></tbody>
         </table>
       </div>
+    </div>
+  </section>
+
+  <h2 style="font-family:'Anton',sans-serif;font-size:18px;letter-spacing:.04em;color:rgba(255,255,255,.5);margin:8px 6px 0;">CHURN BY PAIR</h2>
+
+  <section class="section">
+    <div class="shell">
+      <div class="shell-head" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+        <div>
+          <h2>Account Manager &times; Team member pairs</h2>
+          <div class="sub" id="churnPairSub">Early churn rate &amp; avg months retained — ranked worst to best</div>
+        </div>
+        <label style="font-size:12px;color:rgba(255,255,255,.55);display:flex;align-items:center;gap:6px;white-space:nowrap;">
+          Min contracts
+          <select id="churnPairMinN" class="filter-select" style="width:auto;">
+            <option value="1">1+</option>
+            <option value="2">2+</option>
+            <option value="3">3+</option>
+          </select>
+        </label>
+      </div>
+      <div id="churnPairPerfList" class="perf-list pairs" style="max-height:440px;overflow-y:auto;"></div>
     </div>
   </section>
 
@@ -5985,6 +6011,7 @@ function refreshChurnTab() {
   _renderSpeedToChurn(rows);
   _renderAMPerformance(rows);
   _renderTeamPerformance(rows);
+  _renderPairPerformance(rows);
   _renderReasonTiles(rows);
   _renderReasonByAM(rows);
   _renderChurnDetail(rows);
@@ -6170,6 +6197,52 @@ function _renderPerfList(targetId, rows, key, minN) {
 }
 function _renderAMPerformance(rows)   { _renderPerfList('churnAMPerfList',   rows, 'am',         1); }
 function _renderTeamPerformance(rows) { _renderPerfList('churnTeamPerfList', rows, 'teamMember', 1); }
+
+/* AM × Team-member pair performance — same metrics as the individual AM/Team
+   lists (early-churn rate + avg months, worst first), grouped on the composite
+   pair. A "min contracts" threshold hides thin, statistically-noisy pairs so
+   the 20+ combinations stay legible. */
+let _churnPairMinN = 1;
+function _renderPairPerformance(rows) {
+  const host = $('churnPairPerfList');
+  if (!host) return;
+  const map = new Map();
+  rows.forEach(r => {
+    if (!r.am || !r.teamMember) return;
+    const k = r.am + ' × ' + r.teamMember;
+    if (!map.has(k)) map.set(k, { am: r.am, team: r.teamMember, n: 0, early: 0, lifeSum: 0 });
+    const m = map.get(k);
+    m.n += 1; m.lifeSum += r.lifetime; if (r.lifetime <= 3) m.early += 1;
+  });
+  const minN = _churnPairMinN || 1;
+  const all  = Array.from(map.values());
+  const data = all
+    .filter(m => m.n >= minN)
+    .map(m => ({ am: m.am, team: m.team, n: m.n, rate: m.n ? m.early / m.n * 100 : 0, life: m.n ? m.lifeSum / m.n : 0 }))
+    .sort((a,b) => b.rate - a.rate || b.n - a.n);
+  const sub = $('churnPairSub');
+  if (sub) {
+    const hidden = all.length - data.length;
+    sub.textContent = `${data.length} pair${data.length===1?'':'s'} · ranked worst to best`
+      + (hidden > 0 ? ` · ${hidden} with <${minN} hidden` : '');
+  }
+  if (!data.length) {
+    host.innerHTML = `<div style="padding:20px;color:var(--muted);text-align:center">No pairs${minN>1?` with ${minN}+ contracts`:''}</div>`;
+    return;
+  }
+  const toneOf  = (rate) => rate >= 95 ? 'red' : rate >= 70 ? 'amber' : rate >= 50 ? 'blue' : 'green';
+  const colorOf = (tone) => tone === 'red' ? '#ef4444' : tone === 'amber' ? '#f59e0b' : tone === 'blue' ? '#1390eb' : '#22c55e';
+  host.innerHTML = data.map(d => {
+    const tone = toneOf(d.rate);
+    return `<div class="row">
+      <div class="lbl" title="${d.am} × ${d.team}">${d.am}<span class="x">×</span>${d.team}</div>
+      <div class="track"><div class="fill" style="width:${Math.min(d.rate,100).toFixed(0)}%;background:${colorOf(tone)};"></div></div>
+      <div class="v ${tone}">${d.rate.toFixed(0)}%</div>
+      <div class="meta">${d.life.toFixed(1)} mo avg</div>
+      <div class="n">${d.n}</div>
+    </div>`;
+  }).join('');
+}
 
 /* Reason analysis tiles (5 across) — always on churned subset. */
 function _renderReasonTiles(rows) {
@@ -8927,6 +9000,12 @@ msInit('churnTeamFilter',   'All Members',  () => { try { refreshChurnTab(); } c
 const _churnResetBtn = document.getElementById('churnReset');
 if (_churnResetBtn) _churnResetBtn.addEventListener('click', () => {
   ['churnSvcFilter','churnSourceFilter','churnAMFilter','churnTeamFilter'].forEach(msClear);
+  try { refreshChurnTab(); } catch(e) {}
+});
+// Churn-by-pair "min contracts" threshold — re-render to hide thin pairs.
+const _churnPairMinNEl = document.getElementById('churnPairMinN');
+if (_churnPairMinNEl) _churnPairMinNEl.addEventListener('change', () => {
+  _churnPairMinN = parseInt(_churnPairMinNEl.value, 10) || 1;
   try { refreshChurnTab(); } catch(e) {}
 });
 const _churnSearchEl = document.getElementById('churnDetailSearch');
