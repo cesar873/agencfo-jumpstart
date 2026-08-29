@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Your churn view · AgenCFO × Jumpstart ROI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;}
+    :root{
+      --bg:#0a1929;--card:#0f2540;--card-border:rgba(255,255,255,.08);
+      --text:#e5edf6;--muted:rgba(255,255,255,.55);
+      --blue:#1390eb;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;--purple:#c084fc;
+    }
+    body{margin:0;font-family:'Inter',system-ui,-apple-system,sans-serif;
+      background:radial-gradient(circle at 20% 0%,#11314c 0%,var(--bg) 55%,#050e1a 100%);
+      color:var(--text);min-height:100vh;}
+    .page{max-width:1080px;margin:0 auto;padding:32px 24px 64px;}
+    .brand{display:flex;align-items:center;gap:8px;font-family:'Anton',sans-serif;font-size:18px;letter-spacing:.04em;margin-bottom:22px;}
+    .brand .b1{color:#fff;}.brand .b2{color:var(--blue);}.brand .x{color:var(--muted);font-family:'Inter',sans-serif;font-weight:400;margin:0 6px;}.brand .b3{color:#fff;}
+    h1{font-family:'Anton',sans-serif;font-size:30px;font-weight:400;margin:0 0 4px;letter-spacing:.01em;}
+    .role-chip{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--blue);
+      background:rgba(19,144,235,.12);border:1px solid rgba(19,144,235,.3);border-radius:999px;padding:3px 10px;margin-left:10px;vertical-align:middle;}
+    .subline{color:var(--muted);font-size:13px;margin:0 0 26px;}
+    h2{font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.05em;color:rgba(255,255,255,.5);margin:30px 6px 12px;text-transform:uppercase;}
+    .shell{background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,0)),var(--card);
+      border:1px solid var(--card-border);border-radius:14px;padding:18px 18px 16px;}
+    .shell-head{margin-bottom:6px;}
+    .shell-head .t{font-size:14px;font-weight:600;}
+    .shell-head .s{font-size:12px;color:var(--muted);margin-top:2px;}
+
+    .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;}
+    .kpi{background:rgba(255,255,255,.02);border:1px solid var(--card-border);border-radius:12px;padding:14px 16px;}
+    .kpi .l{font-size:11px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;}
+    .kpi .v{font-size:26px;font-weight:700;margin-top:6px;font-variant-numeric:tabular-nums;}
+    .kpi .m{font-size:12px;color:var(--muted);margin-top:4px;}
+    .v.red{color:#fda4af;}.v.amber{color:#fcd34d;}.v.green{color:#86efac;}.v.blue{color:#7dd3fc;}
+
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+    @media(max-width:760px){.grid2{grid-template-columns:1fr;}}
+
+    .reason-tiles{display:flex;flex-direction:column;gap:8px;}
+    .rt{display:grid;grid-template-columns:1fr 54px 70px;align-items:center;gap:10px;font-size:13px;}
+    .rt .lbl{color:rgba(255,255,255,.85);}
+    .rt .v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;}
+    .rt .n{text-align:right;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;}
+
+    .perf-list{display:flex;flex-direction:column;gap:12px;padding:4px 2px;max-height:520px;overflow-y:auto;}
+    .perf-list .row{display:grid;grid-template-columns:26px 150px 1fr 52px 74px 32px;align-items:center;gap:10px;font-size:13px;padding:4px 6px;border-radius:8px;}
+    .perf-list .row.me{background:rgba(19,144,235,.1);outline:1px solid rgba(19,144,235,.35);}
+    .perf-list .row .rk{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px;text-align:center;}
+    .perf-list .row .lbl{color:rgba(255,255,255,.92);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .perf-list .row.me .lbl{color:#fff;font-weight:700;}
+    .perf-list .row .lbl .youtag{font-size:10px;font-weight:700;color:var(--blue);margin-left:6px;letter-spacing:.05em;}
+    .perf-list .row .track{position:relative;height:7px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;}
+    .perf-list .row .fill{position:absolute;left:0;top:0;bottom:0;border-radius:3px;}
+    .perf-list .row .v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;}
+    .perf-list .row .meta{text-align:right;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;}
+    .perf-list .row .n{text-align:right;font-size:11px;color:rgba(255,255,255,.4);font-variant-numeric:tabular-nums;}
+    .v.red2{color:#fda4af;}.v.amber2{color:#fcd34d;}.v.green2{color:#86efac;}.v.blue2{color:#7dd3fc;}
+
+    table.detail{width:100%;border-collapse:collapse;font-size:13px;}
+    table.detail th{text-align:left;padding:9px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--card-border);}
+    table.detail th.num,table.detail td.num{text-align:right;}
+    table.detail td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.04);}
+    .chart-wrap{height:230px;position:relative;}
+    .foot{margin-top:36px;font-size:11px;color:var(--muted);text-align:center;letter-spacing:.03em;}
+    .msg{padding:60px 20px;text-align:center;color:var(--muted);}
+    .empty{padding:18px;color:var(--muted);text-align:center;font-size:13px;}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="brand"><span class="b1">AGEN</span><span class="b2">CFO</span><span class="x">×</span><span class="b3">JUMPSTART ROI</span></div>
+    <div id="root"><div class="msg">Loading your view…</div></div>
+    <div class="foot">Private view · your data only · live from Jumpstart ROI</div>
+  </div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const REASON_COLORS = {
+  'Internal / Pause':'#1390eb','Low ROAS / Lead Quality':'#ef4444','Service / Comms':'#f59e0b',
+  'Poor Funnel':'#c084fc','Bad Fit':'#fde047','Not Categorized':'rgba(255,255,255,.25)',
+};
+const fmtCur = (v) => {
+  const n = Number(v)||0;
+  if (Math.abs(n) >= 1000) return '$' + (n/1000).toFixed(n%1000?1:0) + 'k';
+  return '$' + n.toFixed(0);
+};
+const toneRate = (r) => r >= 95 ? 'red' : r >= 70 ? 'amber' : r >= 50 ? 'blue' : 'green';
+const colorTone = (t) => t==='red'?'#ef4444':t==='amber'?'#f59e0b':t==='blue'?'#1390eb':'#22c55e';
+const esc = (s) => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function getToken() {
+  const p = new URLSearchParams(location.search);
+  return p.get('m') || '';
+}
+
+function render(data) {
+  const me = data.me, k = me.kpis;
+  const board = (data.leaderboard && data.leaderboard.rows) || [];
+  const roleLabel = me.role === 'AM' ? 'Account Manager' : 'Team Member';
+  const boardTitle = me.role === 'AM' ? 'Account Managers' : 'Team Members';
+
+  const kpiHtml = `
+    <div class="kpis">
+      <div class="kpi"><div class="l">Your churned contracts</div><div class="v">${k.contracts}</div><div class="m">${fmtCur(k.lostRev)} lost retainer</div></div>
+      <div class="kpi"><div class="l">Early churn ≤3 mo</div><div class="v ${toneRate(k.earlyRate)==='green'?'green':toneRate(k.earlyRate)==='blue'?'blue':toneRate(k.earlyRate)==='amber'?'amber':'red'}">${k.earlyRate.toFixed(0)}%</div><div class="m">${k.earlyCount} of ${k.contracts}</div></div>
+      <div class="kpi"><div class="l">Avg lifetime</div><div class="v">${k.avgLife.toFixed(1)}</div><div class="m">months · median ${k.medianLife}</div></div>
+      <div class="kpi"><div class="l">Your rank</div><div class="v">${k.rank ? '#'+k.rank : '—'}</div><div class="m">of ${k.fieldSize} ${boardTitle.toLowerCase()} · lower early-churn is better</div></div>
+    </div>`;
+
+  const reasonRows = (me.reasons||[]).slice().sort((a,b)=>b.count-a.count);
+  const reasonTiles = reasonRows.length ? reasonRows.map(r => `
+    <div class="rt">
+      <div class="lbl"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${REASON_COLORS[r.reason]||'#888'};margin-right:8px;"></span>${esc(r.reason)}</div>
+      <div class="v" style="color:${REASON_COLORS[r.reason]||'#fff'}">${r.pct.toFixed(0)}%</div>
+      <div class="n">${r.count} · ${r.avgLife.toFixed(1)}mo</div>
+    </div>`).join('') : `<div class="empty">No categorized churn reasons.</div>`;
+
+  const boardHtml = board.length ? board.map(d => {
+    const tone = toneRate(d.rate);
+    return `<div class="row ${d.isMe?'me':''}">
+      <div class="rk">${d.rank}</div>
+      <div class="lbl" title="${esc(d.name)}">${esc(d.name)}${d.isMe?'<span class="youtag">YOU</span>':''}</div>
+      <div class="track"><div class="fill" style="width:${Math.min(d.rate,100).toFixed(0)}%;background:${colorTone(tone)};"></div></div>
+      <div class="v ${tone}2">${d.rate.toFixed(0)}%</div>
+      <div class="meta">${d.life.toFixed(1)} mo</div>
+      <div class="n">${d.n}</div>
+    </div>`;
+  }).join('') : `<div class="empty">No leaderboard data.</div>`;
+
+  const contracts = me.contracts || [];
+  const detailRows = contracts.length ? contracts.map(c => `
+    <tr>
+      <td>${esc(c.client)}</td><td>${esc(c.service)}</td>
+      <td class="num">${c.lifetime}</td><td>${esc(c.reason)}</td>
+      <td class="num">${fmtCur(c.retainer)}</td><td class="num">${esc(c.endDate||'—')}</td>
+    </tr>`).join('') : `<tr><td colspan="6" class="empty">No churned contracts on record.</td></tr>`;
+
+  $('root').innerHTML = `
+    <h1>${esc(me.name)}<span class="role-chip">${esc(roleLabel)}</span></h1>
+    <p class="subline">Your churn performance and how you compare with other ${esc(boardTitle.toLowerCase())}.</p>
+
+    ${kpiHtml}
+
+    <h2>Your churn reasons</h2>
+    <div class="grid2">
+      <div class="shell"><div class="chart-wrap"><canvas id="reasonChart"></canvas></div></div>
+      <div class="shell"><div class="shell-head"><div class="t">Reason breakdown</div><div class="s">% of your churned book · avg lifetime</div></div><div class="reason-tiles">${reasonTiles}</div></div>
+    </div>
+
+    <h2>${esc(boardTitle)} leaderboard</h2>
+    <div class="shell">
+      <div class="shell-head"><div class="t">Early churn rate &amp; avg months retained</div><div class="s">Ranked worst to best · your row highlighted</div></div>
+      <div class="perf-list">${boardHtml}</div>
+    </div>
+
+    <h2>Your churned contracts</h2>
+    <div class="shell" style="padding:0;overflow-x:auto;">
+      <table class="detail">
+        <thead><tr><th>Client</th><th>Service</th><th class="num">Months</th><th>Reason</th><th class="num">Retainer</th><th class="num">Ended</th></tr></thead>
+        <tbody>${detailRows}</tbody>
+      </table>
+    </div>`;
+
+  drawReasonChart(reasonRows);
+}
+
+function drawReasonChart(reasons) {
+  const canvas = $('reasonChart');
+  if (!canvas || !window.Chart) return;
+  const withData = (reasons||[]).filter(r => r.count > 0);
+  if (!withData.length) {
+    canvas.parentElement.innerHTML = '<div class="empty">No categorized reasons to chart.</div>';
+    return;
+  }
+  const labels = withData.map(r => r.reason);
+  const data = withData.map(r => r.count);
+  const colors = withData.map(r => REASON_COLORS[r.reason] || '#888');
+  const total = data.reduce((a,b)=>a+b,0);
+  new Chart(canvas, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0 }] },
+    plugins: [window.ChartDataLabels].filter(Boolean),
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '58%',
+      plugins: {
+        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, boxHeight: 8, padding: 8, font: { size: 10 }, color: 'rgba(255,255,255,.75)' } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} (${total?Math.round(ctx.raw/total*100):0}%)` } },
+        datalabels: window.ChartDataLabels ? { color: '#fff', font: { size: 11, weight: '700' }, formatter: v => total && (v/total*100)>=8 ? Math.round(v/total*100)+'%' : '' } : undefined,
+      }
+    }
+  });
+}
+
+async function boot() {
+  const token = getToken();
+  if (!token) { $('root').innerHTML = '<div class="msg">Missing link token. Ask your admin for your personal link.</div>'; return; }
+  try {
+    const res = await fetch('/api/member-data?m=' + encodeURIComponent(token), { headers: { 'Accept': 'application/json' } });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { $('root').innerHTML = `<div class="msg">${esc(data.error || ('Could not load your view (' + res.status + ').'))}</div>`; return; }
+    render(data);
+  } catch (e) {
+    $('root').innerHTML = `<div class="msg">Could not load your view. ${esc(e.message||'')}</div>`;
+  }
+}
+boot();
+</script>
+</body>
+</html>
