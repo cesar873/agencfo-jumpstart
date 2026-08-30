@@ -112,6 +112,7 @@ const toneColor = (t) => t==='red'?'#ef4444':t==='amber'?'#f59e0b':t==='blue'?'#
 
 let DATA = null;
 let fromPos = 0, toPos = 0;   // inclusive positions into DATA.months
+let minPos = 0;               // first month the viewer had any client (their first client)
 
 const getToken = () => new URLSearchParams(location.search).get('m') || '';
 const meSeries = () => DATA.leaderboard.people.find(p => p.isMe) || { base: [], churned: [] };
@@ -133,7 +134,8 @@ function renderShell() {
   const me = DATA.me;
   const roleLabel = me.role === 'AM' ? 'Account Manager' : 'Team Member';
   const boardTitle = me.role === 'AM' ? 'Account Managers' : 'Team Members';
-  const opts = DATA.months.map((m, i) => `<option value="${i}">${esc(m.label)}</option>`).join('');
+  // Only offer months from the viewer's first client onward.
+  const opts = DATA.months.map((m, i) => i >= minPos ? `<option value="${i}">${esc(m.label)}</option>` : '').join('');
 
   $('root').innerHTML = `
     <h1>${esc(me.name)}<span class="role-chip">${esc(roleLabel)}</span></h1>
@@ -182,12 +184,12 @@ function renderShell() {
 
   // Wire controls
   $('fromSel').value = fromPos; $('toSel').value = toPos;
-  $('fromSel').onchange = () => { fromPos = Math.min(+$('fromSel').value, toPos); $('fromSel').value = fromPos; renderPeriod(); };
+  $('fromSel').onchange = () => { fromPos = Math.max(minPos, Math.min(+$('fromSel').value, toPos)); $('fromSel').value = fromPos; renderPeriod(); };
   $('toSel').onchange = () => { toPos = Math.max(+$('toSel').value, fromPos); $('toSel').value = toPos; renderPeriod(); };
   document.querySelectorAll('.presets button').forEach(b => b.onclick = () => {
     const n = +b.dataset.n;
     toPos = DATA.months.length - 1;
-    fromPos = n ? Math.max(0, toPos - (n - 1)) : 0;
+    fromPos = n ? Math.max(minPos, toPos - (n - 1)) : minPos;   // "All" = since first client
     $('fromSel').value = fromPos; $('toSel').value = toPos;
     renderPeriod();
   });
@@ -196,7 +198,7 @@ function renderShell() {
 function markPreset() {
   const span = toPos - fromPos + 1;
   const atEnd = toPos === DATA.months.length - 1;
-  const map = { 3:3, 6:6, 12:12, 0:DATA.months.length };
+  const map = { 3:3, 6:6, 12:12, 0:DATA.months.length - minPos };   // "All" = full tenure
   document.querySelectorAll('.presets button').forEach(b => {
     const n = +b.dataset.n;
     b.classList.toggle('on', atEnd && span === map[n]);
@@ -228,7 +230,7 @@ function renderKpis() {
     <div class="kpi"><div class="l">Avg monthly churn</div><div class="v ${t}">${s.avgMonthly.toFixed(1)}%</div><div class="m">across the selected period</div></div>
     <div class="kpi"><div class="l">Churned in period</div><div class="v">${s.churned}</div><div class="m">clients lost in the window</div></div>
     <div class="kpi"><div class="l">Active book</div><div class="v">${s.activeEnd}</div><div class="m">clients at ${esc(DATA.months[toPos].label)}</div></div>
-    <div class="kpi"><div class="l">Your rank</div><div class="v">${rank ? '#'+rank : '—'}</div><div class="m">of ${DATA.leaderboard.people.length} ${boardTitle} · lower churn is better</div></div>`;
+    <div class="kpi"><div class="l">Your rank</div><div class="v">${rank ? '#'+rank : '—'}</div><div class="m">of ${DATA.leaderboard.people.length} ${boardTitle} · #1 = highest churn</div></div>`;
 }
 
 function renderTrend() {
@@ -364,8 +366,12 @@ async function boot() {
     if (!res.ok) { $('root').innerHTML = `<div class="msg">${esc(data.error || ('Could not load your view (' + res.status + ').'))}</div>`; return; }
     if (!data.months || !data.months.length) { $('root').innerHTML = '<div class="msg">No churn history found for your account yet.</div>'; return; }
     DATA = data;
+    // Anchor the axis at the viewer's first client (first month with any active book).
+    const mb = meSeries().base || [];
+    minPos = mb.findIndex(b => b > 0);
+    if (minPos < 0) minPos = 0;
     toPos = DATA.months.length - 1;
-    fromPos = Math.max(0, toPos - 11);   // default: last 12 months
+    fromPos = minPos;                    // default: since their first client
     renderShell();
     renderPeriod();
   } catch (e) {
