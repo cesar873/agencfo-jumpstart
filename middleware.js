@@ -146,13 +146,13 @@ function loginResponse({ error } = {}) {
       box-shadow:0 24px 60px -20px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.02) inset;
     }
     .brand{
-      display:flex;align-items:center;gap:8px;
-      font-family:'Anton',sans-serif;font-size:22px;letter-spacing:.04em;
+      display:flex;align-items:center;gap:0;white-space:nowrap;
+      font-family:'Anton',sans-serif;font-size:22px;letter-spacing:1px;line-height:1;
       margin-bottom:24px;
     }
     .brand .b1{color:#fff;}
     .brand .b2{color:var(--blue);}
-    .brand .x{color:var(--muted);font-family:'Inter',sans-serif;font-weight:400;margin:0 6px;}
+    .brand .x{color:rgba(255,255,255,.4);font-family:'Inter',sans-serif;font-weight:400;margin:0 8px;}
     .brand .b3{color:#fff;}
     h1{
       font-family:'Anton',sans-serif;
@@ -262,8 +262,8 @@ function memberShell(inner) {
     .shell{width:100%;max-width:420px;background:linear-gradient(180deg,rgba(255,255,255,.03) 0%,rgba(255,255,255,0) 100%),#0f2540;
       border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:36px 32px 32px;
       box-shadow:0 24px 60px -20px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.02) inset;}
-    .brand{display:flex;align-items:center;gap:8px;font-family:'Anton',sans-serif;font-size:22px;letter-spacing:.04em;margin-bottom:24px;}
-    .brand .b1{color:#fff;}.brand .b2{color:#1390eb;}.brand .x{color:rgba(255,255,255,.55);font-family:'Inter',sans-serif;font-weight:400;margin:0 6px;}.brand .b3{color:#fff;}
+    .brand{display:flex;align-items:center;gap:0;white-space:nowrap;font-family:'Anton',sans-serif;font-size:22px;letter-spacing:1px;line-height:1;margin-bottom:24px;}
+    .brand .b1{color:#fff;}.brand .b2{color:#1390eb;}.brand .x{color:rgba(255,255,255,.4);font-family:'Inter',sans-serif;font-weight:400;margin:0 8px;}.brand .b3{color:#fff;}
     h1{font-family:'Anton',sans-serif;font-size:32px;font-weight:400;margin:0 0 6px;}
     .sub{font-size:13px;color:rgba(255,255,255,.55);margin-bottom:24px;}
     label{display:block;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.55);margin-bottom:8px;}
