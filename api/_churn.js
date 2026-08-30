@@ -153,11 +153,19 @@ export function rosterFromRecords(churned, actives = []) {
   const ams = new Set(), mbs = new Set();
   const add = (r) => { if (r.am) ams.add(r.am); if (r.teamMember) mbs.add(r.teamMember); };
   churned.forEach(add); actives.forEach(add);
-  const sort = (s) => Array.from(s).sort((a, b) => a.localeCompare(b));
+  const sort = (s) => Array.from(s).filter(n => !isExcluded(n)).sort((a, b) => a.localeCompare(b));
   return { ams: sort(ams), mbs: sort(mbs) };
 }
 
 const roleKey = (role) => (role === 'AM' ? 'am' : 'teamMember');
+
+// People excluded from rankings + link roster (e.g. the owner). Case-insensitive
+// substring match on the name, so "Brennan" catches "Brennan" / "Brennan X".
+const EXCLUDED_NAMES = ['brennan'];
+const isExcluded = (name) => {
+  const n = String(name || '').trim().toLowerCase();
+  return !!n && EXCLUDED_NAMES.some(x => n.includes(x));
+};
 
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 // Month index = year*12 + (month-1). Reversible, easy to compare/iterate.
@@ -207,7 +215,7 @@ export function buildMemberPayload(churned, actives, me) {
     if (!groups.has(c.who)) groups.set(c.who, []);
     groups.get(c.who).push(c);
   });
-  const people = Array.from(groups.entries()).map(([name, cs]) => {
+  const people = Array.from(groups.entries()).filter(([name]) => !isExcluded(name)).map(([name, cs]) => {
     const base = months.map(() => 0);
     const churnedArr = months.map(() => 0);
     cs.forEach(c => {

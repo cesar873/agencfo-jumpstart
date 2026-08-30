@@ -83,7 +83,7 @@
     .v.red2{color:#fda4af;}.v.amber2{color:#fcd34d;}.v.green2{color:#86efac;}.v.blue2{color:#7dd3fc;}
 
     table.detail{width:100%;border-collapse:collapse;font-size:13px;}
-    table.detail th{text-align:left;padding:9px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--card-border);}
+    table.detail th{text-align:left;padding:9px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--card-border);position:sticky;top:0;background:#0f2540;z-index:1;}
     table.detail th.num,table.detail td.num{text-align:right;}
     table.detail td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.04);}
     .foot{margin-top:36px;font-size:11px;color:var(--muted);text-align:center;letter-spacing:.03em;}
@@ -169,13 +169,13 @@ function renderShell() {
 
     <h2>${esc(boardTitle)} leaderboard</h2>
     <div class="shell">
-      <div class="shell-head"><div class="t">Avg monthly churn · selected period</div><div class="s">Mean of monthly churn rates over the window, ranked worst to best · your row highlighted</div></div>
+      <div class="shell-head"><div class="t">Avg monthly churn · selected period</div><div class="s">Mean of monthly churn rates over the window, ranked best to worst · your row highlighted</div></div>
       <div class="perf-head"><span></span><span style="text-align:left">Name</span><span></span><span>Avg/mo</span><span>Churned</span></div>
       <div id="board" class="perf-list"></div>
     </div>
 
     <h2>Your churned clients <span style="font-size:11px;color:var(--muted);font-family:Inter,sans-serif;letter-spacing:0;text-transform:none;">· in selected period</span></h2>
-    <div class="shell" style="padding:0;overflow-x:auto;">
+    <div class="shell" style="padding:0;max-height:360px;overflow:auto;">
       <table class="detail">
         <thead><tr><th>Client</th><th>Service</th><th class="num">Months</th><th>Reason</th><th class="num">Retainer</th><th class="num">Churned</th></tr></thead>
         <tbody id="detailRows"></tbody>
@@ -223,14 +223,14 @@ function renderKpis() {
   // Rank by avg monthly churn across everyone in role for the same window.
   const ranked = DATA.leaderboard.people
     .map(p => ({ isMe: p.isMe, v: periodStats(p.base, p.churned).avgMonthly }))
-    .sort((a, b) => b.v - a.v);
+    .sort((a, b) => a.v - b.v);   // best (lowest churn) first
   const rank = ranked.findIndex(p => p.isMe) + 1;
   const t = tone(s.avgMonthly);
   $('kpis').innerHTML = `
     <div class="kpi"><div class="l">Avg monthly churn</div><div class="v ${t}">${s.avgMonthly.toFixed(1)}%</div><div class="m">across the selected period</div></div>
     <div class="kpi"><div class="l">Churned in period</div><div class="v">${s.churned}</div><div class="m">clients lost in the window</div></div>
     <div class="kpi"><div class="l">Active book</div><div class="v">${s.activeEnd}</div><div class="m">clients at ${esc(DATA.months[toPos].label)}</div></div>
-    <div class="kpi"><div class="l">Your rank</div><div class="v">${rank ? '#'+rank : '—'}</div><div class="m">of ${DATA.leaderboard.people.length} ${boardTitle} · #1 = highest churn</div></div>`;
+    <div class="kpi"><div class="l">Your rank</div><div class="v">${rank ? '#'+rank : '—'}</div><div class="m">of ${DATA.leaderboard.people.length} ${boardTitle} · #1 = lowest churn</div></div>`;
 }
 
 function renderTrend() {
@@ -334,7 +334,7 @@ function renderReasons() {
 function renderBoard() {
   const rows = DATA.leaderboard.people
     .map(p => { const st = periodStats(p.base, p.churned); return { name: p.name, isMe: p.isMe, avg: st.avgMonthly, churned: st.churned }; })
-    .sort((a,b) => b.avg - a.avg || b.churned - a.churned)
+    .sort((a,b) => a.avg - b.avg || a.churned - b.churned)   // best (lowest churn) first
     .map((d,i) => ({ ...d, rank: i+1 }));
   $('board').innerHTML = rows.length ? rows.map(d => {
     const t = tone(d.avg);
