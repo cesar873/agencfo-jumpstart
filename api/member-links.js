@@ -5,7 +5,7 @@
 
 import { signToken } from '../_token.js';
 import { sheetsValues, listTabs } from './_google.js';
-import { parseChurnRows, rosterFromRecords } from './_churn.js';
+import { parseChurnRows, parseServicesRows, activeFromServices, rosterFromRecords } from './_churn.js';
 
 const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -57,8 +57,14 @@ export default async function handler(req, res) {
     const tabs = await listTabs();
     const churnTab = tabs.find(t => /^\s*churn\s*analysis\s*$/i.test(t)) || tabs.find(t => /churn/i.test(t));
     if (!churnTab) throw new Error('Churn Analysis tab not found.');
-    const records = parseChurnRows(await sheetsValues(`${churnTab}!A1:Z2000`));
-    const { ams, mbs } = rosterFromRecords(records);
+    const svcTab = tabs.find(t => /^\s*services?\s*$/i.test(t));
+    const churned = parseChurnRows(await sheetsValues(`${churnTab}!A1:Z2000`));
+    let actives = [];
+    if (svcTab) {
+      try { actives = activeFromServices(parseServicesRows(await sheetsValues(`${svcTab}!A1:BZ2000`))); }
+      catch { actives = []; }
+    }
+    const { ams, mbs } = rosterFromRecords(churned, actives);
     const base = origin();
 
     const section = async (title, names, role) => {

@@ -99,47 +99,109 @@ export function parseChurnRows(rows) {
   return out;
 }
 
-/** Distinct AM and MB names that appear in the churn data. */
-export function rosterFromRecords(records) {
+/** Parse the Services tab → engagement records (only the fields we need for
+    active-contract attribution). Mirrors parseServicesTab in index.html. */
+export function parseServicesRows(rows) {
+  if (!rows || rows.length < 2) return [];
+  const header = (rows[0] || []).map(h => String(h || '').trim());
+  const findCol = (name) => header.findIndex(h => h.toLowerCase() === name.toLowerCase());
+  const iClient = findCol('Client');
+  const iService = findCol('Service');
+  if (iClient < 0 || iService < 0) return [];
+  const iStatus = findCol('Status');
+  const iEnd = findCol('End Date');
+  const iTeam = findCol('Team Member');
+  const iAM = findCol('Account Manager');
+  const iRet = findCol('Retainer Value');
+  const out = [];
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const client = String(row[iClient] || '').trim();
+    const service = String(row[iService] || '').trim();
+    if (!client || !service) continue;
+    out.push({
+      client, service,
+      status: iStatus >= 0 ? String(row[iStatus] || '').trim() : '',
+      endDate: iEnd >= 0 ? parseDateLoose(row[iEnd]) : null,
+      teamMember: iTeam >= 0 ? String(row[iTeam] || '').trim() : '',
+      am: iAM >= 0 ? String(row[iAM] || '').trim() : '',
+      retainer: iRet >= 0 ? num(row[iRet]) : 0,
+    });
+  }
+  return out;
+}
+
+/** Active (non-churned) engagements = status ~"active" and no end date.
+    These form the denominator for the actual churn rate. */
+export function activeFromServices(serviceRecords) {
+  return (serviceRecords || [])
+    .filter(r => /active/i.test(r.status || '') && !r.endDate)
+    .map(r => ({ client: r.client, service: r.service, am: r.am, teamMember: r.teamMember, retainer: r.retainer, isActive: true }));
+}
+
+/** Distinct AM and MB names across churned AND active engagements, so everyone
+    with any contract gets a link / appears on the leaderboard. */
+export function rosterFromRecords(churned, actives = []) {
   const ams = new Set(), mbs = new Set();
-  records.forEach(r => { if (r.am) ams.add(r.am); if (r.teamMember) mbs.add(r.teamMember); });
+  const add = (r) => { if (r.am) ams.add(r.am); if (r.teamMember) mbs.add(r.teamMember); };
+  churned.forEach(add); actives.forEach(add);
   const sort = (s) => Array.from(s).sort((a, b) => a.localeCompare(b));
   return { ams: sort(ams), mbs: sort(mbs) };
 }
 
 const roleKey = (role) => (role === 'AM' ? 'am' : 'teamMember');
 
-/** Ranked leaderboard for a role: early-churn rate = early(≤3mo) / churned count,
-    ranked worst-first — identical to the dashboard's default churned scope. */
-export function buildLeaderboard(records, role) {
+/** Ranked leaderboard for a role. Includes anyone with a churned OR active
+    engagement. Primary metric = ACTUAL churn rate = churned / (churned+active),
+    ranked worst-first; early-churn rate (early≤3mo / churned) kept as secondary. */
+export function buildLeaderboard(churned, actives, role) {
   const key = roleKey(role);
   const map = new Map();
-  records.forEach(r => {
-    const name = r[key];
-    if (!name) return;
-    if (!map.has(name)) map.set(name, { name, n: 0, early: 0, lifeSum: 0 });
-    const m = map.get(name);
-    m.n += 1; m.lifeSum += r.lifetime; if (r.lifetime <= 3) m.early += 1;
+  const ensure = (name) => {
+    if (!map.has(name)) map.set(name, { name, churned: 0, active: 0, early: 0, lifeSum: 0 });
+    return map.get(name);
+  };
+  churned.forEach(r => {
+    const name = r[key]; if (!name) return;
+    const m = ensure(name); m.churned += 1; m.lifeSum += r.lifetime; if (r.lifetime <= 3) m.early += 1;
+  });
+  (actives || []).forEach(r => {
+    const name = r[key]; if (!name) return;
+    ensure(name).active += 1;
   });
   return Array.from(map.values())
-    .map(m => ({ name: m.name, n: m.n, rate: m.n ? m.early / m.n * 100 : 0, life: m.n ? m.lifeSum / m.n : 0 }))
-    .sort((a, b) => b.rate - a.rate || b.n - a.n)
+    .map(m => {
+      const total = m.churned + m.active;
+      return {
+        name: m.name,
+        n: total,                                        // total book (churned + active)
+        churned: m.churned,
+        active: m.active,
+        churnRate: total ? m.churned / total * 100 : 0,  // actual churn rate
+        earlyRate: m.churned ? m.early / m.churned * 100 : 0,
+        life: m.churned ? m.lifeSum / m.churned : 0,
+      };
+    })
+    .sort((a, b) => b.churnRate - a.churnRate || b.churned - a.churned)
     .map((d, i) => ({ ...d, rank: i + 1 }));
 }
 
-/** Full scoped payload for one member: their own KPIs, reason breakdown,
-    contract list, and their within-role leaderboard (their row flagged). */
-export function buildMemberPayload(records, me) {
+/** Full scoped payload for one member: their own KPIs (incl. actual churn rate),
+    reason breakdown, contract list, and their within-role leaderboard. */
+export function buildMemberPayload(churned, actives, me) {
   const key = roleKey(me.role);
   const norm = (s) => String(s || '').trim().toLowerCase();
-  const mine = records.filter(r => norm(r[key]) === norm(me.name));
+  const mine = churned.filter(r => norm(r[key]) === norm(me.name));
+  const mineActive = (actives || []).filter(r => norm(r[key]) === norm(me.name));
 
-  const n = mine.length;
+  const churnedN = mine.length;
+  const activeN = mineActive.length;
+  const total = churnedN + activeN;
   const early = mine.filter(r => r.lifetime <= 3).length;
   const immediate = mine.filter(r => r.lifetime === 0).length;
   const lifetimes = mine.map(r => r.lifetime).sort((a, b) => a - b);
-  const avgLife = n ? lifetimes.reduce((a, b) => a + b, 0) / n : 0;
-  const medianLife = n ? lifetimes[Math.floor(n / 2)] : 0;
+  const avgLife = churnedN ? lifetimes.reduce((a, b) => a + b, 0) / churnedN : 0;
+  const medianLife = churnedN ? lifetimes[Math.floor(churnedN / 2)] : 0;
   const lostRev = mine.reduce((a, r) => a + (r.retainer || 0), 0);
 
   const reasons = CHURN_REASONS.filter(x => x !== 'Not Categorized').map(reason => {
@@ -147,7 +209,7 @@ export function buildMemberPayload(records, me) {
     return {
       reason,
       count: rs.length,
-      pct: n ? rs.length / n * 100 : 0,
+      pct: churnedN ? rs.length / churnedN * 100 : 0,
       avgLife: rs.length ? rs.reduce((a, r) => a + r.lifetime, 0) / rs.length : 0,
     };
   }).filter(x => x.count > 0);
@@ -157,7 +219,7 @@ export function buildMemberPayload(records, me) {
     .sort((a, b) => (b.endDate || '').localeCompare(a.endDate || ''))
     .map(r => ({ client: r.client, service: r.svcShort, lifetime: r.lifetime, reason: r.reason, endDate: r.endDate, retainer: r.retainer }));
 
-  const board = buildLeaderboard(records, me.role).map(d => ({ ...d, isMe: norm(d.name) === norm(me.name) }));
+  const board = buildLeaderboard(churned, actives, me.role).map(d => ({ ...d, isMe: norm(d.name) === norm(me.name) }));
   const myRow = board.find(d => d.isMe) || null;
 
   return {
@@ -165,11 +227,14 @@ export function buildMemberPayload(records, me) {
       name: me.name,
       role: me.role,
       kpis: {
-        contracts: n,
+        contracts: churnedN,             // churned engagements
+        active: activeN,                 // still-active engagements
+        total,                           // total book
+        churnRate: total ? churnedN / total * 100 : 0,   // ACTUAL churn rate
         earlyCount: early,
-        earlyRate: n ? early / n * 100 : 0,
+        earlyRate: churnedN ? early / churnedN * 100 : 0,
         immediateCount: immediate,
-        immediateRate: n ? immediate / n * 100 : 0,
+        immediateRate: churnedN ? immediate / churnedN * 100 : 0,
         avgLife,
         medianLife,
         lostRev,
@@ -180,6 +245,6 @@ export function buildMemberPayload(records, me) {
       contracts,
     },
     leaderboard: { role: me.role, rows: board },
-    meta: { totalInRole: board.length, records: records.length },
+    meta: { totalInRole: board.length, churnedRecords: churned.length, activeRecords: (actives || []).length },
   };
 }

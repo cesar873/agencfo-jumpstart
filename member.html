@@ -49,8 +49,11 @@
     .rt .v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;}
     .rt .n{text-align:right;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;}
 
-    .perf-list{display:flex;flex-direction:column;gap:12px;padding:4px 2px;max-height:520px;overflow-y:auto;}
-    .perf-list .row{display:grid;grid-template-columns:26px 150px 1fr 52px 74px 32px;align-items:center;gap:10px;font-size:13px;padding:4px 6px;border-radius:8px;}
+    .perf-head{display:grid;grid-template-columns:26px 140px 1fr 50px 46px 52px;gap:10px;padding:0 6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,.4);border-bottom:1px solid var(--card-border);margin-bottom:8px;}
+    .perf-head span{text-align:right;}
+    .perf-list{display:flex;flex-direction:column;gap:12px;padding:4px 0;max-height:520px;overflow-y:auto;}
+    .perf-list .row{display:grid;grid-template-columns:26px 140px 1fr 50px 46px 52px;align-items:center;gap:10px;font-size:13px;padding:4px 6px;border-radius:8px;}
+    .perf-list .row .early{text-align:right;font-size:12px;color:rgba(255,255,255,.6);font-variant-numeric:tabular-nums;}
     .perf-list .row.me{background:rgba(19,144,235,.1);outline:1px solid rgba(19,144,235,.35);}
     .perf-list .row .rk{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px;text-align:center;}
     .perf-list .row .lbl{color:rgba(255,255,255,.92);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -106,12 +109,15 @@ function render(data) {
   const roleLabel = me.role === 'AM' ? 'Account Manager' : 'Team Member';
   const boardTitle = me.role === 'AM' ? 'Account Managers' : 'Team Members';
 
+  const kpiTone = (r) => 'v ' + toneRate(r);
+  const total = k.total != null ? k.total : k.contracts;
   const kpiHtml = `
     <div class="kpis">
-      <div class="kpi"><div class="l">Your churned contracts</div><div class="v">${k.contracts}</div><div class="m">${fmtCur(k.lostRev)} lost retainer</div></div>
-      <div class="kpi"><div class="l">Early churn ≤3 mo</div><div class="v ${toneRate(k.earlyRate)==='green'?'green':toneRate(k.earlyRate)==='blue'?'blue':toneRate(k.earlyRate)==='amber'?'amber':'red'}">${k.earlyRate.toFixed(0)}%</div><div class="m">${k.earlyCount} of ${k.contracts}</div></div>
+      <div class="kpi"><div class="l">Churn rate</div><div class="${kpiTone(k.churnRate||0)}">${(k.churnRate||0).toFixed(0)}%</div><div class="m">${k.contracts} churned of ${total} total</div></div>
+      <div class="kpi"><div class="l">Your book</div><div class="v">${total}</div><div class="m">${k.active||0} active · ${k.contracts} churned</div></div>
+      <div class="kpi"><div class="l">Early churn ≤3 mo</div><div class="${kpiTone(k.earlyRate)}">${k.earlyRate.toFixed(0)}%</div><div class="m">${k.earlyCount} of ${k.contracts} churned</div></div>
       <div class="kpi"><div class="l">Avg lifetime</div><div class="v">${k.avgLife.toFixed(1)}</div><div class="m">months · median ${k.medianLife}</div></div>
-      <div class="kpi"><div class="l">Your rank</div><div class="v">${k.rank ? '#'+k.rank : '—'}</div><div class="m">of ${k.fieldSize} ${boardTitle.toLowerCase()} · lower early-churn is better</div></div>
+      <div class="kpi"><div class="l">Your rank</div><div class="v">${k.rank ? '#'+k.rank : '—'}</div><div class="m">of ${k.fieldSize} ${boardTitle.toLowerCase()} · by churn rate (lower is better)</div></div>
     </div>`;
 
   const reasonRows = (me.reasons||[]).slice().sort((a,b)=>b.count-a.count);
@@ -122,15 +128,16 @@ function render(data) {
       <div class="n">${r.count} · ${r.avgLife.toFixed(1)}mo</div>
     </div>`).join('') : `<div class="empty">No categorized churn reasons.</div>`;
 
+  const boardHead = `<div class="perf-head"><span></span><span style="text-align:left">Name</span><span></span><span>Churn</span><span>Early</span><span>Book</span></div>`;
   const boardHtml = board.length ? board.map(d => {
-    const tone = toneRate(d.rate);
+    const tone = toneRate(d.churnRate);
     return `<div class="row ${d.isMe?'me':''}">
       <div class="rk">${d.rank}</div>
       <div class="lbl" title="${esc(d.name)}">${esc(d.name)}${d.isMe?'<span class="youtag">YOU</span>':''}</div>
-      <div class="track"><div class="fill" style="width:${Math.min(d.rate,100).toFixed(0)}%;background:${colorTone(tone)};"></div></div>
-      <div class="v ${tone}2">${d.rate.toFixed(0)}%</div>
-      <div class="meta">${d.life.toFixed(1)} mo</div>
-      <div class="n">${d.n}</div>
+      <div class="track"><div class="fill" style="width:${Math.min(d.churnRate,100).toFixed(0)}%;background:${colorTone(tone)};"></div></div>
+      <div class="v ${tone}2">${d.churnRate.toFixed(0)}%</div>
+      <div class="early" title="early churn ≤3mo">${d.earlyRate.toFixed(0)}%</div>
+      <div class="n" title="churned / total book">${d.churned}/${d.n}</div>
     </div>`;
   }).join('') : `<div class="empty">No leaderboard data.</div>`;
 
@@ -156,7 +163,8 @@ function render(data) {
 
     <h2>${esc(boardTitle)} leaderboard</h2>
     <div class="shell">
-      <div class="shell-head"><div class="t">Early churn rate &amp; avg months retained</div><div class="s">Ranked worst to best · your row highlighted</div></div>
+      <div class="shell-head"><div class="t">Actual churn rate · with early churn &amp; book size</div><div class="s">Ranked by churn rate, worst to best · your row highlighted · Churn = churned ÷ total book · Early = churned ≤3 mo</div></div>
+      ${boardHead}
       <div class="perf-list">${boardHtml}</div>
     </div>
 
