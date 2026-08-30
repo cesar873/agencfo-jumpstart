@@ -26,6 +26,11 @@ function parseDateLoose(s) {
   return isNaN(d) ? null : d;
 }
 
+// Local (non-UTC) YYYY-MM-DD so month boundaries don't shift by a timezone offset.
+function localISO(d) {
+  return d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : null;
+}
+
 export const CHURN_REASONS = ['Internal / Pause', 'Low ROAS / Lead Quality', 'Service / Comms', 'Poor Funnel', 'Bad Fit', 'Not Categorized'];
 
 export function canonChurnReason(s) {
@@ -87,7 +92,8 @@ export function parseChurnRows(rows) {
       client,
       service: iService >= 0 ? String(row[iService] || '').trim() : '',
       svcShort: iService >= 0 ? shortenService(row[iService]) : '—',
-      endDate: endDate ? endDate.toISOString().slice(0, 10) : null,
+      startDate: localISO(startDate),
+      endDate: localISO(endDate),
       lifetime,
       teamMember: iTeam >= 0 ? String(row[iTeam] || '').trim() : '',
       am: iAM >= 0 ? String(row[iAM] || '').trim() : '',
@@ -109,6 +115,7 @@ export function parseServicesRows(rows) {
   const iService = findCol('Service');
   if (iClient < 0 || iService < 0) return [];
   const iStatus = findCol('Status');
+  const iStart = findCol('Start Date');
   const iEnd = findCol('End Date');
   const iTeam = findCol('Team Member');
   const iAM = findCol('Account Manager');
@@ -122,6 +129,7 @@ export function parseServicesRows(rows) {
     out.push({
       client, service,
       status: iStatus >= 0 ? String(row[iStatus] || '').trim() : '',
+      startDate: iStart >= 0 ? parseDateLoose(row[iStart]) : null,
       endDate: iEnd >= 0 ? parseDateLoose(row[iEnd]) : null,
       teamMember: iTeam >= 0 ? String(row[iTeam] || '').trim() : '',
       am: iAM >= 0 ? String(row[iAM] || '').trim() : '',
@@ -132,11 +140,11 @@ export function parseServicesRows(rows) {
 }
 
 /** Active (non-churned) engagements = status ~"active" and no end date.
-    These form the denominator for the actual churn rate. */
+    These contribute to the monthly "active that month" denominator. */
 export function activeFromServices(serviceRecords) {
   return (serviceRecords || [])
     .filter(r => /active/i.test(r.status || '') && !r.endDate)
-    .map(r => ({ client: r.client, service: r.service, am: r.am, teamMember: r.teamMember, retainer: r.retainer, isActive: true }));
+    .map(r => ({ client: r.client, service: r.service, am: r.am, teamMember: r.teamMember, retainer: r.retainer, startDate: localISO(r.startDate), isActive: true }));
 }
 
 /** Distinct AM and MB names across churned AND active engagements, so everyone
@@ -151,100 +159,79 @@ export function rosterFromRecords(churned, actives = []) {
 
 const roleKey = (role) => (role === 'AM' ? 'am' : 'teamMember');
 
-/** Ranked leaderboard for a role. Includes anyone with a churned OR active
-    engagement. Primary metric = ACTUAL churn rate = churned / (churned+active),
-    ranked worst-first; early-churn rate (early≤3mo / churned) kept as secondary. */
-export function buildLeaderboard(churned, actives, role) {
-  const key = roleKey(role);
-  const map = new Map();
-  const ensure = (name) => {
-    if (!map.has(name)) map.set(name, { name, churned: 0, active: 0, early: 0, lifeSum: 0 });
-    return map.get(name);
-  };
-  churned.forEach(r => {
-    const name = r[key]; if (!name) return;
-    const m = ensure(name); m.churned += 1; m.lifeSum += r.lifetime; if (r.lifetime <= 3) m.early += 1;
-  });
-  (actives || []).forEach(r => {
-    const name = r[key]; if (!name) return;
-    ensure(name).active += 1;
-  });
-  return Array.from(map.values())
-    .map(m => {
-      const total = m.churned + m.active;
-      return {
-        name: m.name,
-        n: total,                                        // total book (churned + active)
-        churned: m.churned,
-        active: m.active,
-        churnRate: total ? m.churned / total * 100 : 0,  // actual churn rate
-        earlyRate: m.churned ? m.early / m.churned * 100 : 0,
-        life: m.churned ? m.lifeSum / m.churned : 0,
-      };
-    })
-    .sort((a, b) => b.churnRate - a.churnRate || b.churned - a.churned)
-    .map((d, i) => ({ ...d, rank: i + 1 }));
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// Month index = year*12 + (month-1). Reversible, easy to compare/iterate.
+function isoToIdx(iso) {
+  const m = iso && String(iso).match(/^(\d{4})-(\d{2})/);
+  return m ? (+m[1]) * 12 + (+m[2] - 1) : null;
+}
+function idxToLabel(idx) {
+  return `${MON[((idx % 12) + 12) % 12]} '${String(Math.floor(idx / 12)).slice(2)}`;
 }
 
-/** Full scoped payload for one member: their own KPIs (incl. actual churn rate),
-    reason breakdown, contract list, and their within-role leaderboard. */
+/** Monthly churn payload for one member.
+ *
+ * MONTHLY (periodic) churn — not cumulative — so long tenure doesn't inflate it:
+ *   for month k:  base(k)    = engagements ACTIVE during month k
+ *                              (started on/before k, not yet ended before k)
+ *                 churned(k) = engagements that ENDED in month k
+ *                 rate(k)    = churned(k) / base(k)
+ *
+ * Returns each person's base[]/churned[] arrays aligned to a shared `months`
+ * axis so the client can filter to any period and rank the within-role
+ * leaderboard for that window. Only the viewer's OWN raw churned rows are sent
+ * (for the reason/contract detail); peers are aggregate counts only.
+ */
 export function buildMemberPayload(churned, actives, me) {
   const key = roleKey(me.role);
   const norm = (s) => String(s || '').trim().toLowerCase();
-  const mine = churned.filter(r => norm(r[key]) === norm(me.name));
-  const mineActive = (actives || []).filter(r => norm(r[key]) === norm(me.name));
 
-  const churnedN = mine.length;
-  const activeN = mineActive.length;
-  const total = churnedN + activeN;
-  const early = mine.filter(r => r.lifetime <= 3).length;
-  const immediate = mine.filter(r => r.lifetime === 0).length;
-  const lifetimes = mine.map(r => r.lifetime).sort((a, b) => a - b);
-  const avgLife = churnedN ? lifetimes.reduce((a, b) => a + b, 0) / churnedN : 0;
-  const medianLife = churnedN ? lifetimes[Math.floor(churnedN / 2)] : 0;
-  const lostRev = mine.reduce((a, r) => a + (r.retainer || 0), 0);
+  const all = [
+    ...churned.map(r => ({ who: r[key], sIdx: isoToIdx(r.startDate), eIdx: isoToIdx(r.endDate) })),
+    ...(actives || []).map(r => ({ who: r[key], sIdx: isoToIdx(r.startDate), eIdx: null })),
+  ];
 
-  const reasons = CHURN_REASONS.filter(x => x !== 'Not Categorized').map(reason => {
-    const rs = mine.filter(r => r.reason === reason);
-    return {
-      reason,
-      count: rs.length,
-      pct: churnedN ? rs.length / churnedN * 100 : 0,
-      avgLife: rs.length ? rs.reduce((a, r) => a + r.lifetime, 0) / rs.length : 0,
-    };
-  }).filter(x => x.count > 0);
+  // Month axis: earliest start → current month.
+  const now = new Date();
+  const nowIdx = now.getFullYear() * 12 + now.getMonth();
+  const starts = all.map(c => c.sIdx).filter(v => v != null);
+  let minIdx = starts.length ? Math.min(...starts) : nowIdx;
+  if (minIdx > nowIdx) minIdx = nowIdx;
+  const months = [];
+  for (let k = minIdx; k <= nowIdx; k++) months.push({ idx: k, label: idxToLabel(k) });
 
-  const contracts = mine
-    .slice()
-    .sort((a, b) => (b.endDate || '').localeCompare(a.endDate || ''))
-    .map(r => ({ client: r.client, service: r.svcShort, lifetime: r.lifetime, reason: r.reason, endDate: r.endDate, retainer: r.retainer }));
+  // Per-person aligned base[]/churned[] over the month axis.
+  const groups = new Map();
+  all.forEach(c => {
+    if (!c.who) return;
+    if (!groups.has(c.who)) groups.set(c.who, []);
+    groups.get(c.who).push(c);
+  });
+  const people = Array.from(groups.entries()).map(([name, cs]) => {
+    const base = months.map(() => 0);
+    const churnedArr = months.map(() => 0);
+    cs.forEach(c => {
+      if (c.sIdx == null) return;
+      for (let i = 0; i < months.length; i++) {
+        const k = months[i].idx;
+        if (c.sIdx <= k && (c.eIdx == null || c.eIdx >= k)) base[i]++;
+        if (c.eIdx === k) churnedArr[i]++;
+      }
+    });
+    return { name, isMe: norm(name) === norm(me.name), base, churned: churnedArr };
+  }).sort((a, b) => a.name.localeCompare(b.name));
 
-  const board = buildLeaderboard(churned, actives, me.role).map(d => ({ ...d, isMe: norm(d.name) === norm(me.name) }));
-  const myRow = board.find(d => d.isMe) || null;
+  // Viewer's own churned engagements (raw) for the reason donut + detail table,
+  // period-filterable client-side by endDate.
+  const mineChurned = churned
+    .filter(r => norm(r[key]) === norm(me.name))
+    .map(r => ({ client: r.client, service: r.svcShort, startDate: r.startDate, endDate: r.endDate, lifetime: r.lifetime, reason: r.reason, retainer: r.retainer }))
+    .sort((a, b) => (b.endDate || '').localeCompare(a.endDate || ''));
 
   return {
-    me: {
-      name: me.name,
-      role: me.role,
-      kpis: {
-        contracts: churnedN,             // churned engagements
-        active: activeN,                 // still-active engagements
-        total,                           // total book
-        churnRate: total ? churnedN / total * 100 : 0,   // ACTUAL churn rate
-        earlyCount: early,
-        earlyRate: churnedN ? early / churnedN * 100 : 0,
-        immediateCount: immediate,
-        immediateRate: churnedN ? immediate / churnedN * 100 : 0,
-        avgLife,
-        medianLife,
-        lostRev,
-        rank: myRow ? myRow.rank : null,
-        fieldSize: board.length,
-      },
-      reasons,
-      contracts,
-    },
-    leaderboard: { role: me.role, rows: board },
-    meta: { totalInRole: board.length, churnedRecords: churned.length, activeRecords: (actives || []).length },
+    me: { name: me.name, role: me.role, churned: mineChurned },
+    months,
+    leaderboard: { role: me.role, people },
+    meta: { totalInRole: people.length, churnedRecords: churned.length, activeRecords: (actives || []).length },
   };
 }

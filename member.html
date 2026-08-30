@@ -19,19 +19,27 @@
     body{margin:0;font-family:'Inter',system-ui,-apple-system,sans-serif;
       background:radial-gradient(circle at 20% 0%,#11314c 0%,var(--bg) 55%,#050e1a 100%);
       color:var(--text);min-height:100vh;}
-    .page{max-width:1080px;margin:0 auto;padding:32px 24px 64px;}
+    .page{max-width:1120px;margin:0 auto;padding:32px 24px 64px;}
     .brand{display:flex;align-items:center;gap:0;white-space:nowrap;font-family:'Anton',sans-serif;font-size:18px;letter-spacing:1px;line-height:1;margin-bottom:22px;}
     .brand .b1{color:#fff;}.brand .b2{color:var(--blue);}.brand .x{color:rgba(255,255,255,.4);font-family:'Inter',sans-serif;font-weight:400;margin:0 8px;}.brand .b3{color:#fff;}
     h1{font-family:'Anton',sans-serif;font-size:30px;font-weight:400;margin:0 0 4px;letter-spacing:.01em;}
     .role-chip{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--blue);
       background:rgba(19,144,235,.12);border:1px solid rgba(19,144,235,.3);border-radius:999px;padding:3px 10px;margin-left:10px;vertical-align:middle;}
-    .subline{color:var(--muted);font-size:13px;margin:0 0 26px;}
+    .subline{color:var(--muted);font-size:13px;margin:0 0 22px;}
     h2{font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.05em;color:rgba(255,255,255,.5);margin:30px 6px 12px;text-transform:uppercase;}
     .shell{background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,0)),var(--card);
-      border:1px solid var(--card-border);border-radius:14px;padding:18px 18px 16px;}
-    .shell-head{margin-bottom:6px;}
+      border:1px solid var(--card-border);border-radius:14px;padding:18px;}
+    .shell-head{margin-bottom:10px;}
     .shell-head .t{font-size:14px;font-weight:600;}
     .shell-head .s{font-size:12px;color:var(--muted);margin-top:2px;}
+
+    /* Period filter */
+    .period{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 18px;padding:12px 14px;background:rgba(255,255,255,.02);border:1px solid var(--card-border);border-radius:12px;}
+    .period .lab{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);}
+    .period select{background:rgba(255,255,255,.04);border:1px solid var(--card-border);border-radius:8px;color:var(--text);font:inherit;font-size:13px;padding:7px 10px;outline:none;}
+    .period .presets{display:flex;gap:6px;margin-left:auto;}
+    .period .presets button{background:rgba(255,255,255,.04);border:1px solid var(--card-border);border-radius:8px;color:var(--muted);font:inherit;font-size:12px;font-weight:600;padding:7px 12px;cursor:pointer;}
+    .period .presets button.on{background:rgba(19,144,235,.15);border-color:rgba(19,144,235,.45);color:#9ed2f7;}
 
     .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;}
     .kpi{background:rgba(255,255,255,.02);border:1px solid var(--card-border);border-radius:12px;padding:14px 16px;}
@@ -40,8 +48,18 @@
     .kpi .m{font-size:12px;color:var(--muted);margin-top:4px;}
     .v.red{color:#fda4af;}.v.amber{color:#fcd34d;}.v.green{color:#86efac;}.v.blue{color:#7dd3fc;}
 
+    /* Month cards */
+    .month-row{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 8px;}
+    .mcard{flex:0 0 auto;min-width:96px;background:rgba(255,255,255,.02);border:1px solid var(--card-border);border-radius:11px;padding:12px 12px 10px;text-align:center;}
+    .mcard .ml{font-size:11px;color:var(--muted);letter-spacing:.03em;margin-bottom:6px;white-space:nowrap;}
+    .mcard .mv{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1;}
+    .mcard .mm{font-size:11px;color:rgba(255,255,255,.45);margin-top:5px;font-variant-numeric:tabular-nums;}
+    .mcard.dim .mv{color:rgba(255,255,255,.3);}
+    .mv.red{color:#fda4af;}.mv.amber{color:#fcd34d;}.mv.green{color:#86efac;}.mv.blue{color:#7dd3fc;}
+
     .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
     @media(max-width:760px){.grid2{grid-template-columns:1fr;}}
+    .chart-wrap{height:240px;position:relative;}
 
     .reason-tiles{display:flex;flex-direction:column;gap:8px;}
     .rt{display:grid;grid-template-columns:1fr 54px 70px;align-items:center;gap:10px;font-size:13px;}
@@ -49,11 +67,10 @@
     .rt .v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;}
     .rt .n{text-align:right;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;}
 
-    .perf-head{display:grid;grid-template-columns:26px 140px 1fr 50px 46px 52px;gap:10px;padding:0 6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,.4);border-bottom:1px solid var(--card-border);margin-bottom:8px;}
+    .perf-head{display:grid;grid-template-columns:26px 150px 1fr 60px 60px;gap:10px;padding:0 6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,.4);border-bottom:1px solid var(--card-border);margin-bottom:8px;}
     .perf-head span{text-align:right;}
     .perf-list{display:flex;flex-direction:column;gap:12px;padding:4px 0;max-height:520px;overflow-y:auto;}
-    .perf-list .row{display:grid;grid-template-columns:26px 140px 1fr 50px 46px 52px;align-items:center;gap:10px;font-size:13px;padding:4px 6px;border-radius:8px;}
-    .perf-list .row .early{text-align:right;font-size:12px;color:rgba(255,255,255,.6);font-variant-numeric:tabular-nums;}
+    .perf-list .row{display:grid;grid-template-columns:26px 150px 1fr 60px 60px;align-items:center;gap:10px;font-size:13px;padding:4px 6px;border-radius:8px;}
     .perf-list .row.me{background:rgba(19,144,235,.1);outline:1px solid rgba(19,144,235,.35);}
     .perf-list .row .rk{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px;text-align:center;}
     .perf-list .row .lbl{color:rgba(255,255,255,.92);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -62,15 +79,13 @@
     .perf-list .row .track{position:relative;height:7px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;}
     .perf-list .row .fill{position:absolute;left:0;top:0;bottom:0;border-radius:3px;}
     .perf-list .row .v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;}
-    .perf-list .row .meta{text-align:right;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;}
-    .perf-list .row .n{text-align:right;font-size:11px;color:rgba(255,255,255,.4);font-variant-numeric:tabular-nums;}
+    .perf-list .row .n{text-align:right;font-size:11px;color:rgba(255,255,255,.5);font-variant-numeric:tabular-nums;}
     .v.red2{color:#fda4af;}.v.amber2{color:#fcd34d;}.v.green2{color:#86efac;}.v.blue2{color:#7dd3fc;}
 
     table.detail{width:100%;border-collapse:collapse;font-size:13px;}
     table.detail th{text-align:left;padding:9px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--card-border);}
     table.detail th.num,table.detail td.num{text-align:right;}
     table.detail td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.04);}
-    .chart-wrap{height:230px;position:relative;}
     .foot{margin-top:36px;font-size:11px;color:var(--muted);text-align:center;letter-spacing:.03em;}
     .msg{padding:60px 20px;text-align:center;color:var(--muted);}
     .empty{padding:18px;color:var(--muted);text-align:center;font-size:13px;}
@@ -89,121 +104,255 @@ const REASON_COLORS = {
   'Internal / Pause':'#1390eb','Low ROAS / Lead Quality':'#ef4444','Service / Comms':'#f59e0b',
   'Poor Funnel':'#c084fc','Bad Fit':'#fde047','Not Categorized':'rgba(255,255,255,.25)',
 };
-const fmtCur = (v) => {
-  const n = Number(v)||0;
-  if (Math.abs(n) >= 1000) return '$' + (n/1000).toFixed(n%1000?1:0) + 'k';
-  return '$' + n.toFixed(0);
-};
-const toneRate = (r) => r >= 95 ? 'red' : r >= 70 ? 'amber' : r >= 50 ? 'blue' : 'green';
-const colorTone = (t) => t==='red'?'#ef4444':t==='amber'?'#f59e0b':t==='blue'?'#1390eb':'#22c55e';
+const REASON_ORDER = ['Internal / Pause','Low ROAS / Lead Quality','Service / Comms','Poor Funnel','Bad Fit'];
 const esc = (s) => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Monthly-churn tone scale (a few % per month is already meaningful).
+const tone = (r) => r>=10?'red':r>=5?'amber':r>=2?'blue':'green';
+const toneColor = (t) => t==='red'?'#ef4444':t==='amber'?'#f59e0b':t==='blue'?'#1390eb':'#22c55e';
 
-function getToken() {
-  const p = new URLSearchParams(location.search);
-  return p.get('m') || '';
+let DATA = null;
+let fromPos = 0, toPos = 0;   // inclusive positions into DATA.months
+
+const getToken = () => new URLSearchParams(location.search).get('m') || '';
+const meSeries = () => DATA.leaderboard.people.find(p => p.isMe) || { base: [], churned: [] };
+const monthIdxAt = (pos) => DATA.months[pos] ? DATA.months[pos].idx : null;
+
+// Average monthly churn rate over the selected window (mean of months with a
+// non-zero active base), plus totals used by the cards/KPIs.
+function periodStats(base, churned) {
+  let sumCh = 0, rateSum = 0, rateN = 0;
+  for (let i = fromPos; i <= toPos; i++) {
+    const b = base[i] || 0, c = churned[i] || 0;
+    sumCh += c;
+    if (b > 0) { rateSum += c / b * 100; rateN++; }
+  }
+  return { churned: sumCh, avgMonthly: rateN ? rateSum / rateN : 0, activeEnd: base[toPos] || 0 };
 }
 
-function render(data) {
-  const me = data.me, k = me.kpis;
-  const board = (data.leaderboard && data.leaderboard.rows) || [];
+function renderShell() {
+  const me = DATA.me;
   const roleLabel = me.role === 'AM' ? 'Account Manager' : 'Team Member';
   const boardTitle = me.role === 'AM' ? 'Account Managers' : 'Team Members';
-
-  const kpiTone = (r) => 'v ' + toneRate(r);
-  const total = k.total != null ? k.total : k.contracts;
-  const kpiHtml = `
-    <div class="kpis">
-      <div class="kpi"><div class="l">Churn rate</div><div class="${kpiTone(k.churnRate||0)}">${(k.churnRate||0).toFixed(0)}%</div><div class="m">${k.contracts} churned of ${total} total</div></div>
-      <div class="kpi"><div class="l">Your book</div><div class="v">${total}</div><div class="m">${k.active||0} active · ${k.contracts} churned</div></div>
-      <div class="kpi"><div class="l">Early churn ≤3 mo</div><div class="${kpiTone(k.earlyRate)}">${k.earlyRate.toFixed(0)}%</div><div class="m">${k.earlyCount} of ${k.contracts} churned</div></div>
-      <div class="kpi"><div class="l">Avg lifetime</div><div class="v">${k.avgLife.toFixed(1)}</div><div class="m">months · median ${k.medianLife}</div></div>
-      <div class="kpi"><div class="l">Your rank</div><div class="v">${k.rank ? '#'+k.rank : '—'}</div><div class="m">of ${k.fieldSize} ${boardTitle.toLowerCase()} · by churn rate (lower is better)</div></div>
-    </div>`;
-
-  const reasonRows = (me.reasons||[]).slice().sort((a,b)=>b.count-a.count);
-  const reasonTiles = reasonRows.length ? reasonRows.map(r => `
-    <div class="rt">
-      <div class="lbl"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${REASON_COLORS[r.reason]||'#888'};margin-right:8px;"></span>${esc(r.reason)}</div>
-      <div class="v" style="color:${REASON_COLORS[r.reason]||'#fff'}">${r.pct.toFixed(0)}%</div>
-      <div class="n">${r.count} · ${r.avgLife.toFixed(1)}mo</div>
-    </div>`).join('') : `<div class="empty">No categorized churn reasons.</div>`;
-
-  const boardHead = `<div class="perf-head"><span></span><span style="text-align:left">Name</span><span></span><span>Churn</span><span>Early</span><span>Book</span></div>`;
-  const boardHtml = board.length ? board.map(d => {
-    const tone = toneRate(d.churnRate);
-    return `<div class="row ${d.isMe?'me':''}">
-      <div class="rk">${d.rank}</div>
-      <div class="lbl" title="${esc(d.name)}">${esc(d.name)}${d.isMe?'<span class="youtag">YOU</span>':''}</div>
-      <div class="track"><div class="fill" style="width:${Math.min(d.churnRate,100).toFixed(0)}%;background:${colorTone(tone)};"></div></div>
-      <div class="v ${tone}2">${d.churnRate.toFixed(0)}%</div>
-      <div class="early" title="early churn ≤3mo">${d.earlyRate.toFixed(0)}%</div>
-      <div class="n" title="churned / total book">${d.churned}/${d.n}</div>
-    </div>`;
-  }).join('') : `<div class="empty">No leaderboard data.</div>`;
-
-  const contracts = me.contracts || [];
-  const detailRows = contracts.length ? contracts.map(c => `
-    <tr>
-      <td>${esc(c.client)}</td><td>${esc(c.service)}</td>
-      <td class="num">${c.lifetime}</td><td>${esc(c.reason)}</td>
-      <td class="num">${fmtCur(c.retainer)}</td><td class="num">${esc(c.endDate||'—')}</td>
-    </tr>`).join('') : `<tr><td colspan="6" class="empty">No churned contracts on record.</td></tr>`;
+  const opts = DATA.months.map((m, i) => `<option value="${i}">${esc(m.label)}</option>`).join('');
 
   $('root').innerHTML = `
     <h1>${esc(me.name)}<span class="role-chip">${esc(roleLabel)}</span></h1>
-    <p class="subline">Your churn performance and how you compare with other ${esc(boardTitle.toLowerCase())}.</p>
+    <p class="subline">Your monthly churn trend and how you compare with other ${esc(boardTitle.toLowerCase())}.</p>
 
-    ${kpiHtml}
+    <div class="period">
+      <span class="lab">Period</span>
+      <select id="fromSel">${opts}</select>
+      <span class="lab" style="text-transform:none">to</span>
+      <select id="toSel">${opts}</select>
+      <div class="presets">
+        <button data-n="3">3M</button><button data-n="6">6M</button>
+        <button data-n="12">12M</button><button data-n="0">All</button>
+      </div>
+    </div>
 
-    <h2>Your churn reasons</h2>
+    <div id="kpis" class="kpis"></div>
+
+    <h2>Monthly churn trend</h2>
+    <div class="shell">
+      <div class="shell-head"><div class="t">Churn rate by month</div><div class="s">Each month: clients who churned ÷ clients active that month. Long tenure doesn't inflate it.</div></div>
+      <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+      <div id="monthCards" class="month-row"></div>
+    </div>
+
+    <h2>Your churn reasons <span style="font-size:11px;color:var(--muted);font-family:Inter,sans-serif;letter-spacing:0;text-transform:none;">· in selected period</span></h2>
     <div class="grid2">
       <div class="shell"><div class="chart-wrap"><canvas id="reasonChart"></canvas></div></div>
-      <div class="shell"><div class="shell-head"><div class="t">Reason breakdown</div><div class="s">% of your churned book · avg lifetime</div></div><div class="reason-tiles">${reasonTiles}</div></div>
+      <div class="shell"><div class="shell-head"><div class="t">Reason breakdown</div><div class="s">Share of your churn in the period · avg lifetime</div></div><div id="reasonTiles" class="reason-tiles"></div></div>
     </div>
 
     <h2>${esc(boardTitle)} leaderboard</h2>
     <div class="shell">
-      <div class="shell-head"><div class="t">Actual churn rate · with early churn &amp; book size</div><div class="s">Ranked by churn rate, worst to best · your row highlighted · Churn = churned ÷ total book · Early = churned ≤3 mo</div></div>
-      ${boardHead}
-      <div class="perf-list">${boardHtml}</div>
+      <div class="shell-head"><div class="t">Avg monthly churn · selected period</div><div class="s">Mean of monthly churn rates over the window, ranked worst to best · your row highlighted</div></div>
+      <div class="perf-head"><span></span><span style="text-align:left">Name</span><span></span><span>Avg/mo</span><span>Churned</span></div>
+      <div id="board" class="perf-list"></div>
     </div>
 
-    <h2>Your churned contracts</h2>
+    <h2>Your churned clients <span style="font-size:11px;color:var(--muted);font-family:Inter,sans-serif;letter-spacing:0;text-transform:none;">· in selected period</span></h2>
     <div class="shell" style="padding:0;overflow-x:auto;">
       <table class="detail">
-        <thead><tr><th>Client</th><th>Service</th><th class="num">Months</th><th>Reason</th><th class="num">Retainer</th><th class="num">Ended</th></tr></thead>
-        <tbody>${detailRows}</tbody>
+        <thead><tr><th>Client</th><th>Service</th><th class="num">Months</th><th>Reason</th><th class="num">Retainer</th><th class="num">Churned</th></tr></thead>
+        <tbody id="detailRows"></tbody>
       </table>
     </div>`;
 
-  drawReasonChart(reasonRows);
+  // Wire controls
+  $('fromSel').value = fromPos; $('toSel').value = toPos;
+  $('fromSel').onchange = () => { fromPos = Math.min(+$('fromSel').value, toPos); $('fromSel').value = fromPos; renderPeriod(); };
+  $('toSel').onchange = () => { toPos = Math.max(+$('toSel').value, fromPos); $('toSel').value = toPos; renderPeriod(); };
+  document.querySelectorAll('.presets button').forEach(b => b.onclick = () => {
+    const n = +b.dataset.n;
+    toPos = DATA.months.length - 1;
+    fromPos = n ? Math.max(0, toPos - (n - 1)) : 0;
+    $('fromSel').value = fromPos; $('toSel').value = toPos;
+    renderPeriod();
+  });
 }
 
-function drawReasonChart(reasons) {
-  const canvas = $('reasonChart');
-  if (!canvas || !window.Chart) return;
-  const withData = (reasons||[]).filter(r => r.count > 0);
-  if (!withData.length) {
-    canvas.parentElement.innerHTML = '<div class="empty">No categorized reasons to chart.</div>';
-    return;
+function markPreset() {
+  const span = toPos - fromPos + 1;
+  const atEnd = toPos === DATA.months.length - 1;
+  const map = { 3:3, 6:6, 12:12, 0:DATA.months.length };
+  document.querySelectorAll('.presets button').forEach(b => {
+    const n = +b.dataset.n;
+    b.classList.toggle('on', atEnd && span === map[n]);
+  });
+}
+
+let trendChart = null, reasonChart = null;
+
+function renderPeriod() {
+  markPreset();
+  renderKpis();
+  renderTrend();
+  renderMonthCards();
+  renderReasons();
+  renderBoard();
+  renderDetail();
+}
+
+function renderKpis() {
+  const s = periodStats(meSeries().base, meSeries().churned);
+  const boardTitle = DATA.me.role === 'AM' ? 'account managers' : 'team members';
+  // Rank by avg monthly churn across everyone in role for the same window.
+  const ranked = DATA.leaderboard.people
+    .map(p => ({ isMe: p.isMe, v: periodStats(p.base, p.churned).avgMonthly }))
+    .sort((a, b) => b.v - a.v);
+  const rank = ranked.findIndex(p => p.isMe) + 1;
+  const t = tone(s.avgMonthly);
+  $('kpis').innerHTML = `
+    <div class="kpi"><div class="l">Avg monthly churn</div><div class="v ${t}">${s.avgMonthly.toFixed(1)}%</div><div class="m">across the selected period</div></div>
+    <div class="kpi"><div class="l">Churned in period</div><div class="v">${s.churned}</div><div class="m">clients lost in the window</div></div>
+    <div class="kpi"><div class="l">Active book</div><div class="v">${s.activeEnd}</div><div class="m">clients at ${esc(DATA.months[toPos].label)}</div></div>
+    <div class="kpi"><div class="l">Your rank</div><div class="v">${rank ? '#'+rank : '—'}</div><div class="m">of ${DATA.leaderboard.people.length} ${boardTitle} · lower churn is better</div></div>`;
+}
+
+function renderTrend() {
+  const s = meSeries();
+  const labels = [], rates = [];
+  for (let i = fromPos; i <= toPos; i++) {
+    labels.push(DATA.months[i].label);
+    const b = s.base[i] || 0;
+    rates.push(b > 0 ? +(s.churned[i] / b * 100).toFixed(1) : null);
   }
-  const labels = withData.map(r => r.reason);
-  const data = withData.map(r => r.count);
-  const colors = withData.map(r => REASON_COLORS[r.reason] || '#888');
-  const total = data.reduce((a,b)=>a+b,0);
-  new Chart(canvas, {
+  if (trendChart) trendChart.destroy();
+  if (!window.Chart) return;
+  trendChart = new Chart($('trendChart'), {
+    type: 'line',
+    data: { labels, datasets: [{
+      data: rates, label: 'Monthly churn %',
+      borderColor: '#1390eb', backgroundColor: 'rgba(19,144,235,.12)',
+      fill: true, tension: .3, spanGaps: false,
+      pointRadius: 3, pointBackgroundColor: '#1390eb', borderWidth: 2,
+    }]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        datalabels: { display: false },
+        tooltip: { callbacks: { label: (ctx) => {
+          const i = fromPos + ctx.dataIndex; const b = s.base[i]||0, c = s.churned[i]||0;
+          return ctx.raw==null ? ' No active clients' : ` ${ctx.raw}% churn · ${c} of ${b}`;
+        }}}
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,.6)', font: { size: 10 }, maxRotation: 45, minRotation: 45 } },
+        y: { beginAtZero: true, grid: { color: 'rgba(120,120,120,.10)' }, ticks: { color: 'rgba(255,255,255,.5)', font: { size: 11 }, callback: v => v+'%' } },
+      }
+    }
+  });
+}
+
+function renderMonthCards() {
+  const s = meSeries();
+  let html = '';
+  for (let i = fromPos; i <= toPos; i++) {
+    const b = s.base[i] || 0, c = s.churned[i] || 0;
+    const rate = b > 0 ? c / b * 100 : null;
+    const t = rate == null ? '' : tone(rate);
+    html += `<div class="mcard ${rate==null?'dim':''}">
+      <div class="ml">${esc(DATA.months[i].label)}</div>
+      <div class="mv ${t}">${rate==null?'—':rate.toFixed(0)+'%'}</div>
+      <div class="mm">${c}/${b}</div>
+    </div>`;
+  }
+  $('monthCards').innerHTML = html || `<div class="empty">No months in range.</div>`;
+}
+
+function inPeriod(iso) {
+  const m = iso && String(iso).match(/^(\d{4})-(\d{2})/);
+  if (!m) return false;
+  const idx = (+m[1]) * 12 + (+m[2] - 1);
+  return idx >= monthIdxAt(fromPos) && idx <= monthIdxAt(toPos);
+}
+
+function periodChurned() {
+  return (DATA.me.churned || []).filter(r => inPeriod(r.endDate));
+}
+
+function renderReasons() {
+  const rows = periodChurned();
+  const total = rows.length;
+  const agg = REASON_ORDER.map(reason => {
+    const rs = rows.filter(r => r.reason === reason);
+    return { reason, count: rs.length, pct: total ? rs.length/total*100 : 0, avgLife: rs.length ? rs.reduce((a,r)=>a+r.lifetime,0)/rs.length : 0 };
+  }).filter(x => x.count > 0).sort((a,b)=>b.count-a.count);
+
+  $('reasonTiles').innerHTML = agg.length ? agg.map(r => `
+    <div class="rt">
+      <div class="lbl"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${REASON_COLORS[r.reason]||'#888'};margin-right:8px;"></span>${esc(r.reason)}</div>
+      <div class="v" style="color:${REASON_COLORS[r.reason]||'#fff'}">${r.pct.toFixed(0)}%</div>
+      <div class="n">${r.count} · ${r.avgLife.toFixed(1)}mo</div>
+    </div>`).join('') : `<div class="empty">No churn in this period.</div>`;
+
+  if (reasonChart) reasonChart.destroy();
+  if (!window.Chart) return;
+  const canvas = $('reasonChart');
+  if (!agg.length) { canvas.parentElement.innerHTML = '<div class="empty">No churn to chart in this period.</div>'; return; }
+  const t = agg.reduce((a,r)=>a+r.count,0);
+  reasonChart = new Chart(canvas, {
     type: 'doughnut',
-    data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0 }] },
+    data: { labels: agg.map(r=>r.reason), datasets: [{ data: agg.map(r=>r.count), backgroundColor: agg.map(r=>REASON_COLORS[r.reason]||'#888'), borderWidth: 0 }] },
     plugins: [window.ChartDataLabels].filter(Boolean),
     options: {
       responsive: true, maintainAspectRatio: false, cutout: '58%',
       plugins: {
         legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, boxHeight: 8, padding: 8, font: { size: 10 }, color: 'rgba(255,255,255,.75)' } },
-        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} (${total?Math.round(ctx.raw/total*100):0}%)` } },
-        datalabels: window.ChartDataLabels ? { color: '#fff', font: { size: 11, weight: '700' }, formatter: v => total && (v/total*100)>=8 ? Math.round(v/total*100)+'%' : '' } : undefined,
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} (${t?Math.round(ctx.raw/t*100):0}%)` } },
+        datalabels: window.ChartDataLabels ? { color:'#fff', font:{size:11,weight:'700'}, formatter:(v)=> t&&(v/t*100)>=8?Math.round(v/t*100)+'%':'' } : undefined,
       }
     }
   });
+}
+
+function renderBoard() {
+  const rows = DATA.leaderboard.people
+    .map(p => { const st = periodStats(p.base, p.churned); return { name: p.name, isMe: p.isMe, avg: st.avgMonthly, churned: st.churned }; })
+    .sort((a,b) => b.avg - a.avg || b.churned - a.churned)
+    .map((d,i) => ({ ...d, rank: i+1 }));
+  $('board').innerHTML = rows.length ? rows.map(d => {
+    const t = tone(d.avg);
+    return `<div class="row ${d.isMe?'me':''}">
+      <div class="rk">${d.rank}</div>
+      <div class="lbl" title="${esc(d.name)}">${esc(d.name)}${d.isMe?'<span class="youtag">YOU</span>':''}</div>
+      <div class="track"><div class="fill" style="width:${Math.min(d.avg*3,100).toFixed(0)}%;background:${toneColor(t)};"></div></div>
+      <div class="v ${t}2">${d.avg.toFixed(1)}%</div>
+      <div class="n">${d.churned}</div>
+    </div>`;
+  }).join('') : `<div class="empty">No leaderboard data.</div>`;
+}
+
+function renderDetail() {
+  const rows = periodChurned();
+  const fmtCur = (v) => { const n=Number(v)||0; return Math.abs(n)>=1000 ? '$'+(n/1000).toFixed(n%1000?1:0)+'k' : '$'+n.toFixed(0); };
+  $('detailRows').innerHTML = rows.length ? rows.map(c => `
+    <tr><td>${esc(c.client)}</td><td>${esc(c.service)}</td><td class="num">${c.lifetime}</td>
+    <td>${esc(c.reason)}</td><td class="num">${fmtCur(c.retainer)}</td><td class="num">${esc(c.endDate||'—')}</td></tr>`).join('')
+    : `<tr><td colspan="6" class="empty">No churned clients in this period.</td></tr>`;
 }
 
 async function boot() {
@@ -213,7 +362,12 @@ async function boot() {
     const res = await fetch('/api/member-data?m=' + encodeURIComponent(token), { headers: { 'Accept': 'application/json' } });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) { $('root').innerHTML = `<div class="msg">${esc(data.error || ('Could not load your view (' + res.status + ').'))}</div>`; return; }
-    render(data);
+    if (!data.months || !data.months.length) { $('root').innerHTML = '<div class="msg">No churn history found for your account yet.</div>'; return; }
+    DATA = data;
+    toPos = DATA.months.length - 1;
+    fromPos = Math.max(0, toPos - 11);   // default: last 12 months
+    renderShell();
+    renderPeriod();
   } catch (e) {
     $('root').innerHTML = `<div class="msg">Could not load your view. ${esc(e.message||'')}</div>`;
   }
