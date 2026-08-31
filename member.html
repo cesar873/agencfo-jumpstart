@@ -67,6 +67,14 @@
     .rt .v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;}
     .rt .n{text-align:right;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;}
 
+    .bar-list{display:flex;flex-direction:column;gap:12px;padding:4px 2px;}
+    .bar-list .brow{display:grid;grid-template-columns:150px 1fr 52px 40px;align-items:center;gap:10px;font-size:13px;}
+    .bar-list .brow .lbl{color:rgba(255,255,255,.85);white-space:nowrap;}
+    .bar-list .brow .track{position:relative;height:7px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;}
+    .bar-list .brow .fill{position:absolute;left:0;top:0;bottom:0;border-radius:3px;}
+    .bar-list .brow .v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;}
+    .bar-list .brow .n{text-align:right;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;}
+
     .perf-head{display:grid;grid-template-columns:26px 150px 1fr 60px 60px;gap:10px;padding:0 6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,.4);border-bottom:1px solid var(--card-border);margin-bottom:8px;}
     .perf-head span{text-align:right;}
     .perf-list{display:flex;flex-direction:column;gap:12px;padding:4px 0;max-height:520px;overflow-y:auto;}
@@ -167,6 +175,12 @@ function renderShell() {
       <div class="shell"><div class="shell-head"><div class="t">Reason breakdown</div><div class="s">Share of your churn in the period · avg lifetime</div></div><div id="reasonTiles" class="reason-tiles"></div></div>
     </div>
 
+    <h2>Speed to churn &amp; retention <span style="font-size:11px;color:var(--muted);font-family:Inter,sans-serif;letter-spacing:0;text-transform:none;">· in selected period</span></h2>
+    <div class="shell">
+      <div class="shell-head"><div class="t">How long clients lasted before churning</div><div class="s" id="speedSub"></div></div>
+      <div id="speedList" class="bar-list"></div>
+    </div>
+
     <h2>${esc(boardTitle)} leaderboard</h2>
     <div class="shell">
       <div class="shell-head"><div class="t">Avg monthly churn · selected period</div><div class="s">Mean of monthly churn rates over the window, ranked best to worst · your row highlighted</div></div>
@@ -213,6 +227,7 @@ function renderPeriod() {
   renderTrend();
   renderMonthCards();
   renderReasons();
+  renderSpeed();
   renderBoard();
   renderDetail();
 }
@@ -226,8 +241,13 @@ function renderKpis() {
     .sort((a, b) => a.v - b.v);   // best (lowest churn) first
   const rank = ranked.findIndex(p => p.isMe) + 1;
   const t = tone(s.avgMonthly);
+  // Retention: avg months churned clients lasted before leaving (this period).
+  const lts = periodChurned().map(r => r.lifetime).sort((a, b) => a - b);
+  const avgLife = lts.length ? lts.reduce((a, b) => a + b, 0) / lts.length : 0;
+  const medLife = lts.length ? lts[Math.floor(lts.length / 2)] : 0;
   $('kpis').innerHTML = `
     <div class="kpi"><div class="l">Avg monthly churn</div><div class="v ${t}">${s.avgMonthly.toFixed(1)}%</div><div class="m">across the selected period</div></div>
+    <div class="kpi"><div class="l">Avg retention</div><div class="v">${avgLife.toFixed(1)}</div><div class="m">months before churn · median ${medLife}</div></div>
     <div class="kpi"><div class="l">Churned in period</div><div class="v">${s.churned}</div><div class="m">clients lost in the window</div></div>
     <div class="kpi"><div class="l">Active book</div><div class="v">${s.activeEnd}</div><div class="m">clients at ${esc(DATA.months[toPos].label)}</div></div>
     <div class="kpi"><div class="l">Your rank</div><div class="v">${rank ? '#'+rank : '—'}</div><div class="m">of ${DATA.leaderboard.people.length} ${boardTitle} · #1 = lowest churn</div></div>`;
@@ -329,6 +349,35 @@ function renderReasons() {
       }
     }
   });
+}
+
+function renderSpeed() {
+  const rows = periodChurned();
+  const total = rows.length;
+  const lifetimes = rows.map(r => r.lifetime).sort((a, b) => a - b);
+  const avg = total ? lifetimes.reduce((a, b) => a + b, 0) / total : 0;
+  const med = total ? lifetimes[Math.floor(total / 2)] : 0;
+  $('speedSub').textContent = total
+    ? `Avg ${avg.toFixed(1)} mo · median ${med} mo before churn · ${total} churned`
+    : 'No churn in this period';
+  const buckets = [
+    { label: 'Immediate (0 mo)',  test: l => l === 0,            color: '#ef4444' },
+    { label: 'Very short (1 mo)', test: l => l === 1,            color: '#f59e0b' },
+    { label: 'Short (2–3 mo)',    test: l => l >= 2 && l <= 3,   color: '#f59e0b' },
+    { label: 'Medium (4–6 mo)',   test: l => l >= 4 && l <= 6,   color: '#1390eb' },
+    { label: 'Long (7–12 mo)',    test: l => l >= 7 && l <= 12,  color: '#22c55e' },
+    { label: 'Loyal (13+ mo)',    test: l => l >= 13,            color: '#c084fc' },
+  ];
+  $('speedList').innerHTML = total ? buckets.map(b => {
+    const n = rows.filter(r => b.test(r.lifetime)).length;
+    const pct = total ? n / total * 100 : 0;
+    return `<div class="brow">
+      <div class="lbl">${b.label}</div>
+      <div class="track"><div class="fill" style="width:${pct.toFixed(0)}%;background:${b.color};"></div></div>
+      <div class="v" style="color:${b.color}">${pct.toFixed(0)}%</div>
+      <div class="n">${n}</div>
+    </div>`;
+  }).join('') : `<div class="empty">No churned clients in this period.</div>`;
 }
 
 function renderBoard() {
