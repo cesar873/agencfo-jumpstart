@@ -161,7 +161,7 @@ const roleKey = (role) => (role === 'AM' ? 'am' : 'teamMember');
 
 // People excluded from rankings + link roster (e.g. the owner). Case-insensitive
 // substring match on the name, so "Brennan" catches "Brennan" / "Brennan X".
-const EXCLUDED_NAMES = ['brennan'];
+const EXCLUDED_NAMES = ['brennan', 'crawford', 'graeme'];
 const isExcluded = (name) => {
   const n = String(name || '').trim().toLowerCase();
   return !!n && EXCLUDED_NAMES.some(x => n.includes(x));
