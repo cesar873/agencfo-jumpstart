@@ -58,6 +58,23 @@
     .freset{background:transparent;border:0;color:var(--muted);font:inherit;font-size:12px;font-weight:500;padding:6px 12px;border-radius:6px;cursor:pointer;transition:color .12s;}
     .freset:hover{color:var(--text);}
     .fsep{width:1px;height:22px;background:var(--card-border);margin:0 4px;}
+    /* Period chip + range-picker popover (ported from the dashboard). */
+    .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--card-border);background:rgba(255,255,255,0.05);border-radius:10px;padding:7px 12px;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;user-select:none;transition:background .12s;}
+    .chip:hover{background:rgba(255,255,255,0.08);}
+    .chip .cv{color:var(--text);}
+    .chip .ca{color:var(--muted);font-size:10px;}
+    .month-pop-backdrop{position:fixed;inset:0;z-index:55;background:rgba(0,0,0,0.30);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);}
+    .month-popover{position:absolute;z-index:60;background:#0b1f33;border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:14px;box-shadow:0 12px 38px rgba(0,0,0,0.55);min-width:240px;}
+    .month-pop-title{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:8px;}
+    .month-pop-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;}
+    .month-pop-btn{background:rgba(255,255,255,0.04);border:1px solid var(--card-border);border-radius:6px;color:var(--text);font-family:inherit;font-size:12px;padding:7px 4px;cursor:pointer;transition:background .12s,border-color .12s;}
+    .month-pop-btn:hover{background:rgba(255,255,255,0.10);border-color:rgba(255,255,255,.16);}
+    .month-pop-btn.selected{background:rgba(19,144,235,0.22);border-color:var(--blue);color:#bae6fd;font-weight:600;}
+    .month-pop-row{display:flex;gap:14px;}
+    .month-pop-col{flex:1;min-width:200px;}
+    .month-pop-actions{margin-top:12px;display:flex;gap:8px;justify-content:flex-end;padding-top:10px;border-top:1px solid rgba(255,255,255,.06);}
+    .month-pop-actions button{background:rgba(255,255,255,.04);border:1px solid var(--card-border);color:var(--text);border-radius:6px;font-family:inherit;font-size:12px;padding:7px 14px;cursor:pointer;}
+    .month-pop-actions button.primary{background:rgba(19,144,235,0.22);border-color:var(--blue);color:#bae6fd;font-weight:600;}
 
     .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;}
     .kpi{background:rgba(255,255,255,.02);border:1px solid var(--card-border);border-radius:12px;padding:14px 16px;}
@@ -186,7 +203,6 @@ function renderShell() {
   const me = DATA.me;
   const roleLabel = me.role === 'AM' ? 'Account Manager' : 'Team Member';
   const boardTitle = me.role === 'AM' ? 'Account Managers' : 'Team Members';
-  const monthOpts = DATA.months.map((m, i) => i >= minPos ? `<option value="${i}">${esc(m.label)}</option>` : '').join('');
   const reasonOpts = ['<option value="">All reasons</option>'].concat(REASON_ORDER.map(r => `<option value="${esc(r)}">${esc(r)}</option>`)).join('');
   const bucketOpts = ['<option value="">All lifetimes</option>'].concat(BUCKETS.map(b => `<option value="${b.key}">${b.label}</option>`)).join('');
 
@@ -196,9 +212,7 @@ function renderShell() {
 
     <div class="filters">
       <span class="flabel">Period</span>
-      <select id="fromSel" class="fsel">${monthOpts}</select>
-      <span class="fto">to</span>
-      <select id="toSel" class="fsel">${monthOpts}</select>
+      <div class="chip" id="rangeChip" onclick="openRangePicker(event)"><span class="cv" id="rangeVal">—</span><span class="ca">▾</span></div>
       <div class="seg-toggle" id="presets">
         <button class="seg-btn" data-n="3">3M</button><button class="seg-btn" data-n="6">6M</button>
         <button class="seg-btn" data-n="12">12M</button><button class="seg-btn" data-n="0">All</button>
@@ -247,8 +261,6 @@ function renderShell() {
       </table>
     </div>`;
 
-  $('fromSel').onchange = () => { fromPos = Math.max(minPos, Math.min(+$('fromSel').value, toPos)); renderPeriod(); };
-  $('toSel').onchange = () => { toPos = Math.max(+$('toSel').value, fromPos); renderPeriod(); };
   document.querySelectorAll('#presets .seg-btn').forEach(b => b.onclick = () => {
     const n = +b.dataset.n;
     toPos = DATA.months.length - 1;
@@ -261,7 +273,7 @@ function renderShell() {
 }
 
 function syncControls() {
-  $('fromSel').value = fromPos; $('toSel').value = toPos;
+  $('rangeVal').textContent = `${DATA.months[fromPos].label} → ${DATA.months[toPos].label}`;
   $('reasonSel').value = fReason; $('bucketSel').value = fBucket;
   const span = toPos - fromPos + 1, atEnd = toPos === DATA.months.length - 1;
   const map = { 3:3, 6:6, 12:12, 0:DATA.months.length - minPos };
@@ -434,6 +446,44 @@ document.addEventListener('click', (e) => {
   const rEl = e.target.closest('[data-reason]');
   if (rEl) { const rz = rEl.dataset.reason; fReason = fReason === rz ? '' : rz; renderPeriod(); return; }
 });
+
+// Period range-picker popover (ported from the dashboard's openRangePicker).
+function closeRangePopover() { document.querySelectorAll('.month-pop-backdrop,.month-popover').forEach(e => e.remove()); }
+function openRangePicker(evt) {
+  if (evt) evt.stopPropagation();
+  closeRangePopover();
+  let selFrom = fromPos, selTo = toPos;
+  const opts = DATA.months.map((m, i) => ({ i, label: m.label })).filter(o => o.i >= minPos);
+  const grid = (sel, side) => opts.map(o => `<button class="month-pop-btn ${o.i === sel ? 'selected' : ''}" data-side="${side}" data-i="${o.i}">${esc(o.label)}</button>`).join('');
+  const html = (f, t) => `
+    <div class="month-pop-row">
+      <div class="month-pop-col"><div class="month-pop-title">From · <span style="color:var(--text)">${esc(DATA.months[f].label)}</span></div><div class="month-pop-grid">${grid(f, 'from')}</div></div>
+      <div class="month-pop-col"><div class="month-pop-title">To · <span style="color:var(--text)">${esc(DATA.months[t].label)}</span></div><div class="month-pop-grid">${grid(t, 'to')}</div></div>
+    </div>
+    <div class="month-pop-actions"><button id="rpCancel">Cancel</button><button class="primary" id="rpApply">Apply</button></div>`;
+  const backdrop = document.createElement('div'); backdrop.className = 'month-pop-backdrop';
+  const pop = document.createElement('div'); pop.className = 'month-popover'; pop.style.minWidth = '560px';
+  pop.innerHTML = html(selFrom, selTo);
+  document.body.appendChild(backdrop); document.body.appendChild(pop);
+  const r = $('rangeChip').getBoundingClientRect();
+  const w = 560;
+  pop.style.top = (window.scrollY + r.bottom + 8) + 'px';
+  pop.style.left = (window.scrollX + Math.max(12, Math.min(r.left, window.innerWidth - w - 16))) + 'px';
+  const wire = () => {
+    pop.querySelectorAll('.month-pop-btn').forEach(b => b.onclick = () => {
+      const i = +b.dataset.i;
+      if (b.dataset.side === 'from') { selFrom = i; if (selFrom > selTo) selTo = selFrom; }
+      else { selTo = i; if (selTo < selFrom) selFrom = selTo; }
+      pop.innerHTML = html(selFrom, selTo); wire();
+    });
+    pop.querySelector('#rpApply').onclick = () => { fromPos = Math.min(selFrom, selTo); toPos = Math.max(selFrom, selTo); closeRangePopover(); renderPeriod(); };
+    pop.querySelector('#rpCancel').onclick = closeRangePopover;
+  };
+  wire();
+  backdrop.onclick = closeRangePopover;
+}
+window.addEventListener('resize', closeRangePopover);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeRangePopover(); });
 
 async function boot() {
   const token = getToken();
