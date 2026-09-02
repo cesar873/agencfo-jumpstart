@@ -153,19 +153,25 @@ export function rosterFromRecords(churned, actives = []) {
   const ams = new Set(), mbs = new Set();
   const add = (r) => { if (r.am) ams.add(r.am); if (r.teamMember) mbs.add(r.teamMember); };
   churned.forEach(add); actives.forEach(add);
-  const sort = (s) => Array.from(s).filter(n => !isExcluded(n)).sort((a, b) => a.localeCompare(b));
-  return { ams: sort(ams), mbs: sort(mbs) };
+  const sortFor = (s, role) => Array.from(s).filter(n => !isExcludedFor(n, role)).sort((a, b) => a.localeCompare(b));
+  return { ams: sortFor(ams, 'AM'), mbs: sortFor(mbs, 'MB') };
 }
 
 const roleKey = (role) => (role === 'AM' ? 'am' : 'teamMember');
 
-// People excluded from rankings + link roster (e.g. the owner). Case-insensitive
-// substring match on the name, so "Brennan" catches "Brennan" / "Brennan X".
-const EXCLUDED_NAMES = ['brennan', 'crawford', 'graeme', 'skakuj', 'perea', 'abdul hadi'];
-const isExcluded = (name) => {
+// People excluded from rankings + link roster. Matched on WHOLE words
+// (case-insensitive), so a short name like "nic" hits "Nic" / "Nic Smith" but
+// not "Nicole" / "Dominic".
+const EXCLUDED_NAMES = ['brennan', 'crawford', 'graeme', 'skakuj', 'perea', 'abdul hadi']; // both roles
+const EXCLUDED_AM = [];          // excluded from the AM role only
+const EXCLUDED_MB = ['nic'];     // excluded from the MB (media buyer) role only
+function _nameHits(name, list) {
   const n = String(name || '').trim().toLowerCase();
-  return !!n && EXCLUDED_NAMES.some(x => n.includes(x));
-};
+  if (!n) return false;
+  return list.some(x => new RegExp('\\b' + x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(n));
+}
+const isExcludedFor = (name, role) =>
+  _nameHits(name, EXCLUDED_NAMES) || _nameHits(name, role === 'AM' ? EXCLUDED_AM : EXCLUDED_MB);
 
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 // Month index = year*12 + (month-1). Reversible, easy to compare/iterate.
@@ -215,7 +221,7 @@ export function buildMemberPayload(churned, actives, me) {
     if (!groups.has(c.who)) groups.set(c.who, []);
     groups.get(c.who).push(c);
   });
-  const people = Array.from(groups.entries()).filter(([name]) => !isExcluded(name)).map(([name, cs]) => {
+  const people = Array.from(groups.entries()).filter(([name]) => !isExcludedFor(name, me.role)).map(([name, cs]) => {
     const base = months.map(() => 0);
     const churnedArr = months.map(() => 0);
     cs.forEach(c => {
