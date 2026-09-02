@@ -25,21 +25,29 @@
     h1{font-family:'Anton',sans-serif;font-size:30px;font-weight:400;margin:0 0 4px;letter-spacing:.01em;}
     .role-chip{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--blue);
       background:rgba(19,144,235,.12);border:1px solid rgba(19,144,235,.3);border-radius:999px;padding:3px 10px;margin-left:10px;vertical-align:middle;}
-    .subline{color:var(--muted);font-size:13px;margin:0 0 22px;}
+    .subline{color:var(--muted);font-size:13px;margin:0 0 20px;}
     h2{font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.05em;color:rgba(255,255,255,.5);margin:30px 6px 12px;text-transform:uppercase;}
+    h2 .h2note{font-size:11px;color:var(--muted);font-family:Inter,sans-serif;letter-spacing:0;text-transform:none;}
     .shell{background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,0)),var(--card);
       border:1px solid var(--card-border);border-radius:14px;padding:18px;}
     .shell-head{margin-bottom:10px;}
     .shell-head .t{font-size:14px;font-weight:600;}
     .shell-head .s{font-size:12px;color:var(--muted);margin-top:2px;}
 
-    /* Period filter */
-    .period{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 18px;padding:12px 14px;background:rgba(255,255,255,.02);border:1px solid var(--card-border);border-radius:12px;}
-    .period .lab{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);}
-    .period select{background:rgba(255,255,255,.04);border:1px solid var(--card-border);border-radius:8px;color:var(--text);font:inherit;font-size:13px;padding:7px 10px;outline:none;}
-    .period .presets{display:flex;gap:6px;margin-left:auto;}
-    .period .presets button{background:rgba(255,255,255,.04);border:1px solid var(--card-border);border-radius:8px;color:var(--muted);font:inherit;font-size:12px;font-weight:600;padding:7px 12px;cursor:pointer;}
-    .period .presets button.on{background:rgba(19,144,235,.15);border-color:rgba(19,144,235,.45);color:#9ed2f7;}
+    /* Filter bar — matches the dashboard's filter styling (no boxed background). */
+    .filters{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 20px;}
+    .flabel{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.16em;color:var(--muted);}
+    .fto{font-size:12px;color:var(--muted);}
+    .fsel{background:rgba(255,255,255,0.05);border:1px solid var(--card-border);border-radius:8px;color:var(--text);font-family:inherit;font-size:12px;padding:6px 10px;outline:none;cursor:pointer;transition:border-color .12s;}
+    .fsel:hover,.fsel:focus{border-color:rgba(255,255,255,0.20);}
+    .fsel option{background:#0b1f33;color:var(--text);}
+    .seg-toggle{display:inline-flex;background:rgba(255,255,255,0.05);border:1px solid var(--card-border);border-radius:8px;padding:2px;gap:2px;}
+    .seg-btn{background:transparent;border:0;color:rgba(255,255,255,.65);font-family:inherit;font-size:12px;font-weight:500;padding:5px 12px;border-radius:6px;cursor:pointer;transition:background .12s,color .12s;}
+    .seg-btn:hover{color:var(--text);}
+    .seg-btn.on{background:rgba(19,144,235,.18);color:#a5cdff;font-weight:600;}
+    .freset{background:transparent;border:1px solid var(--card-border);color:var(--muted);border-radius:8px;font:inherit;font-size:12px;padding:6px 12px;cursor:pointer;transition:border-color .12s,color .12s;}
+    .freset:hover{color:var(--text);border-color:rgba(255,255,255,.20);}
+    .fsep{width:1px;height:22px;background:var(--card-border);margin:0 4px;}
 
     .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;}
     .kpi{background:rgba(255,255,255,.02);border:1px solid var(--card-border);border-radius:12px;padding:14px 16px;}
@@ -48,7 +56,6 @@
     .kpi .m{font-size:12px;color:var(--muted);margin-top:4px;}
     .v.red{color:#fda4af;}.v.amber{color:#fcd34d;}.v.green{color:#86efac;}.v.blue{color:#7dd3fc;}
 
-    /* Month cards */
     .month-row{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 8px;}
     .mcard{flex:0 0 auto;min-width:96px;background:rgba(255,255,255,.02);border:1px solid var(--card-border);border-radius:11px;padding:12px 12px 10px;text-align:center;}
     .mcard .ml{font-size:11px;color:var(--muted);letter-spacing:.03em;margin-bottom:6px;white-space:nowrap;}
@@ -61,19 +68,24 @@
     @media(max-width:760px){.grid2{grid-template-columns:1fr;}}
     .chart-wrap{height:240px;position:relative;}
 
-    .reason-tiles{display:flex;flex-direction:column;gap:8px;}
-    .rt{display:grid;grid-template-columns:1fr 54px 70px;align-items:center;gap:10px;font-size:13px;}
+    .reason-tiles{display:flex;flex-direction:column;gap:6px;}
+    .rt{display:grid;grid-template-columns:1fr 54px 70px;align-items:center;gap:10px;font-size:13px;padding:4px 6px;border-radius:8px;}
     .rt .lbl{color:rgba(255,255,255,.85);}
     .rt .v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;}
     .rt .n{text-align:right;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;}
 
-    .bar-list{display:flex;flex-direction:column;gap:12px;padding:4px 2px;}
-    .bar-list .brow{display:grid;grid-template-columns:150px 1fr 52px 40px;align-items:center;gap:10px;font-size:13px;}
-    .bar-list .brow .lbl{color:rgba(255,255,255,.85);white-space:nowrap;}
-    .bar-list .brow .track{position:relative;height:7px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;}
-    .bar-list .brow .fill{position:absolute;left:0;top:0;bottom:0;border-radius:3px;}
-    .bar-list .brow .v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;}
-    .bar-list .brow .n{text-align:right;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;}
+    .bar-list{display:flex;flex-direction:column;gap:10px;padding:4px 2px;}
+    .brow{display:grid;grid-template-columns:150px 1fr 52px 40px;align-items:center;gap:10px;font-size:13px;padding:4px 6px;border-radius:8px;}
+    .brow .lbl{color:rgba(255,255,255,.85);white-space:nowrap;}
+    .brow .track{position:relative;height:7px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;}
+    .brow .fill{position:absolute;left:0;top:0;bottom:0;border-radius:3px;}
+    .brow .v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;}
+    .brow .n{text-align:right;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;}
+
+    /* Click-to-filter affordance */
+    .click{cursor:pointer;transition:background .12s;}
+    .click:hover{background:rgba(255,255,255,.05);}
+    .rt.active,.brow.active{background:rgba(19,144,235,.14);outline:1px solid rgba(19,144,235,.4);}
 
     .perf-head{display:grid;grid-template-columns:26px 150px 1fr 60px 60px;gap:10px;padding:0 6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,.4);border-bottom:1px solid var(--card-border);margin-bottom:8px;}
     .perf-head span{text-align:right;}
@@ -113,21 +125,43 @@ const REASON_COLORS = {
   'Poor Funnel':'#c084fc','Bad Fit':'#fde047','Not Categorized':'rgba(255,255,255,.25)',
 };
 const REASON_ORDER = ['Internal / Pause','Low ROAS / Lead Quality','Service / Comms','Poor Funnel','Bad Fit'];
+const BUCKETS = [
+  { key:'0',    label:'Immediate (0 mo)',  test:l=>l===0,           color:'#ef4444' },
+  { key:'1',    label:'Very short (1 mo)', test:l=>l===1,           color:'#f59e0b' },
+  { key:'2-3',  label:'Short (2–3 mo)',    test:l=>l>=2&&l<=3,      color:'#f59e0b' },
+  { key:'4-6',  label:'Medium (4–6 mo)',   test:l=>l>=4&&l<=6,      color:'#1390eb' },
+  { key:'7-12', label:'Long (7–12 mo)',    test:l=>l>=7&&l<=12,     color:'#22c55e' },
+  { key:'13',   label:'Loyal (13+ mo)',    test:l=>l>=13,           color:'#c084fc' },
+];
 const esc = (s) => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-// Monthly-churn tone scale (a few % per month is already meaningful).
 const tone = (r) => r>=10?'red':r>=5?'amber':r>=2?'blue':'green';
 const toneColor = (t) => t==='red'?'#ef4444':t==='amber'?'#f59e0b':t==='blue'?'#1390eb':'#22c55e';
+const fmtCur = (v) => { const n=Number(v)||0; return Math.abs(n)>=1000 ? '$'+(n/1000).toFixed(n%1000?1:0)+'k' : '$'+n.toFixed(0); };
 
 let DATA = null;
-let fromPos = 0, toPos = 0;   // inclusive positions into DATA.months
-let minPos = 0;               // first month the viewer had any client (their first client)
+let fromPos = 0, toPos = 0, minPos = 0;
+let fReason = '', fBucket = '';           // active link/general filters
 
 const getToken = () => new URLSearchParams(location.search).get('m') || '';
 const meSeries = () => DATA.leaderboard.people.find(p => p.isMe) || { base: [], churned: [] };
-const monthIdxAt = (pos) => DATA.months[pos] ? DATA.months[pos].idx : null;
+const isoMonthIdx = (iso) => { const m = iso && String(iso).match(/^(\d{4})-(\d{2})/); return m ? (+m[1])*12+(+m[2]-1) : null; };
+const inPeriod = (iso) => { const i = isoMonthIdx(iso); return i != null && i >= DATA.months[fromPos].idx && i <= DATA.months[toPos].idx; };
+const matchReason = (r) => !fReason || r.reason === fReason;
+const matchBucket = (r) => { if (!fBucket) return true; const b = BUCKETS.find(x => x.key === fBucket); return b ? b.test(r.lifetime) : true; };
+const periodChurned = () => (DATA.me.churned || []).filter(r => inPeriod(r.endDate));
+const periodFiltered = () => periodChurned().filter(matchReason).filter(matchBucket);
 
-// Average monthly churn rate over the selected window (mean of months with a
-// non-zero active base), plus totals used by the cards/KPIs.
+// Monthly churned-count array (aligned to DATA.months) for a churned set — used
+// so the trend/cards/rate honor the reason/speed filters via the viewer's raw rows.
+function monthlyCountsFor(set) {
+  const arr = DATA.months.map(() => 0);
+  const pos = {}; DATA.months.forEach((m, i) => pos[m.idx] = i);
+  set.forEach(r => { const idx = isoMonthIdx(r.endDate); if (idx != null && pos[idx] != null) arr[pos[idx]]++; });
+  return arr;
+}
+const filteredAll = () => (DATA.me.churned || []).filter(matchReason).filter(matchBucket);
+
+// Leaderboard aggregate stats (peer arrays, not reason/speed filterable).
 function periodStats(base, churned) {
   let sumCh = 0, rateSum = 0, rateN = 0;
   for (let i = fromPos; i <= toPos; i++) {
@@ -142,44 +176,32 @@ function renderShell() {
   const me = DATA.me;
   const roleLabel = me.role === 'AM' ? 'Account Manager' : 'Team Member';
   const boardTitle = me.role === 'AM' ? 'Account Managers' : 'Team Members';
-  // Only offer months from the viewer's first client onward.
-  const opts = DATA.months.map((m, i) => i >= minPos ? `<option value="${i}">${esc(m.label)}</option>` : '').join('');
+  const monthOpts = DATA.months.map((m, i) => i >= minPos ? `<option value="${i}">${esc(m.label)}</option>` : '').join('');
+  const reasonOpts = ['<option value="">All reasons</option>'].concat(REASON_ORDER.map(r => `<option value="${esc(r)}">${esc(r)}</option>`)).join('');
+  const bucketOpts = ['<option value="">All lifetimes</option>'].concat(BUCKETS.map(b => `<option value="${b.key}">${b.label}</option>`)).join('');
 
   $('root').innerHTML = `
     <h1>${esc(me.name)}<span class="role-chip">${esc(roleLabel)}</span></h1>
     <p class="subline">Your monthly churn trend and how you compare with other ${esc(boardTitle.toLowerCase())}.</p>
 
-    <div class="period">
-      <span class="lab">Period</span>
-      <select id="fromSel">${opts}</select>
-      <span class="lab" style="text-transform:none">to</span>
-      <select id="toSel">${opts}</select>
-      <div class="presets">
-        <button data-n="3">3M</button><button data-n="6">6M</button>
-        <button data-n="12">12M</button><button data-n="0">All</button>
+    <div class="filters">
+      <span class="flabel">Period</span>
+      <select id="fromSel" class="fsel">${monthOpts}</select>
+      <span class="fto">to</span>
+      <select id="toSel" class="fsel">${monthOpts}</select>
+      <div class="seg-toggle" id="presets">
+        <button class="seg-btn" data-n="3">3M</button><button class="seg-btn" data-n="6">6M</button>
+        <button class="seg-btn" data-n="12">12M</button><button class="seg-btn" data-n="0">All</button>
       </div>
+      <span class="fsep"></span>
+      <span class="flabel">Reason</span>
+      <select id="reasonSel" class="fsel">${reasonOpts}</select>
+      <span class="flabel">Speed</span>
+      <select id="bucketSel" class="fsel">${bucketOpts}</select>
+      <button id="resetBtn" class="freset" style="margin-left:auto;">Reset</button>
     </div>
 
     <div id="kpis" class="kpis"></div>
-
-    <h2>Monthly churn trend</h2>
-    <div class="shell">
-      <div class="shell-head"><div class="t">Churn rate by month</div><div class="s">Each month: clients who churned ÷ clients active that month. Long tenure doesn't inflate it.</div></div>
-      <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
-      <div id="monthCards" class="month-row"></div>
-    </div>
-
-    <h2>Your churn reasons <span style="font-size:11px;color:var(--muted);font-family:Inter,sans-serif;letter-spacing:0;text-transform:none;">· in selected period</span></h2>
-    <div class="grid2">
-      <div class="shell"><div class="chart-wrap"><canvas id="reasonChart"></canvas></div></div>
-      <div class="shell"><div class="shell-head"><div class="t">Reason breakdown</div><div class="s">Share of your churn in the period · avg lifetime</div></div><div id="reasonTiles" class="reason-tiles"></div></div>
-    </div>
-
-    <h2>Speed to churn &amp; retention <span style="font-size:11px;color:var(--muted);font-family:Inter,sans-serif;letter-spacing:0;text-transform:none;">· in selected period</span></h2>
-    <div class="shell">
-      <div class="shell-head"><div class="t">How long clients lasted before churning</div><div class="s" id="speedSub"></div></div>
-      <div id="speedList" class="bar-list"></div>
-    </div>
 
     <h2>${esc(boardTitle)} leaderboard</h2>
     <div class="shell">
@@ -188,7 +210,26 @@ function renderShell() {
       <div id="board" class="perf-list"></div>
     </div>
 
-    <h2>Your churned clients <span style="font-size:11px;color:var(--muted);font-family:Inter,sans-serif;letter-spacing:0;text-transform:none;">· in selected period</span></h2>
+    <h2>Monthly churn trend</h2>
+    <div class="shell">
+      <div class="shell-head"><div class="t">Churn rate by month</div><div class="s">Each month: clients who churned ÷ clients active that month. Long tenure doesn't inflate it.</div></div>
+      <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+      <div id="monthCards" class="month-row"></div>
+    </div>
+
+    <h2>Speed to churn &amp; retention <span class="h2note">· click a band to filter</span></h2>
+    <div class="shell">
+      <div class="shell-head"><div class="t">How long clients lasted before churning</div><div class="s" id="speedSub"></div></div>
+      <div id="speedList" class="bar-list"></div>
+    </div>
+
+    <h2>Your churn reasons <span class="h2note">· click a reason to filter</span></h2>
+    <div class="grid2">
+      <div class="shell"><div class="chart-wrap"><canvas id="reasonChart"></canvas></div></div>
+      <div class="shell"><div class="shell-head"><div class="t">Reason breakdown</div><div class="s">Share of your churn in the period · avg lifetime</div></div><div id="reasonTiles" class="reason-tiles"></div></div>
+    </div>
+
+    <h2>Your churned clients <span class="h2note">· in selected period</span></h2>
     <div class="shell" style="padding:0;max-height:360px;overflow:auto;">
       <table class="detail">
         <thead><tr><th>Client</th><th>Service</th><th class="num">Months</th><th>Reason</th><th class="num">Retainer</th><th class="num">Churned</th></tr></thead>
@@ -196,194 +237,69 @@ function renderShell() {
       </table>
     </div>`;
 
-  // Wire controls
-  $('fromSel').value = fromPos; $('toSel').value = toPos;
-  $('fromSel').onchange = () => { fromPos = Math.max(minPos, Math.min(+$('fromSel').value, toPos)); $('fromSel').value = fromPos; renderPeriod(); };
-  $('toSel').onchange = () => { toPos = Math.max(+$('toSel').value, fromPos); $('toSel').value = toPos; renderPeriod(); };
-  document.querySelectorAll('.presets button').forEach(b => b.onclick = () => {
+  $('fromSel').onchange = () => { fromPos = Math.max(minPos, Math.min(+$('fromSel').value, toPos)); renderPeriod(); };
+  $('toSel').onchange = () => { toPos = Math.max(+$('toSel').value, fromPos); renderPeriod(); };
+  document.querySelectorAll('#presets .seg-btn').forEach(b => b.onclick = () => {
     const n = +b.dataset.n;
     toPos = DATA.months.length - 1;
-    fromPos = n ? Math.max(minPos, toPos - (n - 1)) : minPos;   // "All" = since first client
-    $('fromSel').value = fromPos; $('toSel').value = toPos;
+    fromPos = n ? Math.max(minPos, toPos - (n - 1)) : minPos;
     renderPeriod();
   });
+  $('reasonSel').onchange = () => { fReason = $('reasonSel').value; renderPeriod(); };
+  $('bucketSel').onchange = () => { fBucket = $('bucketSel').value; renderPeriod(); };
+  $('resetBtn').onclick = () => { fReason = ''; fBucket = ''; fromPos = minPos; toPos = DATA.months.length - 1; renderPeriod(); };
 }
 
-function markPreset() {
-  const span = toPos - fromPos + 1;
-  const atEnd = toPos === DATA.months.length - 1;
-  const map = { 3:3, 6:6, 12:12, 0:DATA.months.length - minPos };   // "All" = full tenure
-  document.querySelectorAll('.presets button').forEach(b => {
-    const n = +b.dataset.n;
-    b.classList.toggle('on', atEnd && span === map[n]);
-  });
+function syncControls() {
+  $('fromSel').value = fromPos; $('toSel').value = toPos;
+  $('reasonSel').value = fReason; $('bucketSel').value = fBucket;
+  const span = toPos - fromPos + 1, atEnd = toPos === DATA.months.length - 1;
+  const map = { 3:3, 6:6, 12:12, 0:DATA.months.length - minPos };
+  document.querySelectorAll('#presets .seg-btn').forEach(b => b.classList.toggle('on', atEnd && span === map[+b.dataset.n]));
+  const active = !!(fReason || fBucket) || fromPos !== minPos || !atEnd;
+  $('resetBtn').style.opacity = active ? '1' : '.5';
 }
 
 let trendChart = null, reasonChart = null;
 
 function renderPeriod() {
-  markPreset();
+  syncControls();
   renderKpis();
+  renderBoard();
   renderTrend();
   renderMonthCards();
-  renderReasons();
   renderSpeed();
-  renderBoard();
+  renderReasons();
   renderDetail();
 }
 
 function renderKpis() {
-  const s = periodStats(meSeries().base, meSeries().churned);
+  const base = meSeries().base;
+  const cc = monthlyCountsFor(filteredAll());
+  let sumCh = 0, rateSum = 0, rateN = 0;
+  for (let i = fromPos; i <= toPos; i++) { const b = base[i]||0, c = cc[i]||0; sumCh += c; if (b>0){ rateSum += c/b*100; rateN++; } }
+  const avgMonthly = rateN ? rateSum/rateN : 0;
+  const activeEnd = base[toPos] || 0;
   const boardTitle = DATA.me.role === 'AM' ? 'account managers' : 'team members';
-  // Rank by avg monthly churn across everyone in role for the same window.
-  const ranked = DATA.leaderboard.people
-    .map(p => ({ isMe: p.isMe, v: periodStats(p.base, p.churned).avgMonthly }))
-    .sort((a, b) => a.v - b.v);   // best (lowest churn) first
+  const ranked = DATA.leaderboard.people.map(p => ({ isMe: p.isMe, v: periodStats(p.base, p.churned).avgMonthly })).sort((a,b) => a.v - b.v);
   const rank = ranked.findIndex(p => p.isMe) + 1;
-  const t = tone(s.avgMonthly);
-  // Retention: avg months churned clients lasted before leaving (this period).
-  const lts = periodChurned().map(r => r.lifetime).sort((a, b) => a - b);
-  const avgLife = lts.length ? lts.reduce((a, b) => a + b, 0) / lts.length : 0;
-  const medLife = lts.length ? lts[Math.floor(lts.length / 2)] : 0;
+  const lts = periodFiltered().map(r => r.lifetime).sort((a,b) => a-b);
+  const avgLife = lts.length ? lts.reduce((a,b)=>a+b,0)/lts.length : 0;
+  const medLife = lts.length ? lts[Math.floor(lts.length/2)] : 0;
+  const t = tone(avgMonthly);
+  const flt = (fReason || fBucket) ? ' (filtered)' : '';
   $('kpis').innerHTML = `
-    <div class="kpi"><div class="l">Avg monthly churn</div><div class="v ${t}">${s.avgMonthly.toFixed(1)}%</div><div class="m">across the selected period</div></div>
+    <div class="kpi"><div class="l">Avg monthly churn${flt}</div><div class="v ${t}">${avgMonthly.toFixed(1)}%</div><div class="m">across the selected period</div></div>
     <div class="kpi"><div class="l">Avg retention</div><div class="v">${avgLife.toFixed(1)}</div><div class="m">months before churn · median ${medLife}</div></div>
-    <div class="kpi"><div class="l">Churned in period</div><div class="v">${s.churned}</div><div class="m">clients lost in the window</div></div>
-    <div class="kpi"><div class="l">Active book</div><div class="v">${s.activeEnd}</div><div class="m">clients at ${esc(DATA.months[toPos].label)}</div></div>
+    <div class="kpi"><div class="l">Churned in period</div><div class="v">${sumCh}</div><div class="m">clients lost in the window</div></div>
+    <div class="kpi"><div class="l">Active book</div><div class="v">${activeEnd}</div><div class="m">clients at ${esc(DATA.months[toPos].label)}</div></div>
     <div class="kpi"><div class="l">Your rank</div><div class="v">${rank ? '#'+rank : '—'}</div><div class="m">of ${DATA.leaderboard.people.length} ${boardTitle} · #1 = lowest churn</div></div>`;
-}
-
-function renderTrend() {
-  const s = meSeries();
-  const labels = [], rates = [];
-  for (let i = fromPos; i <= toPos; i++) {
-    labels.push(DATA.months[i].label);
-    const b = s.base[i] || 0;
-    rates.push(b > 0 ? +(s.churned[i] / b * 100).toFixed(1) : null);
-  }
-  if (trendChart) trendChart.destroy();
-  if (!window.Chart) return;
-  trendChart = new Chart($('trendChart'), {
-    type: 'line',
-    data: { labels, datasets: [{
-      data: rates, label: 'Monthly churn %',
-      borderColor: '#1390eb', backgroundColor: 'rgba(19,144,235,.12)',
-      fill: true, tension: .3, spanGaps: false,
-      pointRadius: 3, pointBackgroundColor: '#1390eb', borderWidth: 2,
-    }]},
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        datalabels: { display: false },
-        tooltip: { callbacks: { label: (ctx) => {
-          const i = fromPos + ctx.dataIndex; const b = s.base[i]||0, c = s.churned[i]||0;
-          return ctx.raw==null ? ' No active clients' : ` ${ctx.raw}% churn · ${c} of ${b}`;
-        }}}
-      },
-      scales: {
-        x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,.6)', font: { size: 10 }, maxRotation: 45, minRotation: 45 } },
-        y: { beginAtZero: true, grid: { color: 'rgba(120,120,120,.10)' }, ticks: { color: 'rgba(255,255,255,.5)', font: { size: 11 }, callback: v => v+'%' } },
-      }
-    }
-  });
-}
-
-function renderMonthCards() {
-  const s = meSeries();
-  let html = '';
-  for (let i = fromPos; i <= toPos; i++) {
-    const b = s.base[i] || 0, c = s.churned[i] || 0;
-    const rate = b > 0 ? c / b * 100 : null;
-    const t = rate == null ? '' : tone(rate);
-    html += `<div class="mcard ${rate==null?'dim':''}">
-      <div class="ml">${esc(DATA.months[i].label)}</div>
-      <div class="mv ${t}">${rate==null?'—':rate.toFixed(0)+'%'}</div>
-      <div class="mm">${c}/${b}</div>
-    </div>`;
-  }
-  $('monthCards').innerHTML = html || `<div class="empty">No months in range.</div>`;
-}
-
-function inPeriod(iso) {
-  const m = iso && String(iso).match(/^(\d{4})-(\d{2})/);
-  if (!m) return false;
-  const idx = (+m[1]) * 12 + (+m[2] - 1);
-  return idx >= monthIdxAt(fromPos) && idx <= monthIdxAt(toPos);
-}
-
-function periodChurned() {
-  return (DATA.me.churned || []).filter(r => inPeriod(r.endDate));
-}
-
-function renderReasons() {
-  const rows = periodChurned();
-  const total = rows.length;
-  const agg = REASON_ORDER.map(reason => {
-    const rs = rows.filter(r => r.reason === reason);
-    return { reason, count: rs.length, pct: total ? rs.length/total*100 : 0, avgLife: rs.length ? rs.reduce((a,r)=>a+r.lifetime,0)/rs.length : 0 };
-  }).filter(x => x.count > 0).sort((a,b)=>b.count-a.count);
-
-  $('reasonTiles').innerHTML = agg.length ? agg.map(r => `
-    <div class="rt">
-      <div class="lbl"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${REASON_COLORS[r.reason]||'#888'};margin-right:8px;"></span>${esc(r.reason)}</div>
-      <div class="v" style="color:${REASON_COLORS[r.reason]||'#fff'}">${r.pct.toFixed(0)}%</div>
-      <div class="n">${r.count} · ${r.avgLife.toFixed(1)}mo</div>
-    </div>`).join('') : `<div class="empty">No churn in this period.</div>`;
-
-  if (reasonChart) reasonChart.destroy();
-  if (!window.Chart) return;
-  const canvas = $('reasonChart');
-  if (!agg.length) { canvas.parentElement.innerHTML = '<div class="empty">No churn to chart in this period.</div>'; return; }
-  const t = agg.reduce((a,r)=>a+r.count,0);
-  reasonChart = new Chart(canvas, {
-    type: 'doughnut',
-    data: { labels: agg.map(r=>r.reason), datasets: [{ data: agg.map(r=>r.count), backgroundColor: agg.map(r=>REASON_COLORS[r.reason]||'#888'), borderWidth: 0 }] },
-    plugins: [window.ChartDataLabels].filter(Boolean),
-    options: {
-      responsive: true, maintainAspectRatio: false, cutout: '58%',
-      plugins: {
-        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, boxHeight: 8, padding: 8, font: { size: 10 }, color: 'rgba(255,255,255,.75)' } },
-        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} (${t?Math.round(ctx.raw/t*100):0}%)` } },
-        datalabels: window.ChartDataLabels ? { color:'#fff', font:{size:11,weight:'700'}, formatter:(v)=> t&&(v/t*100)>=8?Math.round(v/t*100)+'%':'' } : undefined,
-      }
-    }
-  });
-}
-
-function renderSpeed() {
-  const rows = periodChurned();
-  const total = rows.length;
-  const lifetimes = rows.map(r => r.lifetime).sort((a, b) => a - b);
-  const avg = total ? lifetimes.reduce((a, b) => a + b, 0) / total : 0;
-  const med = total ? lifetimes[Math.floor(total / 2)] : 0;
-  $('speedSub').textContent = total
-    ? `Avg ${avg.toFixed(1)} mo · median ${med} mo before churn · ${total} churned`
-    : 'No churn in this period';
-  const buckets = [
-    { label: 'Immediate (0 mo)',  test: l => l === 0,            color: '#ef4444' },
-    { label: 'Very short (1 mo)', test: l => l === 1,            color: '#f59e0b' },
-    { label: 'Short (2–3 mo)',    test: l => l >= 2 && l <= 3,   color: '#f59e0b' },
-    { label: 'Medium (4–6 mo)',   test: l => l >= 4 && l <= 6,   color: '#1390eb' },
-    { label: 'Long (7–12 mo)',    test: l => l >= 7 && l <= 12,  color: '#22c55e' },
-    { label: 'Loyal (13+ mo)',    test: l => l >= 13,            color: '#c084fc' },
-  ];
-  $('speedList').innerHTML = total ? buckets.map(b => {
-    const n = rows.filter(r => b.test(r.lifetime)).length;
-    const pct = total ? n / total * 100 : 0;
-    return `<div class="brow">
-      <div class="lbl">${b.label}</div>
-      <div class="track"><div class="fill" style="width:${pct.toFixed(0)}%;background:${b.color};"></div></div>
-      <div class="v" style="color:${b.color}">${pct.toFixed(0)}%</div>
-      <div class="n">${n}</div>
-    </div>`;
-  }).join('') : `<div class="empty">No churned clients in this period.</div>`;
 }
 
 function renderBoard() {
   const rows = DATA.leaderboard.people
     .map(p => { const st = periodStats(p.base, p.churned); return { name: p.name, isMe: p.isMe, avg: st.avgMonthly, churned: st.churned }; })
-    .sort((a,b) => a.avg - b.avg || a.churned - b.churned)   // best (lowest churn) first
+    .sort((a,b) => a.avg - b.avg || a.churned - b.churned)
     .map((d,i) => ({ ...d, rank: i+1 }));
   $('board').innerHTML = rows.length ? rows.map(d => {
     const t = tone(d.avg);
@@ -397,14 +313,117 @@ function renderBoard() {
   }).join('') : `<div class="empty">No leaderboard data.</div>`;
 }
 
+function renderTrend() {
+  const base = meSeries().base;
+  const cc = monthlyCountsFor(filteredAll());
+  const labels = [], rates = [];
+  for (let i = fromPos; i <= toPos; i++) {
+    labels.push(DATA.months[i].label);
+    const b = base[i] || 0;
+    rates.push(b > 0 ? +(cc[i] / b * 100).toFixed(1) : null);
+  }
+  if (trendChart) trendChart.destroy();
+  if (!window.Chart) return;
+  trendChart = new Chart($('trendChart'), {
+    type: 'line',
+    data: { labels, datasets: [{ data: rates, borderColor:'#1390eb', backgroundColor:'rgba(19,144,235,.12)', fill:true, tension:.3, spanGaps:false, pointRadius:3, pointBackgroundColor:'#1390eb', borderWidth:2 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend:{display:false}, datalabels:{display:false},
+        tooltip:{ callbacks:{ label:(ctx)=>{ const i=fromPos+ctx.dataIndex, b=base[i]||0, c=cc[i]||0; return ctx.raw==null?' No active clients':` ${ctx.raw}% churn · ${c} of ${b}`; } } }
+      },
+      scales: {
+        x:{ grid:{display:false}, ticks:{color:'rgba(255,255,255,.6)',font:{size:10},maxRotation:45,minRotation:45} },
+        y:{ beginAtZero:true, grid:{color:'rgba(120,120,120,.10)'}, ticks:{color:'rgba(255,255,255,.5)',font:{size:11},callback:v=>v+'%'} },
+      }
+    }
+  });
+}
+
+function renderMonthCards() {
+  const base = meSeries().base;
+  const cc = monthlyCountsFor(filteredAll());
+  let html = '';
+  for (let i = fromPos; i <= toPos; i++) {
+    const b = base[i]||0, c = cc[i]||0, rate = b>0 ? c/b*100 : null, t = rate==null?'':tone(rate);
+    html += `<div class="mcard ${rate==null?'dim':''}"><div class="ml">${esc(DATA.months[i].label)}</div><div class="mv ${t}">${rate==null?'—':rate.toFixed(0)+'%'}</div><div class="mm">${c}/${b}</div></div>`;
+  }
+  $('monthCards').innerHTML = html || `<div class="empty">No months in range.</div>`;
+}
+
+function renderSpeed() {
+  const rows = periodChurned().filter(matchReason);   // reason filter applies; bucket is the selector here
+  const total = rows.length;
+  const lts = rows.map(r => r.lifetime).sort((a,b)=>a-b);
+  const avg = total ? lts.reduce((a,b)=>a+b,0)/total : 0;
+  const med = total ? lts[Math.floor(total/2)] : 0;
+  $('speedSub').textContent = total ? `Avg ${avg.toFixed(1)} mo · median ${med} mo before churn · ${total} churned` : 'No churn in this selection';
+  $('speedList').innerHTML = total ? BUCKETS.map(b => {
+    const n = rows.filter(r => b.test(r.lifetime)).length;
+    const pct = total ? n/total*100 : 0;
+    return `<div class="brow click ${fBucket===b.key?'active':''}" data-bucket="${b.key}">
+      <div class="lbl">${b.label}</div>
+      <div class="track"><div class="fill" style="width:${pct.toFixed(0)}%;background:${b.color};"></div></div>
+      <div class="v" style="color:${b.color}">${pct.toFixed(0)}%</div>
+      <div class="n">${n}</div>
+    </div>`;
+  }).join('') : `<div class="empty">No churned clients in this selection.</div>`;
+}
+
+function renderReasons() {
+  const rows = periodChurned().filter(matchBucket);   // bucket filter applies; reason is the selector here
+  const total = rows.length;
+  const agg = REASON_ORDER.map(reason => {
+    const rs = rows.filter(r => r.reason === reason);
+    return { reason, count: rs.length, pct: total ? rs.length/total*100 : 0, avgLife: rs.length ? rs.reduce((a,r)=>a+r.lifetime,0)/rs.length : 0 };
+  }).filter(x => x.count > 0).sort((a,b)=>b.count-a.count);
+
+  $('reasonTiles').innerHTML = agg.length ? agg.map(r => `
+    <div class="rt click ${fReason===r.reason?'active':''}" data-reason="${esc(r.reason)}">
+      <div class="lbl"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${REASON_COLORS[r.reason]||'#888'};margin-right:8px;"></span>${esc(r.reason)}</div>
+      <div class="v" style="color:${REASON_COLORS[r.reason]||'#fff'}">${r.pct.toFixed(0)}%</div>
+      <div class="n">${r.count} · ${r.avgLife.toFixed(1)}mo</div>
+    </div>`).join('') : `<div class="empty">No churn in this selection.</div>`;
+
+  if (reasonChart) reasonChart.destroy();
+  if (!window.Chart) return;
+  const canvas = $('reasonChart');
+  if (!canvas) return;
+  if (!agg.length) { canvas.parentElement.innerHTML = '<div class="empty">No churn to chart in this selection.</div>'; return; }
+  const t = agg.reduce((a,r)=>a+r.count,0);
+  reasonChart = new Chart(canvas, {
+    type: 'doughnut',
+    data: { labels: agg.map(r=>r.reason), datasets: [{ data: agg.map(r=>r.count), backgroundColor: agg.map(r=>REASON_COLORS[r.reason]||'#888'), borderWidth: 0 }] },
+    plugins: [window.ChartDataLabels].filter(Boolean),
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '58%',
+      onClick: (evt, els) => { if (els && els.length) { const rz = agg[els[0].index].reason; fReason = fReason===rz ? '' : rz; renderPeriod(); } },
+      plugins: {
+        legend: { position: 'bottom', labels: { usePointStyle:true, boxWidth:8, boxHeight:8, padding:8, font:{size:10}, color:'rgba(255,255,255,.75)' } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} (${t?Math.round(ctx.raw/t*100):0}%)` } },
+        datalabels: window.ChartDataLabels ? { color:'#fff', font:{size:11,weight:'700'}, formatter:(v)=> t&&(v/t*100)>=8?Math.round(v/t*100)+'%':'' } : undefined,
+      }
+    }
+  });
+}
+
 function renderDetail() {
-  const rows = periodChurned();
-  const fmtCur = (v) => { const n=Number(v)||0; return Math.abs(n)>=1000 ? '$'+(n/1000).toFixed(n%1000?1:0)+'k' : '$'+n.toFixed(0); };
+  const rows = periodFiltered();
   $('detailRows').innerHTML = rows.length ? rows.map(c => `
     <tr><td>${esc(c.client)}</td><td>${esc(c.service)}</td><td class="num">${c.lifetime}</td>
     <td>${esc(c.reason)}</td><td class="num">${fmtCur(c.retainer)}</td><td class="num">${esc(c.endDate||'—')}</td></tr>`).join('')
-    : `<tr><td colspan="6" class="empty">No churned clients in this period.</td></tr>`;
+    : `<tr><td colspan="6" class="empty">No churned clients match this selection.</td></tr>`;
 }
+
+// Click-to-filter (link filters): speed bands + reason tiles toggle the filter.
+document.addEventListener('click', (e) => {
+  if (!DATA) return;
+  const bEl = e.target.closest('[data-bucket]');
+  if (bEl) { const k = bEl.dataset.bucket; fBucket = fBucket === k ? '' : k; renderPeriod(); return; }
+  const rEl = e.target.closest('[data-reason]');
+  if (rEl) { const rz = rEl.dataset.reason; fReason = fReason === rz ? '' : rz; renderPeriod(); return; }
+});
 
 async function boot() {
   const token = getToken();
@@ -415,12 +434,11 @@ async function boot() {
     if (!res.ok) { $('root').innerHTML = `<div class="msg">${esc(data.error || ('Could not load your view (' + res.status + ').'))}</div>`; return; }
     if (!data.months || !data.months.length) { $('root').innerHTML = '<div class="msg">No churn history found for your account yet.</div>'; return; }
     DATA = data;
-    // Anchor the axis at the viewer's first client (first month with any active book).
     const mb = meSeries().base || [];
     minPos = mb.findIndex(b => b > 0);
     if (minPos < 0) minPos = 0;
     toPos = DATA.months.length - 1;
-    fromPos = minPos;                    // default: since their first client
+    fromPos = minPos;
     renderShell();
     renderPeriod();
   } catch (e) {
