@@ -256,7 +256,7 @@ function renderShell() {
     <h2>Your churned clients <span class="h2note">· in selected period</span></h2>
     <div class="shell" style="padding:0;max-height:360px;overflow:auto;">
       <table class="detail">
-        <thead><tr><th>Client</th><th>Service</th><th class="num">Months</th><th>Reason</th><th class="num">Retainer</th><th class="num">Churned</th></tr></thead>
+        <thead><tr><th>Client</th><th>Service</th><th class="num">Months</th><th>Reason</th><th class="num">Churned</th></tr></thead>
         <tbody id="detailRows"></tbody>
       </table>
     </div>`;
@@ -434,8 +434,8 @@ function renderDetail() {
   const rows = periodFiltered();
   $('detailRows').innerHTML = rows.length ? rows.map(c => `
     <tr><td>${esc(c.client)}</td><td>${esc(c.service)}</td><td class="num">${c.lifetime}</td>
-    <td>${esc(c.reason)}</td><td class="num">${fmtCur(c.retainer)}</td><td class="num">${esc(c.endDate||'—')}</td></tr>`).join('')
-    : `<tr><td colspan="6" class="empty">No churned clients match this selection.</td></tr>`;
+    <td>${esc(c.reason)}</td><td class="num">${esc(c.endDate||'—')}</td></tr>`).join('')
+    : `<tr><td colspan="5" class="empty">No churned clients match this selection.</td></tr>`;
 }
 
 // Click-to-filter (link filters): speed bands + reason tiles toggle the filter.
