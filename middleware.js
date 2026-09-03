@@ -36,20 +36,22 @@ export default async function middleware(request) {
   // Login form submission
   if (request.method === 'POST' && url.pathname === '/auth') {
     let password = '';
+    let next = url.searchParams.get('next') || '';
     try {
       const form = await request.formData();
       password = String(form.get('password') || '');
+      if (!next) next = String(form.get('next') || '');
     } catch { /* ignore malformed bodies */ }
     if (password === PASSWORD) {
       return new Response(null, {
         status: 302,
         headers: {
-          'Location': '/',
+          'Location': safeNext(next),   // return to where they were headed (e.g. the directory)
           'Set-Cookie': `${COOKIE_NAME}=${COOKIE_VALUE}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${COOKIE_MAX_AGE}`,
         },
       });
     }
-    return loginResponse({ error: 'Incorrect password. Try again.' });
+    return loginResponse({ error: 'Incorrect password. Try again.', next });
   }
 
   // Member login form submission — separate password, member views only.
@@ -98,14 +100,22 @@ export default async function middleware(request) {
     return; // token valid + member password present → allow through
   }
 
-  // Anything else requires the master password.
-  return loginResponse({});
+  // Anything else requires the master password. Remember where they were going
+  // so a successful sign-in returns them there (e.g. /api/member-links).
+  return loginResponse({ next: url.pathname + url.search });
 }
 
-function loginResponse({ error } = {}) {
+// Only allow same-origin absolute paths as a post-login redirect target.
+function safeNext(next) {
+  if (typeof next === 'string' && next.startsWith('/') && !next.startsWith('//') && !next.includes('://')) return next;
+  return '/';
+}
+
+function loginResponse({ error, next } = {}) {
   const errorHtml = error
     ? `<div class="err">${error}</div>`
     : `<div class="err" style="visibility:hidden">.</div>`;
+  const nextVal = String(next || '').replace(/"/g, '&quot;');
   const html = `<!doctype html>
 <html lang="en">
 <head>
@@ -218,6 +228,7 @@ function loginResponse({ error } = {}) {
     <form method="POST" action="/auth" autocomplete="on">
       <label for="password">Password</label>
       <input type="password" id="password" name="password" autofocus required autocomplete="current-password" />
+      <input type="hidden" name="next" value="${nextVal}" />
       <button type="submit">Unlock dashboard</button>
       ${errorHtml}
     </form>

@@ -26,6 +26,10 @@ export default async function handler(req, res) {
   *,*::before,*::after{box-sizing:border-box}
   body{margin:0;font-family:'Inter',system-ui,-apple-system,sans-serif;background:radial-gradient(circle at 20% 0%,#11314c 0%,#0a1929 55%,#050e1a 100%);color:#e5edf6;min-height:100vh;padding:40px 20px}
   .wrap{max-width:840px;margin:0 auto}
+  .topbar{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+  .btn-ghost{display:inline-flex;align-items:center;gap:6px;text-decoration:none;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10);color:#cdd8e6;border-radius:8px;font-size:12px;font-weight:600;padding:8px 12px;transition:background .12s}
+  .btn-ghost:hover{background:rgba(255,255,255,.09)}
+  .admin-tag{font-size:11px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em}
   h1{font-size:24px;margin:0 0 4px}
   .sub{color:rgba(255,255,255,.55);font-size:13px;margin-bottom:28px}
   h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.5);margin:28px 0 10px}
@@ -37,7 +41,7 @@ export default async function handler(req, res) {
   button.copied{background:#22c55e}
   .empty{color:rgba(255,255,255,.4);font-size:13px;padding:12px 0}
   .warn{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);color:#fca5a5;border-radius:8px;padding:12px 14px;font-size:13px;margin-bottom:20px}
-</style></head><body><div class="wrap">${bodyHtml}</div>
+</style></head><body><div class="wrap"><div class="topbar"><a class="btn-ghost" href="/">&larr; Main dashboard</a><span class="admin-tag">Admin · member links directory</span></div>${bodyHtml}</div>
 <script>
   document.addEventListener('click', function(e){
     var b = e.target.closest('button[data-link]'); if(!b) return;

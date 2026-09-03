@@ -147,6 +147,17 @@ header.app-header{
 }
 .refresh-btn:hover{background:var(--card-strong);}
 .refresh-btn.spin svg{animation:spin .8s linear infinite;}
+.dir-btn{
+  margin-left:auto;
+  display:inline-flex;align-items:center;gap:6px;
+  border:1px solid var(--card-border);
+  background:rgba(255,255,255,0.04);
+  color:var(--muted);text-decoration:none;
+  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;
+  border-radius:8px;padding:6px 11px;white-space:nowrap;
+  transition:background .12s,color .12s;
+}
+.dir-btn:hover{background:rgba(255,255,255,0.08);color:var(--text);}
 .refresh-btn .ts{font-size:10px;color:var(--muted);}
 
 /* ── STATUS BAR ─────────────────────────────────────────────────────── */
@@ -1076,6 +1087,10 @@ td.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
       <button class="tab-btn" data-tab="analytics"  onclick="showTab(this)">Analytics</button>
       <button class="tab-btn" data-tab="people"     onclick="showTab(this)" style="display:none">People</button>
     </div>
+    <a class="dir-btn" href="/api/member-links" title="Member links directory (admin)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      Member links
+    </a>
   </div>
 </header>
 
