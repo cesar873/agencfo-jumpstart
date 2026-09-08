@@ -208,11 +208,14 @@ export function buildMemberPayload(churned, actives, me) {
   // Month axis: earliest start → current month.
   const now = new Date();
   const nowIdx = now.getFullYear() * 12 + now.getMonth();
+  // The current month is incomplete (churn still accruing), so the axis ends at
+  // the LAST COMPLETE month — the current month is never shown or averaged.
+  const lastComplete = nowIdx - 1;
   const starts = all.map(c => c.sIdx).filter(v => v != null);
-  let minIdx = starts.length ? Math.min(...starts) : nowIdx;
-  if (minIdx > nowIdx) minIdx = nowIdx;
+  let minIdx = starts.length ? Math.min(...starts) : lastComplete;
+  if (minIdx > lastComplete) minIdx = lastComplete;
   const months = [];
-  for (let k = minIdx; k <= nowIdx; k++) months.push({ idx: k, label: idxToLabel(k) });
+  for (let k = minIdx; k <= lastComplete; k++) months.push({ idx: k, label: idxToLabel(k) });
 
   // Per-person aligned base[]/churned[] over the month axis.
   const groups = new Map();
