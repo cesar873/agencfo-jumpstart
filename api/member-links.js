@@ -5,7 +5,7 @@
 
 import { signToken } from '../_token.js';
 import { sheetsValues, listTabs } from './_google.js';
-import { parseChurnRows, parseServicesRows, activeFromServices, rosterFromRecords } from './_churn.js';
+import { parsePeopleRows, rosterFromPeople } from './_churn.js';
 
 const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -59,20 +59,14 @@ export default async function handler(req, res) {
 
   try {
     const tabs = await listTabs();
-    const churnTab = tabs.find(t => /^\s*churn\s*analysis\s*$/i.test(t)) || tabs.find(t => /churn/i.test(t));
-    if (!churnTab) throw new Error('Churn Analysis tab not found.');
-    const svcTab = tabs.find(t => /^\s*services?\s*$/i.test(t));
-    const churned = parseChurnRows(await sheetsValues(`${churnTab}!A1:Z2000`));
-    let actives = [];
-    if (svcTab) {
-      try { actives = activeFromServices(parseServicesRows(await sheetsValues(`${svcTab}!A1:BZ2000`))); }
-      catch { actives = []; }
-    }
-    const { ams, mbs } = rosterFromRecords(churned, actives);
+    const peopleTab = tabs.find(t => /^\s*people\s*$/i.test(t));
+    if (!peopleTab) throw new Error('People tab not found.');
+    const people = parsePeopleRows(await sheetsValues(`${peopleTab}!A1:H400`));
+    const { ams, mbs } = rosterFromPeople(people);
     const base = origin();
 
     const section = async (title, names, role) => {
-      if (!names.length) return `<h2>${esc(title)}</h2><div class="empty">None found in the churn data.</div>`;
+      if (!names.length) return `<h2>${esc(title)}</h2><div class="empty">None found in the People tab.</div>`;
       const rows = await Promise.all(names.map(async (name) => {
         const token = await signToken({ n: name, r: role }, secret);
         const link = `${base}/member.html?m=${encodeURIComponent(token)}`;
@@ -82,7 +76,7 @@ export default async function handler(req, res) {
     };
 
     const body = `<h1>Member links</h1>
-      <div class="sub">One private link per person. Each opens their own scoped view after the member password. Links do not expire; rotating <code>MEMBER_LINK_SECRET</code> invalidates all of them.</div>
+      <div class="sub">One private link per <strong>active</strong> person (roster + roles pulled live from the People tab — joiners/leavers update automatically). Each opens their own scoped view after the member password. Links do not expire; rotating <code>MEMBER_LINK_SECRET</code> invalidates all of them.</div>
       ${await section('Account Managers', ams, 'AM')}
       ${await section('Team Members (MB)', mbs, 'MB')}`;
 

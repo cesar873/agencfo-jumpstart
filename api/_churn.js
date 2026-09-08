@@ -147,31 +147,11 @@ export function activeFromServices(serviceRecords) {
     .map(r => ({ client: r.client, service: r.service, am: r.am, teamMember: r.teamMember, retainer: r.retainer, startDate: localISO(r.startDate), isActive: true }));
 }
 
-/** Distinct AM and MB names across churned AND active engagements, so everyone
-    with any contract gets a link / appears on the leaderboard. */
-export function rosterFromRecords(churned, actives = []) {
-  const ams = new Set(), mbs = new Set();
-  const add = (r) => { if (r.am) ams.add(r.am); if (r.teamMember) mbs.add(r.teamMember); };
-  churned.forEach(add); actives.forEach(add);
-  const sortFor = (s, role) => Array.from(s).filter(n => !isExcludedFor(n, role)).sort((a, b) => a.localeCompare(b));
-  return { ams: sortFor(ams, 'AM'), mbs: sortFor(mbs, 'MB') };
+/** Split a possibly comma-separated names cell into individual trimmed names
+    (Services "Team Member" can list several media buyers on one client). */
+function splitNames(s) {
+  return String(s || '').split(',').map(x => x.trim()).filter(Boolean);
 }
-
-const roleKey = (role) => (role === 'AM' ? 'am' : 'teamMember');
-
-// People excluded from rankings + link roster. Matched on WHOLE words
-// (case-insensitive), so a short name like "nic" hits "Nic" / "Nic Smith" but
-// not "Nicole" / "Dominic".
-const EXCLUDED_NAMES = ['brennan', 'crawford', 'graeme', 'skakuj', 'perea', 'abdul hadi']; // both roles
-const EXCLUDED_AM = [];          // excluded from the AM role only
-const EXCLUDED_MB = ['nic'];     // excluded from the MB (media buyer) role only
-function _nameHits(name, list) {
-  const n = String(name || '').trim().toLowerCase();
-  if (!n) return false;
-  return list.some(x => new RegExp('\\b' + x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(n));
-}
-const isExcludedFor = (name, role) =>
-  _nameHits(name, EXCLUDED_NAMES) || _nameHits(name, role === 'AM' ? EXCLUDED_AM : EXCLUDED_MB);
 
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 // Month index = year*12 + (month-1). Reversible, easy to compare/iterate.
@@ -179,9 +159,54 @@ function isoToIdx(iso) {
   const m = iso && String(iso).match(/^(\d{4})-(\d{2})/);
   return m ? (+m[1]) * 12 + (+m[2] - 1) : null;
 }
+function dateToIdx(v) {
+  const d = parseDateLoose(v);
+  return d ? d.getFullYear() * 12 + d.getMonth() : null;
+}
 function idxToLabel(idx) {
   return `${MON[((idx % 12) + 12) % 12]} '${String(Math.floor(idx / 12)).slice(2)}`;
 }
+
+/** Parse the People tab — the authoritative roster + tenure source.
+    Category "Account Managers" -> AM, "Media Buyers" -> MB (every other
+    category, incl. "Owner, Account Managers", is excluded). A Status of
+    left/inactive/former/terminated marks someone as no longer active. */
+export function parsePeopleRows(rows) {
+  if (!rows || rows.length < 2) return [];
+  const header = (rows[0] || []).map(h => String(h || '').trim());
+  const col = (name) => header.findIndex(h => h.toLowerCase() === name.toLowerCase());
+  const iN = col('Name'), iStat = col('Status'), iCat = col('Category'), iS = col('Start Date'), iE = col('End Date');
+  if (iN < 0 || iCat < 0) return [];
+  const out = [];
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const name = String(row[iN] || '').trim();
+    if (!name) continue;
+    const cat = String(row[iCat] || '').trim();
+    let role = null;
+    if (/^account managers$/i.test(cat)) role = 'AM';
+    else if (/^media buyers$/i.test(cat)) role = 'MB';
+    const status = iStat >= 0 ? String(row[iStat] || '').trim() : '';
+    out.push({
+      name, role, status,
+      active: !/left|inactive|former|terminated/i.test(status),
+      hireIdx: iS >= 0 ? dateToIdx(row[iS]) : null,
+      endIdx: iE >= 0 ? dateToIdx(row[iE]) : null,
+    });
+  }
+  return out;
+}
+
+/** Active AM / MB roster (names) from the People tab. */
+export function rosterFromPeople(people) {
+  const pick = (role) => (people || [])
+    .filter(p => p.role === role && p.active)
+    .map(p => p.name)
+    .sort((a, b) => a.localeCompare(b));
+  return { ams: pick('AM'), mbs: pick('MB') };
+}
+
+const roleField = (role) => (role === 'AM' ? 'am' : 'teamMember');
 
 /** Monthly churn payload for one member.
  *
@@ -196,59 +221,85 @@ function idxToLabel(idx) {
  * leaderboard for that window. Only the viewer's OWN raw churned rows are sent
  * (for the reason/contract detail); peers are aggregate counts only.
  */
-export function buildMemberPayload(churned, actives, me) {
-  const key = roleKey(me.role);
+export function buildMemberPayload(churned, actives, people, me) {
   const norm = (s) => String(s || '').trim().toLowerCase();
+  const field = roleField(me.role);
 
-  const all = [
-    ...churned.map(r => ({ who: r[key], sIdx: isoToIdx(r.startDate), eIdx: isoToIdx(r.endDate) })),
-    ...(actives || []).map(r => ({ who: r[key], sIdx: isoToIdx(r.startDate), eIdx: null })),
-  ];
+  // Expand contracts to (who, start-idx, end-idx) for the viewer's role field.
+  // A Team Member cell can list several MBs (comma-separated) -> one entry each.
+  const expand = [];
+  const push = (whoRaw, sIdx, eIdx) => {
+    const names = me.role === 'MB' ? splitNames(whoRaw) : (whoRaw ? [String(whoRaw).trim()] : []);
+    names.forEach(nm => { if (nm) expand.push({ who: nm, key: norm(nm), sIdx, eIdx }); });
+  };
+  churned.forEach(r => push(r[field], isoToIdx(r.startDate), isoToIdx(r.endDate)));
+  (actives || []).forEach(r => push(r[field], isoToIdx(r.startDate), null));
 
-  // Month axis: earliest start → current month.
+  // Tenure start per person: People hire date first, else earliest client start.
+  const hireOf = new Map();
+  (people || []).forEach(p => { if (p.hireIdx != null) hireOf.set(norm(p.name), p.hireIdx); });
+  const earliest = new Map();
+  expand.forEach(c => {
+    if (c.sIdx == null) return;
+    if (!earliest.has(c.key) || c.sIdx < earliest.get(c.key)) earliest.set(c.key, c.sIdx);
+  });
+  const startOf = (nm) => {
+    const k = norm(nm);
+    return hireOf.has(k) ? hireOf.get(k) : (earliest.has(k) ? earliest.get(k) : null);
+  };
+
+  // Month axis: earliest tenure/contract start -> last COMPLETE month (the
+  // current, still-accruing month is never shown or averaged).
   const now = new Date();
   const nowIdx = now.getFullYear() * 12 + now.getMonth();
-  // The current month is incomplete (churn still accruing), so the axis ends at
-  // the LAST COMPLETE month — the current month is never shown or averaged.
   const lastComplete = nowIdx - 1;
-  const starts = all.map(c => c.sIdx).filter(v => v != null);
-  let minIdx = starts.length ? Math.min(...starts) : lastComplete;
+  const allStarts = [];
+  expand.forEach(c => { if (c.sIdx != null) allStarts.push(c.sIdx); });
+  hireOf.forEach(v => allStarts.push(v));
+  let minIdx = allStarts.length ? Math.min(...allStarts) : lastComplete;
   if (minIdx > lastComplete) minIdx = lastComplete;
   const months = [];
   for (let k = minIdx; k <= lastComplete; k++) months.push({ idx: k, label: idxToLabel(k) });
 
-  // Per-person aligned base[]/churned[] over the month axis.
-  const groups = new Map();
-  all.forEach(c => {
-    if (!c.who) return;
-    if (!groups.has(c.who)) groups.set(c.who, []);
-    groups.get(c.who).push(c);
-  });
-  const people = Array.from(groups.entries()).filter(([name]) => !isExcludedFor(name, me.role)).map(([name, cs]) => {
-    const base = months.map(() => 0);
-    const churnedArr = months.map(() => 0);
+  // Roster = Active people of this role (People tab); fallback to data-derived
+  // names if the People tab is missing/empty.
+  let rosterNames = (people || []).filter(p => p.role === me.role && p.active).map(p => p.name);
+  if (!rosterNames.length) rosterNames = Array.from(new Set(expand.map(c => c.who)));
+
+  const byPerson = new Map();
+  expand.forEach(c => { if (!byPerson.has(c.key)) byPerson.set(c.key, []); byPerson.get(c.key).push(c); });
+
+  // Each person's monthly base/churned, CLAMPED to their tenure start so
+  // pre-hire (often mis-attributed) months never dilute their rate.
+  const peopleOut = rosterNames.map(name => {
+    const start = startOf(name);
+    const cs = byPerson.get(norm(name)) || [];
+    const base = months.map(() => 0), churnedArr = months.map(() => 0);
     cs.forEach(c => {
       if (c.sIdx == null) return;
       for (let i = 0; i < months.length; i++) {
         const k = months[i].idx;
+        if (start != null && k < start) continue;
         if (c.sIdx <= k && (c.eIdx == null || c.eIdx >= k)) base[i]++;
         if (c.eIdx === k) churnedArr[i]++;
       }
     });
-    return { name, isMe: norm(name) === norm(me.name), base, churned: churnedArr };
+    return { name, isMe: norm(name) === norm(me.name), startIdx: start, base, churned: churnedArr };
   }).sort((a, b) => a.name.localeCompare(b.name));
 
+  const meStart = startOf(me.name);
   // Viewer's own churned engagements (raw) for the reason donut + detail table,
-  // period-filterable client-side by endDate.
+  // limited to their tenure (churns dated on/after their start).
   const mineChurned = churned
-    .filter(r => norm(r[key]) === norm(me.name))
+    .filter(r => me.role === 'MB' ? splitNames(r[field]).some(n => norm(n) === norm(me.name)) : norm(r[field]) === norm(me.name))
+    .filter(r => { const e = isoToIdx(r.endDate); return e != null && (meStart == null || e >= meStart); })
     .map(r => ({ client: r.client, service: r.svcShort, startDate: r.startDate, endDate: r.endDate, lifetime: r.lifetime, reason: r.reason, retainer: r.retainer }))
     .sort((a, b) => (b.endDate || '').localeCompare(a.endDate || ''));
 
   return {
-    me: { name: me.name, role: me.role, churned: mineChurned },
+    me: { name: me.name, role: me.role, startIdx: meStart, churned: mineChurned },
     months,
-    leaderboard: { role: me.role, people },
-    meta: { totalInRole: people.length, churnedRecords: churned.length, activeRecords: (actives || []).length },
+    leaderboard: { role: me.role, people: peopleOut },
+    meta: { totalInRole: peopleOut.length, churnedRecords: churned.length, activeRecords: (actives || []).length, rosterSource: (people && people.length) ? 'people' : 'data' },
   };
 }

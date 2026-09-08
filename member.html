@@ -188,6 +188,12 @@ function monthlyCountsFor(set) {
 }
 const filteredAll = () => (DATA.me.churned || []).filter(matchReason).filter(matchBucket);
 
+// Did this person have any active book within the selected window?
+function activeInWindow(p) {
+  for (let i = fromPos; i <= toPos; i++) if ((p.base[i] || 0) > 0) return true;
+  return false;
+}
+
 // Leaderboard aggregate stats (peer arrays, not reason/speed filterable).
 function periodStats(base, churned) {
   let sumCh = 0, rateSum = 0, rateN = 0;
@@ -303,7 +309,8 @@ function renderKpis() {
   const avgMonthly = rateN ? rateSum/rateN : 0;
   const activeEnd = base[toPos] || 0;
   const boardTitle = DATA.me.role === 'AM' ? 'account managers' : 'team members';
-  const ranked = DATA.leaderboard.people.map(p => ({ isMe: p.isMe, v: periodStats(p.base, p.churned).avgMonthly })).sort((a,b) => a.v - b.v);
+  const field = DATA.leaderboard.people.filter(p => p.isMe || activeInWindow(p));
+  const ranked = field.map(p => ({ isMe: p.isMe, v: periodStats(p.base, p.churned).avgMonthly })).sort((a,b) => a.v - b.v);
   const rank = ranked.findIndex(p => p.isMe) + 1;
   const lts = periodFiltered().map(r => r.lifetime).sort((a,b) => a-b);
   const avgLife = lts.length ? lts.reduce((a,b)=>a+b,0)/lts.length : 0;
@@ -315,11 +322,12 @@ function renderKpis() {
     <div class="kpi"><div class="l">Avg retention</div><div class="v">${avgLife.toFixed(1)}</div><div class="m">months before churn · median ${medLife}</div></div>
     <div class="kpi"><div class="l">Churned in period</div><div class="v">${sumCh}</div><div class="m">clients lost in the window</div></div>
     <div class="kpi"><div class="l">Active book</div><div class="v">${activeEnd}</div><div class="m">clients at ${esc(DATA.months[toPos].label)}</div></div>
-    <div class="kpi"><div class="l">Your rank</div><div class="v">${rank ? '#'+rank : '—'}</div><div class="m">of ${DATA.leaderboard.people.length} ${boardTitle} · #1 = lowest churn</div></div>`;
+    <div class="kpi"><div class="l">Your rank</div><div class="v">${rank ? '#'+rank : '—'}</div><div class="m">of ${field.length} ${boardTitle} · #1 = lowest churn</div></div>`;
 }
 
 function renderBoard() {
   const rows = DATA.leaderboard.people
+    .filter(p => p.isMe || activeInWindow(p))   // drop people with no active book in the window
     .map(p => { const st = periodStats(p.base, p.churned); return { name: p.name, isMe: p.isMe, avg: st.avgMonthly, churned: st.churned }; })
     .sort((a,b) => a.avg - b.avg || a.churned - b.churned)
     .map((d,i) => ({ ...d, rank: i+1 }));
@@ -501,11 +509,18 @@ async function boot() {
     if (!res.ok) { $('root').innerHTML = `<div class="msg">${esc(data.error || ('Could not load your view (' + res.status + ').'))}</div>`; return; }
     if (!data.months || !data.months.length) { $('root').innerHTML = '<div class="msg">No churn history found for your account yet.</div>'; return; }
     DATA = data;
-    const mb = meSeries().base || [];
-    minPos = mb.findIndex(b => b > 0);
-    if (minPos < 0) minPos = 0;
+    // Anchor at the viewer's tenure start (People hire date from the payload);
+    // fall back to their first active month if it isn't provided.
+    minPos = 0;
+    if (DATA.me.startIdx != null) {
+      const p = DATA.months.findIndex(m => m.idx >= DATA.me.startIdx);
+      minPos = p < 0 ? 0 : p;
+    } else {
+      const p = (meSeries().base || []).findIndex(b => b > 0);
+      minPos = p < 0 ? 0 : p;
+    }
     toPos = DATA.months.length - 1;
-    fromPos = minPos;
+    fromPos = Math.max(minPos, toPos - 11);   // default: last 12 complete months
     renderShell();
     renderPeriod();
   } catch (e) {
