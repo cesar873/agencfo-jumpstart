@@ -45,6 +45,16 @@ export default async function handler(req, res) {
       catch { people = []; }
     }
 
+    // Auto-revoke: if we have People data, the link's person must still be an
+    // ACTIVE AM/MB there. Someone marked "Left" (or moved off an AM/MB role)
+    // can no longer open their link. (Skipped if People is unavailable, so a
+    // transient sheet error never locks everyone out.)
+    if (people.length) {
+      const norm = (s) => String(s || '').trim().toLowerCase();
+      const stillActive = people.some(p => p.active && p.role === me.role && norm(p.name) === norm(me.name));
+      if (!stillActive) return res.status(403).json({ error: 'This link is no longer active — access has ended.' });
+    }
+
     const result = buildMemberPayload(churned, actives, people, me);
     result.meta.churnTab = churnTab;
     result.meta.servicesTab = svcTab || null;
